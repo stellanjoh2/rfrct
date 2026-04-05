@@ -59,6 +59,7 @@ export function App() {
   const [pointerDrag, setPointerDrag] = useState<"pan" | "fx" | null>(null);
 
   const [uiVisible, setUiVisible] = useState(true);
+  const [webglError, setWebglError] = useState<string | null>(null);
 
   const captureScreenshot = useCallback(() => {
     const canvas = canvasRef.current;
@@ -140,7 +141,16 @@ export function App() {
     const wrap = wrapRef.current;
     if (!canvas || !wrap) return;
 
-    const renderer = new RefractRenderer(canvas);
+    let renderer: RefractRenderer;
+    try {
+      renderer = new RefractRenderer(canvas);
+    } catch (e) {
+      setWebglError(
+        e instanceof Error ? e.message : "WebGL2 is required for this demo.",
+      );
+      return;
+    }
+    setWebglError(null);
     rendererRef.current = renderer;
     renderer.blob.centerX = blobCenterRef.current.x;
     renderer.blob.centerY = blobCenterRef.current.y;
@@ -359,6 +369,11 @@ export function App() {
 
   return (
     <div className="app">
+      {webglError && (
+        <div className="webgl-error-banner" role="alert">
+          WebGL2 required — {webglError}
+        </div>
+      )}
       <div className="main">
         <div className="viewport" ref={wrapRef} style={{ background: bgHex }}>
           <canvas

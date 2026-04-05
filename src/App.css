@@ -34,6 +34,23 @@ body {
   min-height: 100%;
 }
 
+.webgl-error-banner {
+  position: fixed;
+  z-index: 30;
+  left: 50%;
+  transform: translateX(-50%);
+  top: 12px;
+  max-width: min(90vw, 420px);
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: rgba(255, 240, 240, 0.95);
+  background: rgba(120, 32, 32, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
 .main {
   flex: 1;
   position: relative;
