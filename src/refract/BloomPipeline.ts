@@ -1,22 +1,23 @@
 import {
-  BLOOM_FRAG_BLUR,
   BLOOM_FRAG_BRIGHT,
   BLOOM_FRAG_COMPOSITE,
+  BLOOM_FRAG_KAWASE,
   BLOOM_VERT,
 } from "./bloomShaders";
 import type { BloomParams } from "./types";
 import { compileShader, linkProgram } from "./webgl";
 
 /**
- * Half-res bloom: scene FBO → bright → separable blur → composite to default framebuffer.
+ * Full-resolution bloom buffers + multi-pass Kawase blur: no upscale grid, and
+ * isotropic blur avoids separable Gaussian cross-hatching at large radii.
  */
 export class BloomPipeline {
   private readonly gl: WebGL2RenderingContext;
   private readonly progBright: WebGLProgram;
-  private readonly progBlur: WebGLProgram;
+  private readonly progKawase: WebGLProgram;
   private readonly progComposite: WebGLProgram;
   private readonly brightLocs: Record<string, WebGLUniformLocation | null>;
-  private readonly blurLocs: Record<string, WebGLUniformLocation | null>;
+  private readonly kawaseLocs: Record<string, WebGLUniformLocation | null>;
   private readonly compositeLocs: Record<string, WebGLUniformLocation | null>;
 
   private sceneTex: WebGLTexture | null = null;
@@ -27,32 +28,33 @@ export class BloomPipeline {
   private bloomFboB: WebGLFramebuffer | null = null;
   private fbW = 0;
   private fbH = 0;
-  private halfW = 0;
-  private halfH = 0;
+  /** Bloom ping-pong matches canvas backing size (same pixel grid as composite). */
+  private bloomW = 0;
+  private bloomH = 0;
 
   constructor(gl: WebGL2RenderingContext) {
     this.gl = gl;
 
     const bv = compileShader(gl, gl.VERTEX_SHADER, BLOOM_VERT);
     const bBright = compileShader(gl, gl.FRAGMENT_SHADER, BLOOM_FRAG_BRIGHT);
-    const bBlur = compileShader(gl, gl.FRAGMENT_SHADER, BLOOM_FRAG_BLUR);
+    const bKawase = compileShader(gl, gl.FRAGMENT_SHADER, BLOOM_FRAG_KAWASE);
     const bComp = compileShader(gl, gl.FRAGMENT_SHADER, BLOOM_FRAG_COMPOSITE);
     this.progBright = linkProgram(gl, bv, bBright);
-    this.progBlur = linkProgram(gl, bv, bBlur);
+    this.progKawase = linkProgram(gl, bv, bKawase);
     this.progComposite = linkProgram(gl, bv, bComp);
     gl.deleteShader(bv);
     gl.deleteShader(bBright);
-    gl.deleteShader(bBlur);
+    gl.deleteShader(bKawase);
     gl.deleteShader(bComp);
 
     this.brightLocs = {};
-    this.blurLocs = {};
+    this.kawaseLocs = {};
     this.compositeLocs = {};
     for (const n of ["u_scene", "u_resolution", "u_threshold", "u_softKnee"] as const) {
       this.brightLocs[n] = gl.getUniformLocation(this.progBright, n);
     }
-    for (const n of ["u_tex", "u_resolution", "u_direction", "u_sigma"] as const) {
-      this.blurLocs[n] = gl.getUniformLocation(this.progBlur, n);
+    for (const n of ["u_tex", "u_resolution", "u_offsetPx"] as const) {
+      this.kawaseLocs[n] = gl.getUniformLocation(this.progKawase, n);
     }
     for (const n of ["u_scene", "u_bloom", "u_resolution", "u_strength"] as const) {
       this.compositeLocs[n] = gl.getUniformLocation(this.progComposite, n);
@@ -62,15 +64,15 @@ export class BloomPipeline {
     gl.uniform1i(this.compositeLocs.u_bloom, 1);
     gl.useProgram(this.progBright);
     gl.uniform1i(this.brightLocs.u_scene, 0);
-    gl.useProgram(this.progBlur);
-    gl.uniform1i(this.blurLocs.u_tex, 0);
+    gl.useProgram(this.progKawase);
+    gl.uniform1i(this.kawaseLocs.u_tex, 0);
   }
 
   dispose(): void {
     const gl = this.gl;
     this.releaseFramebuffers();
     gl.deleteProgram(this.progBright);
-    gl.deleteProgram(this.progBlur);
+    gl.deleteProgram(this.progKawase);
     gl.deleteProgram(this.progComposite);
   }
 
@@ -91,8 +93,8 @@ export class BloomPipeline {
     this.bloomTexB = null;
     this.fbW = 0;
     this.fbH = 0;
-    this.halfW = 0;
-    this.halfH = 0;
+    this.bloomW = 0;
+    this.bloomH = 0;
   }
 
   ensureFramebuffers(w: number, h: number): void {
@@ -101,8 +103,8 @@ export class BloomPipeline {
     }
     this.releaseFramebuffers();
     const gl = this.gl;
-    const hw = Math.max(1, Math.floor(w / 2));
-    const hh = Math.max(1, Math.floor(h / 2));
+    const hw = Math.max(1, w);
+    const hh = Math.max(1, h);
 
     const makeTex = (tw: number, th: number) => {
       const t = gl.createTexture()!;
@@ -153,8 +155,8 @@ export class BloomPipeline {
     this.bloomFboB = makeFbo(this.bloomTexB);
     this.fbW = w;
     this.fbH = h;
-    this.halfW = hw;
-    this.halfH = hh;
+    this.bloomW = hw;
+    this.bloomH = hh;
   }
 
   getSceneFramebuffer(): WebGLFramebuffer {
@@ -175,56 +177,44 @@ export class BloomPipeline {
     canvasH: number,
   ): void {
     const gl = this.gl;
-    const hw = this.halfW;
-    const hh = this.halfH;
+    const bw = this.bloomW;
+    const bh = this.bloomH;
     const sceneTex = this.sceneTex!;
 
     gl.useProgram(this.progBright);
     gl.bindVertexArray(vao);
     gl.bindFramebuffer(gl.FRAMEBUFFER, this.bloomFboA);
-    gl.viewport(0, 0, hw, hh);
+    gl.viewport(0, 0, bw, bh);
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, sceneTex);
-    gl.uniform2f(this.brightLocs.u_resolution!, hw, hh);
+    gl.uniform2f(this.brightLocs.u_resolution!, bw, bh);
     gl.uniform1f(this.brightLocs.u_threshold!, bloom.threshold);
     gl.uniform1f(this.brightLocs.u_softKnee!, bloom.softKnee);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
 
-    const blurIters = Math.max(
-      1,
-      Math.min(4, Math.round(1 + bloom.radius * 4)),
+    const numPasses = Math.min(
+      14,
+      Math.max(5, Math.round(4 + bloom.radius * 5.5)),
     );
-    const sigma = 0.85 + bloom.radius * 9.0;
 
     let read = this.bloomTexA!;
     let write = this.bloomTexB!;
     let readFbo = this.bloomFboA!;
     let writeFbo = this.bloomFboB!;
 
-    for (let i = 0; i < blurIters; i++) {
-      gl.useProgram(this.progBlur);
-      gl.uniform2f(this.blurLocs.u_resolution!, hw, hh);
-      gl.uniform1f(this.blurLocs.u_sigma!, sigma);
-      gl.uniform2f(this.blurLocs.u_direction!, 1, 0);
+    for (let i = 0; i < numPasses; i++) {
+      const offsetPx = (i + 1) * (0.38 + bloom.radius * 0.62);
+      gl.useProgram(this.progKawase);
+      gl.uniform2f(this.kawaseLocs.u_resolution!, bw, bh);
+      gl.uniform1f(this.kawaseLocs.u_offsetPx!, offsetPx);
       gl.bindFramebuffer(gl.FRAMEBUFFER, writeFbo);
       gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, read);
       gl.drawArrays(gl.TRIANGLES, 0, 3);
-      let t = read;
+      const t = read;
       read = write;
       write = t;
-      let f = readFbo;
-      readFbo = writeFbo;
-      writeFbo = f;
-
-      gl.uniform2f(this.blurLocs.u_direction!, 0, 1);
-      gl.bindFramebuffer(gl.FRAMEBUFFER, writeFbo);
-      gl.bindTexture(gl.TEXTURE_2D, read);
-      gl.drawArrays(gl.TRIANGLES, 0, 3);
-      t = read;
-      read = write;
-      write = t;
-      f = readFbo;
+      const f = readFbo;
       readFbo = writeFbo;
       writeFbo = f;
     }

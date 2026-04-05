@@ -8,8 +8,9 @@ void main() {
 `;
 
 /**
- * Dreams (Candy Lands) defaults: strength 0.5, radius 0.2, threshold 1 (HDR).
- * LDR scene: scale luminance before threshold so threshold≈1 still picks bright whites.
+ * Dreams-style threshold is meant for HDR (linear luminance can exceed 1).
+ * LDR framebuffer: boost luminance before the threshold so highlights still
+ * feed the bloom buffer; otherwise strength/radius barely change the image.
  */
 export const BLOOM_FRAG_BRIGHT = `#version 300 es
 precision highp float;
@@ -22,7 +23,7 @@ void main() {
   vec2 uv = gl_FragCoord.xy / u_resolution;
   vec3 c = texture(u_scene, uv).rgb;
   float lum = dot(c, vec3(0.2126, 0.7152, 0.0722));
-  float L = lum * 1.28;
+  float L = lum * 2.05;
   float thresh = max(0.001, u_threshold);
   float knee = max(0.02, u_softKnee);
   float rq = max(0.0, L - thresh);
@@ -32,26 +33,27 @@ void main() {
 }
 `;
 
-/** Separable Gaussian-ish blur (9 taps, sigma scales with uniform). */
-export const BLOOM_FRAG_BLUR = `#version 300 es
+/**
+ * Kawase-style box blur (4 taps, offset in pixels). Multi-pass at full resolution
+ * avoids separable-Gaussian striations and fixed 9-tap banding at large radii.
+ */
+export const BLOOM_FRAG_KAWASE = `#version 300 es
 precision highp float;
 uniform sampler2D u_tex;
 uniform vec2 u_resolution;
-uniform vec2 u_direction;
-uniform float u_sigma;
+uniform float u_offsetPx;
 out vec4 fragColor;
 
 void main() {
   vec2 uv = gl_FragCoord.xy / u_resolution;
-  vec2 px = 1.0 / u_resolution;
-  vec2 dir = normalize(u_direction) * px * max(0.5, u_sigma);
+  vec2 px = vec2(1.0) / u_resolution;
+  vec2 d = px * u_offsetPx;
   vec3 c =
-    texture(u_tex, uv).rgb * 0.2270270270 +
-    texture(u_tex, uv + dir * 1.3846153846).rgb * 0.3162162162 +
-    texture(u_tex, uv - dir * 1.3846153846).rgb * 0.3162162162 +
-    texture(u_tex, uv + dir * 3.2307692308).rgb * 0.0702702703 +
-    texture(u_tex, uv - dir * 3.2307692308).rgb * 0.0702702703;
-  fragColor = vec4(c, 1.0);
+    texture(u_tex, uv + vec2(-d.x, -d.y)).rgb +
+    texture(u_tex, uv + vec2(d.x, -d.y)).rgb +
+    texture(u_tex, uv + vec2(-d.x, d.y)).rgb +
+    texture(u_tex, uv + vec2(d.x, d.y)).rgb;
+  fragColor = vec4(c * 0.25, 1.0);
 }
 `;
 

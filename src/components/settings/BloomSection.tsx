@@ -27,10 +27,13 @@ export function BloomSection({
           <input
             type="range"
             min={0}
-            max={1.5}
+            max={3}
             step={0.05}
             value={bloomStrength}
             onChange={(e) => setBloomStrength(Number(e.target.value))}
+            onInput={(e) =>
+              setBloomStrength(Number((e.target as HTMLInputElement).value))
+            }
           />
         </div>
         <div className="field">
@@ -41,10 +44,13 @@ export function BloomSection({
           <input
             type="range"
             min={0.05}
-            max={1}
+            max={2}
             step={0.05}
             value={bloomRadius}
             onChange={(e) => setBloomRadius(Number(e.target.value))}
+            onInput={(e) =>
+              setBloomRadius(Number((e.target as HTMLInputElement).value))
+            }
           />
         </div>
         <div className="field">
@@ -59,10 +65,14 @@ export function BloomSection({
             step={0.05}
             value={bloomThreshold}
             onChange={(e) => setBloomThreshold(Number(e.target.value))}
+            onInput={(e) =>
+              setBloomThreshold(Number((e.target as HTMLInputElement).value))
+            }
           />
           <p className="field-micro">
-            Dreams-style: higher = only brighter pixels glow (default 1). Set
-            strength to 0 to disable.
+            Higher = only the brightest areas glow. Lower if the glow barely
+            reacts to strength/radius (LDR scenes). Set strength to 0 to
+            disable.
           </p>
         </div>
       </section>

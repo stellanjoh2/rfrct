@@ -65,7 +65,7 @@ export class RefractRenderer {
   bloom: BloomParams = {
     strength: 0.5,
     radius: 0.2,
-    threshold: 1,
+    threshold: 0.88,
     softKnee: 0.1,
   };
 

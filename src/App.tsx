@@ -52,7 +52,7 @@ export function App() {
   const [chroma, setChroma] = useState(0);
   const [bloomStrength, setBloomStrength] = useState(0.5);
   const [bloomRadius, setBloomRadius] = useState(0.2);
-  const [bloomThreshold, setBloomThreshold] = useState(1);
+  const [bloomThreshold, setBloomThreshold] = useState(0.88);
   const [shapeMode, setShapeMode] = useState<ShapeMode>(0);
 
   const blobCenterRef = useRef({ x: 0.5, y: 0.5 });
