@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { downloadCanvasAsPng } from "./capture";
+import { Focus } from "./focus";
 import { applyPanToRect, computeImageRect } from "./refract/layout";
 import { RefractRenderer, type ShapeMode } from "./refract/RefractRenderer";
 import {
@@ -69,14 +70,26 @@ export function App() {
     });
   }, []);
 
+  const focusImage = useCallback(() => {
+    if (!imgDims) return;
+    const t = Focus();
+    setImagePan(t.pan);
+    setImageScale(t.scale);
+  }, [imgDims]);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const el = e.target as HTMLElement | null;
       if (el?.closest("input, textarea, select, [contenteditable='true']")) return;
 
-      if (e.key === "f" || e.key === "F") {
+      if (e.key === "p" || e.key === "P") {
         e.preventDefault();
         setUiVisible((v) => !v);
+        return;
+      }
+      if (e.key === "f" || e.key === "F") {
+        e.preventDefault();
+        focusImage();
         return;
       }
       if (e.key === "c" || e.key === "C") {
@@ -86,7 +99,7 @@ export function App() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [captureScreenshot]);
+  }, [captureScreenshot, focusImage]);
 
   useEffect(() => {
     const el = wrapRef.current;
@@ -595,7 +608,8 @@ export function App() {
           </section>
 
           <p className="shortcut-hint">
-            <kbd>F</kbd> hide / show panel · <kbd>C</kbd> PNG screenshot (viewport)
+            <kbd>P</kbd> hide / show panel · <kbd>F</kbd> focus image ·{" "}
+            <kbd>C</kbd> PNG screenshot (viewport)
           </p>
         </aside>
       </div>
