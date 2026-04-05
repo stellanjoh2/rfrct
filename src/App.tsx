@@ -52,6 +52,10 @@ export function App() {
   /** 1=9 / 2=25 / 3=49 texture taps for frost blur kernel. */
   const [blurQuality, setBlurQuality] = useState(1);
   const [chroma, setChroma] = useState(0);
+  /** Dreams (Candy Lands) defaults: strength 0.5, radius 0.2, threshold 1. */
+  const [bloomStrength, setBloomStrength] = useState(0.5);
+  const [bloomRadius, setBloomRadius] = useState(0.2);
+  const [bloomThreshold, setBloomThreshold] = useState(1);
   const [shapeMode, setShapeMode] = useState<ShapeMode>(0);
 
   const blobCenterRef = useRef({ x: 0.5, y: 0.5 });
@@ -226,6 +230,9 @@ export function App() {
     r.blob.shapeMode = shapeMode;
     r.blob.centerX = blobCenterRef.current.x;
     r.blob.centerY = blobCenterRef.current.y;
+    r.bloom.strength = bloomStrength;
+    r.bloom.radius = bloomRadius;
+    r.bloom.threshold = bloomThreshold;
   }, [
     blobSize,
     blobSpeed,
@@ -237,6 +244,9 @@ export function App() {
     frostBlur,
     blurQuality,
     chroma,
+    bloomStrength,
+    bloomRadius,
+    bloomThreshold,
     shapeMode,
   ]);
 
@@ -598,11 +608,61 @@ export function App() {
               <input
                 type="range"
                 min={0.004}
-                max={0.04}
+                max={0.08}
                 step={0.001}
                 value={edgeSoft}
                 onChange={(e) => setEdgeSoft(Number(e.target.value))}
               />
+            </div>
+          </section>
+
+          <h2>Bloom</h2>
+          <section>
+            <div className="field">
+              <label>
+                Strength
+                <span className="val">{bloomStrength.toFixed(2)}</span>
+              </label>
+              <input
+                type="range"
+                min={0}
+                max={1.5}
+                step={0.05}
+                value={bloomStrength}
+                onChange={(e) => setBloomStrength(Number(e.target.value))}
+              />
+            </div>
+            <div className="field">
+              <label>
+                Radius
+                <span className="val">{bloomRadius.toFixed(2)}</span>
+              </label>
+              <input
+                type="range"
+                min={0.05}
+                max={1}
+                step={0.05}
+                value={bloomRadius}
+                onChange={(e) => setBloomRadius(Number(e.target.value))}
+              />
+            </div>
+            <div className="field">
+              <label>
+                Threshold
+                <span className="val">{bloomThreshold.toFixed(2)}</span>
+              </label>
+              <input
+                type="range"
+                min={0}
+                max={1.5}
+                step={0.05}
+                value={bloomThreshold}
+                onChange={(e) => setBloomThreshold(Number(e.target.value))}
+              />
+              <p className="field-micro">
+                Dreams-style: higher = only brighter pixels glow (default 1). Set strength to 0 to
+                disable.
+              </p>
             </div>
           </section>
 
@@ -657,7 +717,7 @@ export function App() {
               />
             </div>
             <p className="note">
-              Edge AA + lens blur stack with refraction; add dispersion or a second blob later.
+              Edge AA + lens blur stack with refraction; bloom lives in its own section above.
             </p>
             <span className="fx-tag">FX pipeline ready for extensions</span>
           </section>
