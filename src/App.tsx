@@ -28,6 +28,11 @@ export function App() {
   const [imgDims, setImgDims] = useState<{ w: number; h: number } | null>(null);
   /** Object URL for SVG; kept so we can re-rasterize at higher res on resize / scale. */
   const [svgSourceUrl, setSvgSourceUrl] = useState<string | null>(null);
+  /** Only used when an SVG is loaded; applied in the fragment shader. */
+  const [svgTintMode, setSvgTintMode] = useState<
+    "original" | "multiply" | "replace"
+  >("original");
+  const [svgTintHex, setSvgTintHex] = useState("#ffffff");
   const [viewportPx, setViewportPx] = useState({ w: 0, h: 0 });
 
   const [bgHex, setBgHex] = useState("#ffffff");
@@ -233,6 +238,18 @@ export function App() {
     r.bloom.strength = bloomStrength;
     r.bloom.radius = bloomRadius;
     r.bloom.threshold = bloomThreshold;
+    if (!svgSourceUrl) {
+      r.svgTint = { mode: 0, rgb: [1, 1, 1] };
+    } else {
+      const c = parseHexColor(svgTintHex);
+      const mode: 0 | 1 | 2 =
+        svgTintMode === "original"
+          ? 0
+          : svgTintMode === "multiply"
+            ? 1
+            : 2;
+      r.svgTint = { mode, rgb: [c[0], c[1], c[2]] };
+    }
   }, [
     blobSize,
     blobSpeed,
@@ -248,6 +265,9 @@ export function App() {
     bloomRadius,
     bloomThreshold,
     shapeMode,
+    svgSourceUrl,
+    svgTintMode,
+    svgTintHex,
   ]);
 
   useEffect(() => {
@@ -313,6 +333,7 @@ export function App() {
       return;
     }
 
+    setSvgTintMode("original");
     setSvgSourceUrl((prev) => {
       if (prev) URL.revokeObjectURL(prev);
       return null;
@@ -490,6 +511,55 @@ export function App() {
               />
               <p className="field-micro">Scroll wheel on canvas</p>
             </div>
+            {svgSourceUrl && (
+              <>
+                <div className="field">
+                  <label htmlFor="svg-tint-mode">SVG color</label>
+                  <select
+                    id="svg-tint-mode"
+                    className="field-select"
+                    value={svgTintMode}
+                    onChange={(e) =>
+                      setSvgTintMode(
+                        e.target.value as "original" | "multiply" | "replace",
+                      )
+                    }
+                    aria-label="SVG color mode"
+                  >
+                    <option value="original">Original</option>
+                    <option value="multiply">Tint (multiply)</option>
+                    <option value="replace">Fill (replace)</option>
+                  </select>
+                  <p className="field-micro">
+                    Fill: flat color using the SVG’s alpha. Tint: multiply
+                    (works well for white or light graphics).
+                  </p>
+                </div>
+                {svgTintMode !== "original" && (
+                  <div className="field">
+                    <label>
+                      Tint color
+                      <span className="val">{svgTintHex}</span>
+                    </label>
+                    <div className="row">
+                      <input
+                        type="color"
+                        value={svgTintHex}
+                        onChange={(e) => setSvgTintHex(e.target.value)}
+                        aria-label="SVG tint color"
+                      />
+                      <input
+                        type="text"
+                        value={svgTintHex}
+                        onChange={(e) => setSvgTintHex(e.target.value)}
+                        spellCheck={false}
+                        aria-label="SVG tint color hex"
+                      />
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
           </section>
 
           <h2>Lens</h2>

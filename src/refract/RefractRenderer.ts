@@ -69,6 +69,15 @@ export type BloomParams = {
   softKnee: number;
 };
 
+/** 0 = original, 1 = multiply by tint, 2 = replace rgb with tint (alpha preserved). */
+export type SvgTintMode = 0 | 1 | 2;
+
+export type SvgTintParams = {
+  mode: SvgTintMode;
+  /** Linear-ish RGB in 0–1 (from hex). */
+  rgb: [number, number, number];
+};
+
 function textureDimensions(source: TexImageSource): { w: number; h: number } {
   if (source instanceof HTMLCanvasElement) {
     return { w: source.width, h: source.height };
@@ -142,6 +151,12 @@ export class RefractRenderer {
     softKnee: 0.1,
   };
 
+  /** Applied only when the UI marks the source as SVG; raster uploads should use mode 0. */
+  svgTint: SvgTintParams = {
+    mode: 0,
+    rgb: [1, 1, 1],
+  };
+
   constructor(canvas: HTMLCanvasElement) {
     const gl = canvas.getContext("webgl2", {
       alpha: false,
@@ -207,6 +222,8 @@ export class RefractRenderer {
       "u_blurQuality",
       "u_chroma",
       "u_shapeMode",
+      "u_svgTintMode",
+      "u_svgTintRgb",
     ] as const;
     for (const n of names) {
       this.locs[n] = gl.getUniformLocation(this.program, n);
@@ -375,6 +392,13 @@ export class RefractRenderer {
     gl.uniform1f(this.locs.u_blurQuality, this.blob.blurQuality);
     gl.uniform1f(this.locs.u_chroma, this.blob.chroma);
     gl.uniform1i(this.locs.u_shapeMode, this.blob.shapeMode);
+    gl.uniform1f(this.locs.u_svgTintMode, this.svgTint.mode);
+    gl.uniform3f(
+      this.locs.u_svgTintRgb,
+      this.svgTint.rgb[0],
+      this.svgTint.rgb[1],
+      this.svgTint.rgb[2],
+    );
 
     gl.drawArrays(gl.TRIANGLES, 0, 3);
   }

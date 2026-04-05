@@ -29,6 +29,10 @@ uniform float u_chroma;
 /** 0 = wobbly blob, 1 = rotating 3D box SDF (slice at z=0), 2 = smooth metaballs */
 uniform int u_shapeMode;
 
+/** 0 = none, 1 = multiply tex.rgb by tint, 2 = replace with tint (uses alpha only). SVG uploads only. */
+uniform float u_svgTintMode;
+uniform vec3 u_svgTintRgb;
+
 out vec4 fragColor;
 
 const float BLUR_W5[5] = float[](
@@ -148,7 +152,15 @@ vec3 sampleScene(vec2 uv) {
     return u_bgColor.rgb;
   }
   vec4 tex = texture(u_image, local);
-  return mix(u_bgColor.rgb, tex.rgb, tex.a);
+  vec3 rgb = tex.rgb;
+  if (u_svgTintMode > 0.5) {
+    if (u_svgTintMode < 1.5) {
+      rgb = rgb * u_svgTintRgb;
+    } else {
+      rgb = u_svgTintRgb;
+    }
+  }
+  return mix(u_bgColor.rgb, rgb, tex.a);
 }
 
 vec3 blurBinomial3x3(vec2 uv, vec2 s) {
