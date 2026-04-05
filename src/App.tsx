@@ -98,6 +98,23 @@ export function App() {
       if (e.key === "c" || e.key === "C") {
         e.preventDefault();
         captureScreenshot();
+        return;
+      }
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (e.key === "1") {
+        e.preventDefault();
+        setShapeMode(0);
+        return;
+      }
+      if (e.key === "2") {
+        e.preventDefault();
+        setShapeMode(1);
+        return;
+      }
+      if (e.key === "3") {
+        e.preventDefault();
+        setShapeMode(2);
+        return;
       }
     };
     window.addEventListener("keydown", onKey);
@@ -639,8 +656,8 @@ export function App() {
           </section>
 
           <p className="shortcut-hint">
-            <kbd>P</kbd> hide / show panel · <kbd>F</kbd> focus image ·{" "}
-            <kbd>C</kbd> PNG screenshot (viewport)
+            <kbd>1</kbd> blob · <kbd>2</kbd> cube · <kbd>3</kbd> metaballs ·{" "}
+            <kbd>P</kbd> panel · <kbd>F</kbd> focus · <kbd>C</kbd> screenshot
           </p>
         </aside>
       </div>
