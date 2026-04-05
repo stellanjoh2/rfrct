@@ -1,6 +1,10 @@
-# Publishes dist/ to GitHub Pages. In repo Settings → Pages, set Source to
-# “GitHub Actions” — not “Deploy from a branch”. Branch deploy serves the repo
-# root index.html (dev entry with /src/main.tsx) and the app will not load.
+# Publishes dist/ via GitHub’s Pages Actions deploy.
+#
+# In Settings → Pages, pick ONE source:
+# • GitHub Actions — use this workflow; OR
+# • Deploy from branch → folder /docs — use sync-docs.yml + committed docs/ (not root).
+#
+# Do NOT use “Deploy from branch” → / (root): that serves dev index.html (/src/main.tsx).
 
 name: Deploy GitHub Pages
 

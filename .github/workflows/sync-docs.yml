@@ -1,0 +1,44 @@
+# Copies production build into docs/ and commits. Use when GitHub Pages Source is
+# "Deploy from a branch" → folder "/docs" on main (NOT root — root still has Vite's
+# dev index.html with /src/main.tsx).
+#
+# Pushes that only change docs/ do not re-run this workflow (paths-ignore), avoiding loops.
+
+name: Sync docs for GitHub Pages
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "docs/**"
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Copy dist to docs (include dotfiles like .nojekyll)
+        run: |
+          rm -rf docs
+          mkdir -p docs
+          cp -a dist/. docs/
+      - name: Commit and push docs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs
+          if git diff --staged --quiet; then
+            echo "No changes to docs"
+            exit 0
+          fi
+          git commit -m "chore: sync docs from dist"
+          git push
