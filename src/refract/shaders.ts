@@ -84,7 +84,8 @@ float sdRoundBox3(vec3 p, vec3 b, float r) {
 
 float cubeSdf(vec2 p) {
   float h = u_blobRadius * 0.92;
-  float cornerR = h * 0.1;
+  // Edge bevel: a bit more corner radius than before (~0.1) so facets meet less harshly on the z-slice.
+  float cornerR = h * 0.13;
   vec3 b = vec3(h - cornerR);
   vec3 p3 = vec3(p.x, p.y, 0.0);
   float t = u_time;
