@@ -14,9 +14,6 @@ export function UploadBlock({ onFile }: UploadBlockProps) {
           aria-label="Upload raster or SVG image"
         />
       </label>
-      <span className="hint">
-        Left drag: pan image · Right drag: move lens · Wheel: zoom
-      </span>
     </div>
   );
 }

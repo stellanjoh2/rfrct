@@ -58,7 +58,6 @@ export function AppearanceSection({
             value={imageScale}
             onChange={(e) => setImageScale(Number(e.target.value))}
           />
-          <p className="field-micro">Scroll wheel on canvas</p>
         </div>
         {svgSourceUrl && (
           <>
@@ -79,10 +78,6 @@ export function AppearanceSection({
                 <option value="multiply">Tint (multiply)</option>
                 <option value="replace">Fill (replace)</option>
               </select>
-              <p className="field-micro">
-                Fill: flat color using the SVG’s alpha. Tint: multiply (works
-                well for white or light graphics).
-              </p>
             </div>
             {svgTintMode !== "original" && (
               <div className="field">

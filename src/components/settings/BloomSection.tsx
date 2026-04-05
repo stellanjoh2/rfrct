@@ -69,11 +69,6 @@ export function BloomSection({
               setBloomThreshold(Number((e.target as HTMLInputElement).value))
             }
           />
-          <p className="field-micro">
-            Higher = only the brightest areas glow. Lower if the glow barely
-            reacts to strength/radius (LDR scenes). Set strength to 0 to
-            disable.
-          </p>
         </div>
       </section>
     </>

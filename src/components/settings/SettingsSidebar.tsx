@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { AppearanceSection } from "./AppearanceSection";
 import { BloomSection } from "./BloomSection";
 import { EffectsSection } from "./EffectsSection";
@@ -25,11 +26,32 @@ export function SettingsSidebar({
   bloom,
   effects,
 }: SettingsSidebarProps) {
+  useEffect(() => {
+    const clearRangeDrag = () => {
+      document
+        .querySelectorAll(".field--range-dragging")
+        .forEach((el) => el.classList.remove("field--range-dragging"));
+    };
+    window.addEventListener("pointerup", clearRangeDrag);
+    window.addEventListener("pointercancel", clearRangeDrag);
+    return () => {
+      window.removeEventListener("pointerup", clearRangeDrag);
+      window.removeEventListener("pointercancel", clearRangeDrag);
+      clearRangeDrag();
+    };
+  }, []);
+
   return (
     <aside
       className={`glass-sidebar panel ${uiVisible ? "" : "glass-sidebar--hidden"}`}
       aria-hidden={!uiVisible}
       aria-label="Settings"
+      onPointerDownCapture={(e) => {
+        const t = e.target as HTMLElement;
+        if (t.matches("input[type=\"range\"]")) {
+          t.closest(".field")?.classList.add("field--range-dragging");
+        }
+      }}
     >
       <p className="sidebar-brand">Refrct</p>
       <UploadBlock onFile={onFile} />

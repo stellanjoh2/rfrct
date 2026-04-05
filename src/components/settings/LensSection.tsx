@@ -86,9 +86,6 @@ export function LensSection({
             value={blobSpeed}
             onChange={(e) => setBlobSpeed(Number(e.target.value))}
           />
-          <p className="field-micro">
-            Wobble (blob), rotation (cube), or orbits (metaballs)
-          </p>
         </div>
         <div className="field field--checkbox">
           <label className="field-checkbox-label">

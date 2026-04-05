@@ -49,10 +49,6 @@ export function EffectsSection({
             onChange={(e) => setBlurQuality(Number(e.target.value))}
             aria-label="Frost blur kernel quality"
           />
-          <p className="field-micro">
-            Binomial kernel: fast / balanced / soft. Chromatic aberration ×3
-            reads.
-          </p>
         </div>
         <div className="field">
           <label>
@@ -68,11 +64,6 @@ export function EffectsSection({
             onChange={(e) => setChroma(Number(e.target.value))}
           />
         </div>
-        <p className="note">
-          Edge AA + lens blur stack with refraction; bloom lives in its own
-          section above.
-        </p>
-        <span className="fx-tag">FX pipeline ready for extensions</span>
       </section>
     </>
   );
