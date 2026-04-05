@@ -1,82 +1,16 @@
-import {
-  BLOOM_FRAG_BLUR,
-  BLOOM_FRAG_BRIGHT,
-  BLOOM_FRAG_COMPOSITE,
-  BLOOM_VERT,
-} from "./bloomShaders";
+import { BloomPipeline } from "./BloomPipeline";
 import { FRAG, VERT } from "./shaders";
+import type { BlobParams, BloomParams, ImageLayout, SvgTintParams } from "./types";
+import { compileShader, linkProgram } from "./webgl";
 
-function compile(gl: WebGL2RenderingContext, type: number, src: string) {
-  const sh = gl.createShader(type);
-  if (!sh) throw new Error("shader");
-  gl.shaderSource(sh, src);
-  gl.compileShader(sh);
-  if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) {
-    const log = gl.getShaderInfoLog(sh) ?? "";
-    gl.deleteShader(sh);
-    throw new Error(log);
-  }
-  return sh;
-}
-
-function link(gl: WebGL2RenderingContext, vs: WebGLShader, fs: WebGLShader) {
-  const p = gl.createProgram();
-  if (!p) throw new Error("program");
-  gl.attachShader(p, vs);
-  gl.attachShader(p, fs);
-  gl.linkProgram(p);
-  if (!gl.getProgramParameter(p, gl.LINK_STATUS)) {
-    const log = gl.getProgramInfoLog(p) ?? "";
-    gl.deleteProgram(p);
-    throw new Error(log);
-  }
-  return p;
-}
-
-/** 0 = blob, 1 = 3D cube slice, 2 = metaballs */
-export type ShapeMode = 0 | 1 | 2;
-
-export type BlobParams = {
-  centerX: number;
-  centerY: number;
-  radius: number;
-  waveFreq: number;
-  waveAmp: number;
-  /** Multiplier on animation time (1 = default speed, 0 = frozen). */
-  speed: number;
-  refractStrength: number;
-  edgeSoftness: number;
-  /** Extra Gaussian blur in framebuffer pixels (lens / frost). */
-  frostBlur: number;
-  /** 1 = 9 taps, 2 = 25, 3 = 49 (binomial kernels; higher = softer, heavier GPU). */
-  blurQuality: number;
-  chroma: number;
-  shapeMode: ShapeMode;
-};
-
-export type ImageLayout = {
-  rect: { x: number; y: number; w: number; h: number };
-  naturalWidth: number;
-  naturalHeight: number;
-};
-
-/** Same fields as Dreams `FxSettings.bloom` (Candy Lands / three.js BloomNode-style tuning). */
-export type BloomParams = {
-  strength: number;
-  radius: number;
-  threshold: number;
-  /** Soft knee for threshold curve (fixed default in UI; matches Unreal-style bloom). */
-  softKnee: number;
-};
-
-/** 0 = original, 1 = multiply by tint, 2 = replace rgb with tint (alpha preserved). */
-export type SvgTintMode = 0 | 1 | 2;
-
-export type SvgTintParams = {
-  mode: SvgTintMode;
-  /** Linear-ish RGB in 0–1 (from hex). */
-  rgb: [number, number, number];
-};
+export type {
+  BlobParams,
+  BloomParams,
+  ImageLayout,
+  ShapeMode,
+  SvgTintMode,
+  SvgTintParams,
+} from "./types";
 
 function textureDimensions(source: TexImageSource): { w: number; h: number } {
   if (source instanceof HTMLCanvasElement) {
@@ -99,27 +33,12 @@ function isPowerOfTwo(n: number): boolean {
 }
 
 export class RefractRenderer {
-  private gl: WebGL2RenderingContext;
-  private program: WebGLProgram;
-  private progBloomBright: WebGLProgram;
-  private progBloomBlur: WebGLProgram;
-  private progBloomComposite: WebGLProgram;
-  private vao: WebGLVertexArrayObject;
-  private texture: WebGLTexture;
-  private locs: Record<string, WebGLUniformLocation | null> = {};
-  private bloomBrightLocs: Record<string, WebGLUniformLocation | null> = {};
-  private bloomBlurLocs: Record<string, WebGLUniformLocation | null> = {};
-  private bloomCompositeLocs: Record<string, WebGLUniformLocation | null> = {};
-  private sceneTex: WebGLTexture | null = null;
-  private sceneFbo: WebGLFramebuffer | null = null;
-  private bloomTexA: WebGLTexture | null = null;
-  private bloomTexB: WebGLTexture | null = null;
-  private bloomFboA: WebGLFramebuffer | null = null;
-  private bloomFboB: WebGLFramebuffer | null = null;
-  private fbW = 0;
-  private fbH = 0;
-  private halfW = 0;
-  private halfH = 0;
+  private readonly gl: WebGL2RenderingContext;
+  private readonly program: WebGLProgram;
+  private readonly bloomPipeline: BloomPipeline;
+  private readonly vao: WebGLVertexArrayObject;
+  private readonly texture: WebGLTexture;
+  private readonly locs: Record<string, WebGLUniformLocation | null> = {};
   private raf = 0;
   /** Monotonic shader time (seconds); advances by dt × speed so pause does not reset phase. */
   private animationTime = 0;
@@ -143,7 +62,6 @@ export class RefractRenderer {
     shapeMode: 0,
   };
 
-  /** Dreams defaults: strength 0.5, radius 0.2, threshold 1. */
   bloom: BloomParams = {
     strength: 0.5,
     radius: 0.2,
@@ -151,7 +69,6 @@ export class RefractRenderer {
     softKnee: 0.1,
   };
 
-  /** Applied only when the UI marks the source as SVG; raster uploads should use mode 0. */
   svgTint: SvgTintParams = {
     mode: 0,
     rgb: [1, 1, 1],
@@ -167,43 +84,13 @@ export class RefractRenderer {
     if (!gl) throw new Error("WebGL2 required");
     this.gl = gl;
 
-    const vs = compile(gl, gl.VERTEX_SHADER, VERT);
-    const fs = compile(gl, gl.FRAGMENT_SHADER, FRAG);
-    this.program = link(gl, vs, fs);
+    const vs = compileShader(gl, gl.VERTEX_SHADER, VERT);
+    const fs = compileShader(gl, gl.FRAGMENT_SHADER, FRAG);
+    this.program = linkProgram(gl, vs, fs);
     gl.deleteShader(vs);
     gl.deleteShader(fs);
 
-    const bv = compile(gl, gl.VERTEX_SHADER, BLOOM_VERT);
-    const bBright = compile(gl, gl.FRAGMENT_SHADER, BLOOM_FRAG_BRIGHT);
-    const bBlur = compile(gl, gl.FRAGMENT_SHADER, BLOOM_FRAG_BLUR);
-    const bComp = compile(gl, gl.FRAGMENT_SHADER, BLOOM_FRAG_COMPOSITE);
-    this.progBloomBright = link(gl, bv, bBright);
-    this.progBloomBlur = link(gl, bv, bBlur);
-    this.progBloomComposite = link(gl, bv, bComp);
-    gl.deleteShader(bv);
-    gl.deleteShader(bBright);
-    gl.deleteShader(bBlur);
-    gl.deleteShader(bComp);
-
-    for (const n of ["u_scene", "u_resolution", "u_threshold", "u_softKnee"] as const) {
-      this.bloomBrightLocs[n] = gl.getUniformLocation(this.progBloomBright, n);
-    }
-    for (const n of ["u_tex", "u_resolution", "u_direction", "u_sigma"] as const) {
-      this.bloomBlurLocs[n] = gl.getUniformLocation(this.progBloomBlur, n);
-    }
-    for (const n of ["u_scene", "u_bloom", "u_resolution", "u_strength"] as const) {
-      this.bloomCompositeLocs[n] = gl.getUniformLocation(
-        this.progBloomComposite,
-        n,
-      );
-    }
-    gl.useProgram(this.progBloomComposite);
-    gl.uniform1i(this.bloomCompositeLocs.u_scene, 0);
-    gl.uniform1i(this.bloomCompositeLocs.u_bloom, 1);
-    gl.useProgram(this.progBloomBright);
-    gl.uniform1i(this.bloomBrightLocs.u_scene, 0);
-    gl.useProgram(this.progBloomBlur);
-    gl.uniform1i(this.bloomBlurLocs.u_tex, 0);
+    this.bloomPipeline = new BloomPipeline(gl);
 
     const names = [
       "u_resolution",
@@ -280,89 +167,7 @@ export class RefractRenderer {
     this.gl.canvas.width = w;
     this.gl.canvas.height = h;
     this.gl.viewport(0, 0, w, h);
-    this.releaseBloomFramebuffers();
-  }
-
-  private releaseBloomFramebuffers() {
-    const gl = this.gl;
-    if (this.sceneFbo) gl.deleteFramebuffer(this.sceneFbo);
-    if (this.bloomFboA) gl.deleteFramebuffer(this.bloomFboA);
-    if (this.bloomFboB) gl.deleteFramebuffer(this.bloomFboB);
-    if (this.sceneTex) gl.deleteTexture(this.sceneTex);
-    if (this.bloomTexA) gl.deleteTexture(this.bloomTexA);
-    if (this.bloomTexB) gl.deleteTexture(this.bloomTexB);
-    this.sceneFbo = null;
-    this.bloomFboA = null;
-    this.bloomFboB = null;
-    this.sceneTex = null;
-    this.bloomTexA = null;
-    this.bloomTexB = null;
-    this.fbW = 0;
-    this.fbH = 0;
-    this.halfW = 0;
-    this.halfH = 0;
-  }
-
-  private ensureBloomFramebuffers(w: number, h: number) {
-    if (this.sceneFbo && this.fbW === w && this.fbH === h) {
-      return;
-    }
-    this.releaseBloomFramebuffers();
-    const gl = this.gl;
-    const hw = Math.max(1, Math.floor(w / 2));
-    const hh = Math.max(1, Math.floor(h / 2));
-
-    const makeTex = (tw: number, th: number) => {
-      const t = gl.createTexture()!;
-      gl.bindTexture(gl.TEXTURE_2D, t);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-      gl.texImage2D(
-        gl.TEXTURE_2D,
-        0,
-        gl.RGBA8,
-        tw,
-        th,
-        0,
-        gl.RGBA,
-        gl.UNSIGNED_BYTE,
-        null,
-      );
-      return t;
-    };
-
-    const makeFbo = (color: WebGLTexture) => {
-      const f = gl.createFramebuffer()!;
-      gl.bindFramebuffer(gl.FRAMEBUFFER, f);
-      gl.framebufferTexture2D(
-        gl.FRAMEBUFFER,
-        gl.COLOR_ATTACHMENT0,
-        gl.TEXTURE_2D,
-        color,
-        0,
-      );
-      gl.drawBuffers([gl.COLOR_ATTACHMENT0]);
-      const ok = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
-      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-      if (ok !== gl.FRAMEBUFFER_COMPLETE) {
-        gl.deleteFramebuffer(f);
-        throw new Error("bloom framebuffer incomplete");
-      }
-      return f;
-    };
-
-    this.sceneTex = makeTex(w, h);
-    this.sceneFbo = makeFbo(this.sceneTex);
-    this.bloomTexA = makeTex(hw, hh);
-    this.bloomTexB = makeTex(hw, hh);
-    this.bloomFboA = makeFbo(this.bloomTexA);
-    this.bloomFboB = makeFbo(this.bloomTexB);
-    this.fbW = w;
-    this.fbH = h;
-    this.halfW = hw;
-    this.halfH = hh;
+    this.bloomPipeline.releaseFramebuffers();
   }
 
   private drawScenePass(w: number, h: number) {
@@ -430,82 +235,14 @@ export class RefractRenderer {
       return;
     }
 
-    this.ensureBloomFramebuffers(w, h);
-    const hw = this.halfW;
-    const hh = this.halfH;
-
-    gl.bindFramebuffer(gl.FRAMEBUFFER, this.sceneFbo);
+    this.bloomPipeline.ensureFramebuffers(w, h);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, this.bloomPipeline.getSceneFramebuffer());
     gl.viewport(0, 0, w, h);
     gl.clearColor(...this.bgColor);
     gl.clear(gl.COLOR_BUFFER_BIT);
     this.drawScenePass(w, h);
 
-    gl.useProgram(this.progBloomBright);
-    gl.bindVertexArray(this.vao);
-    gl.bindFramebuffer(gl.FRAMEBUFFER, this.bloomFboA);
-    gl.viewport(0, 0, hw, hh);
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, this.sceneTex!);
-    gl.uniform2f(this.bloomBrightLocs.u_resolution!, hw, hh);
-    gl.uniform1f(this.bloomBrightLocs.u_threshold!, this.bloom.threshold);
-    gl.uniform1f(this.bloomBrightLocs.u_softKnee!, this.bloom.softKnee);
-    gl.drawArrays(gl.TRIANGLES, 0, 3);
-
-    const blurIters = Math.max(
-      1,
-      Math.min(4, Math.round(1 + this.bloom.radius * 4)),
-    );
-    const sigma = 0.85 + this.bloom.radius * 9.0;
-
-    let read = this.bloomTexA!;
-    let write = this.bloomTexB!;
-    let readFbo = this.bloomFboA!;
-    let writeFbo = this.bloomFboB!;
-
-    for (let i = 0; i < blurIters; i++) {
-      gl.useProgram(this.progBloomBlur);
-      gl.uniform2f(this.bloomBlurLocs.u_resolution!, hw, hh);
-      gl.uniform1f(this.bloomBlurLocs.u_sigma!, sigma);
-      gl.uniform2f(this.bloomBlurLocs.u_direction!, 1, 0);
-      gl.bindFramebuffer(gl.FRAMEBUFFER, writeFbo);
-      gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, read);
-      gl.drawArrays(gl.TRIANGLES, 0, 3);
-      let t = read;
-      read = write;
-      write = t;
-      let f = readFbo;
-      readFbo = writeFbo;
-      writeFbo = f;
-
-      gl.uniform2f(this.bloomBlurLocs.u_direction!, 0, 1);
-      gl.bindFramebuffer(gl.FRAMEBUFFER, writeFbo);
-      gl.bindTexture(gl.TEXTURE_2D, read);
-      gl.drawArrays(gl.TRIANGLES, 0, 3);
-      t = read;
-      read = write;
-      write = t;
-      f = readFbo;
-      readFbo = writeFbo;
-      writeFbo = f;
-    }
-
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    gl.viewport(0, 0, w, h);
-    gl.clearColor(0, 0, 0, 1);
-    gl.clear(gl.COLOR_BUFFER_BIT);
-
-    gl.useProgram(this.progBloomComposite);
-    gl.uniform2f(this.bloomCompositeLocs.u_resolution!, w, h);
-    gl.uniform1f(this.bloomCompositeLocs.u_strength!, this.bloom.strength);
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, this.sceneTex!);
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, read);
-    gl.drawArrays(gl.TRIANGLES, 0, 3);
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, null);
-    gl.activeTexture(gl.TEXTURE0);
+    this.bloomPipeline.finalizeToCanvas(this.bloom, this.vao, w, h);
   };
 
   startLoop() {
@@ -530,12 +267,9 @@ export class RefractRenderer {
       document.removeEventListener("visibilitychange", this.onVisibilityChange);
       this.onVisibilityChange = null;
     }
-    this.releaseBloomFramebuffers();
+    this.bloomPipeline.dispose();
     this.gl.deleteTexture(this.texture);
     this.gl.deleteVertexArray(this.vao);
     this.gl.deleteProgram(this.program);
-    this.gl.deleteProgram(this.progBloomBright);
-    this.gl.deleteProgram(this.progBloomBlur);
-    this.gl.deleteProgram(this.progBloomComposite);
   }
 }

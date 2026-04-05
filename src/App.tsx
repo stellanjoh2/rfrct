@@ -1,6 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { SettingsSidebar } from "./components/settings/SettingsSidebar";
 import { downloadCanvasAsPng } from "./capture";
 import { Focus } from "./focus";
+import {
+  applyRendererState,
+  buildRendererSyncParams,
+} from "./refract/applyRendererState";
 import { applyPanToRect, computeImageRect } from "./refract/layout";
 import { RefractRenderer, type ShapeMode } from "./refract/RefractRenderer";
 import {
@@ -9,26 +14,13 @@ import {
   rasterizeToCanvas,
 } from "./refract/svgRaster";
 
-function parseHexColor(hex: string): [number, number, number, number] {
-  const h = hex.replace(/^#/, "");
-  if (h.length === 6) {
-    const r = parseInt(h.slice(0, 2), 16) / 255;
-    const g = parseInt(h.slice(2, 4), 16) / 255;
-    const b = parseInt(h.slice(4, 6), 16) / 255;
-    return [r, g, b, 1];
-  }
-  return [1, 1, 1, 1];
-}
-
 export function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<RefractRenderer | null>(null);
 
   const [imgDims, setImgDims] = useState<{ w: number; h: number } | null>(null);
-  /** Object URL for SVG; kept so we can re-rasterize at higher res on resize / scale. */
   const [svgSourceUrl, setSvgSourceUrl] = useState<string | null>(null);
-  /** Only used when an SVG is loaded; applied in the fragment shader. */
   const [svgTintMode, setSvgTintMode] = useState<
     "original" | "multiply" | "replace"
   >("original");
@@ -39,32 +31,25 @@ export function App() {
   const [imageScale, setImageScale] = useState(1);
   const imageScaleRef = useRef(1);
   imageScaleRef.current = imageScale;
-  /** Normalized UV pan offset (applied on top of centered contain rect). */
   const [imagePan, setImagePan] = useState({ x: 0, y: 0 });
   const imagePanRef = useRef(imagePan);
   imagePanRef.current = imagePan;
   const [blobSize, setBlobSize] = useState(0.22);
-  /** Animation speed for blob wobble (1 = default). */
   const [blobSpeed, setBlobSpeed] = useState(1);
-  /** When true, lens motion is frozen (shader time stops). */
   const [pauseAnimation, setPauseAnimation] = useState(false);
   const [waveFreq, setWaveFreq] = useState(5);
   const [waveAmp, setWaveAmp] = useState(0.16);
   const [refract, setRefract] = useState(0.12);
   const [edgeSoft, setEdgeSoft] = useState(0.012);
-  /** Screen-space px: softens detail inside the refracted region (works with chroma). */
   const [frostBlur, setFrostBlur] = useState(2);
-  /** 1=9 / 2=25 / 3=49 texture taps for frost blur kernel. */
   const [blurQuality, setBlurQuality] = useState(1);
   const [chroma, setChroma] = useState(0);
-  /** Dreams (Candy Lands) defaults: strength 0.5, radius 0.2, threshold 1. */
   const [bloomStrength, setBloomStrength] = useState(0.5);
   const [bloomRadius, setBloomRadius] = useState(0.2);
   const [bloomThreshold, setBloomThreshold] = useState(1);
   const [shapeMode, setShapeMode] = useState<ShapeMode>(0);
 
   const blobCenterRef = useRef({ x: 0.5, y: 0.5 });
-  /** none | pan (left) | fx (right, blob) */
   const dragModeRef = useRef<"none" | "pan" | "fx">("none");
   const lastPointerRef = useRef({ x: 0, y: 0 });
   const [pointerDrag, setPointerDrag] = useState<"pan" | "fx" | null>(null);
@@ -92,7 +77,8 @@ export function App() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const el = e.target as HTMLElement | null;
-      if (el?.closest("input, textarea, select, [contenteditable='true']")) return;
+      if (el?.closest("input, textarea, select, [contenteditable='true']"))
+        return;
 
       if (e.key === "p" || e.key === "P") {
         e.preventDefault();
@@ -216,44 +202,36 @@ export function App() {
   useEffect(() => {
     const r = rendererRef.current;
     if (!r) return;
-    const c = parseHexColor(bgHex);
-    r.bgColor = [c[0], c[1], c[2], c[3]];
-  }, [bgHex]);
-
-  useEffect(() => {
-    const r = rendererRef.current;
-    if (!r) return;
-    r.blob.radius = blobSize;
-    r.blob.speed = pauseAnimation ? 0 : blobSpeed;
-    r.blob.waveFreq = waveFreq;
-    r.blob.waveAmp = waveAmp;
-    r.blob.refractStrength = refract;
-    r.blob.edgeSoftness = edgeSoft;
-    r.blob.frostBlur = frostBlur;
-    r.blob.blurQuality = blurQuality;
-    r.blob.chroma = chroma;
-    r.blob.shapeMode = shapeMode;
-    r.blob.centerX = blobCenterRef.current.x;
-    r.blob.centerY = blobCenterRef.current.y;
-    r.bloom.strength = bloomStrength;
-    r.bloom.radius = bloomRadius;
-    r.bloom.threshold = bloomThreshold;
-    if (!svgSourceUrl) {
-      r.svgTint = { mode: 0, rgb: [1, 1, 1] };
-    } else {
-      const c = parseHexColor(svgTintHex);
-      const mode: 0 | 1 | 2 =
-        svgTintMode === "original"
-          ? 0
-          : svgTintMode === "multiply"
-            ? 1
-            : 2;
-      r.svgTint = { mode, rgb: [c[0], c[1], c[2]] };
-    }
+    applyRendererState(
+      r,
+      buildRendererSyncParams({
+        bgHex,
+        blobSize,
+        pauseAnimation,
+        blobSpeed,
+        waveFreq,
+        waveAmp,
+        refract,
+        edgeSoft,
+        frostBlur,
+        blurQuality,
+        chroma,
+        shapeMode,
+        blobCenterX: blobCenterRef.current.x,
+        blobCenterY: blobCenterRef.current.y,
+        bloomStrength,
+        bloomRadius,
+        bloomThreshold,
+        svgSourceUrl,
+        svgTintMode,
+        svgTintHex,
+      }),
+    );
   }, [
+    bgHex,
     blobSize,
-    blobSpeed,
     pauseAnimation,
+    blobSpeed,
     waveFreq,
     waveAmp,
     refract,
@@ -261,10 +239,10 @@ export function App() {
     frostBlur,
     blurQuality,
     chroma,
+    shapeMode,
     bloomStrength,
     bloomRadius,
     bloomThreshold,
-    shapeMode,
     svgSourceUrl,
     svgTintMode,
     svgTintHex,
@@ -425,6 +403,77 @@ export function App() {
     e.preventDefault();
   };
 
+  const sidebar = useMemo(
+    () => ({
+      appearance: {
+        bgHex,
+        setBgHex,
+        imageScale,
+        setImageScale,
+        svgSourceUrl,
+        svgTintMode,
+        setSvgTintMode,
+        svgTintHex,
+        setSvgTintHex,
+      },
+      lens: {
+        shapeMode,
+        setShapeMode,
+        blobSize,
+        setBlobSize,
+        pauseAnimation,
+        setPauseAnimation,
+        blobSpeed,
+        setBlobSpeed,
+        waveFreq,
+        setWaveFreq,
+        waveAmp,
+        setWaveAmp,
+        refract,
+        setRefract,
+        edgeSoft,
+        setEdgeSoft,
+      },
+      bloom: {
+        bloomStrength,
+        setBloomStrength,
+        bloomRadius,
+        setBloomRadius,
+        bloomThreshold,
+        setBloomThreshold,
+      },
+      effects: {
+        frostBlur,
+        setFrostBlur,
+        blurQuality,
+        setBlurQuality,
+        chroma,
+        setChroma,
+      },
+    }),
+    [
+      bgHex,
+      imageScale,
+      svgSourceUrl,
+      svgTintMode,
+      svgTintHex,
+      shapeMode,
+      blobSize,
+      pauseAnimation,
+      blobSpeed,
+      waveFreq,
+      waveAmp,
+      refract,
+      edgeSoft,
+      bloomStrength,
+      bloomRadius,
+      bloomThreshold,
+      frostBlur,
+      blurQuality,
+      chroma,
+    ],
+  );
+
   return (
     <div className="app">
       {webglError && (
@@ -452,352 +501,14 @@ export function App() {
           />
         </div>
 
-        <aside
-          className={`glass-sidebar panel ${uiVisible ? "" : "glass-sidebar--hidden"}`}
-          aria-hidden={!uiVisible}
-          aria-label="Settings"
-        >
-          <p className="sidebar-brand">Refrct</p>
-
-          <div className="upload-block">
-            <label className="file-btn">
-              Upload image
-              <input
-                type="file"
-                accept="image/*,.svg+xml"
-                onChange={onFile}
-                aria-label="Upload raster or SVG image"
-              />
-            </label>
-            <span className="hint">
-              Left drag: pan image · Right drag: move lens · Wheel: zoom
-            </span>
-          </div>
-
-          <h2>Appearance</h2>
-          <section>
-            <div className="field">
-              <label>
-                Background
-                <span className="val">{bgHex}</span>
-              </label>
-              <div className="row">
-                <input
-                  type="color"
-                  value={bgHex}
-                  onChange={(e) => setBgHex(e.target.value)}
-                  aria-label="Background color"
-                />
-                <input
-                  type="text"
-                  value={bgHex}
-                  onChange={(e) => setBgHex(e.target.value)}
-                  spellCheck={false}
-                />
-              </div>
-            </div>
-            <div className="field">
-              <label>
-                Image scale
-                <span className="val">{imageScale.toFixed(2)}×</span>
-              </label>
-              <input
-                type="range"
-                min={0.25}
-                max={3}
-                step={0.01}
-                value={imageScale}
-                onChange={(e) => setImageScale(Number(e.target.value))}
-              />
-              <p className="field-micro">Scroll wheel on canvas</p>
-            </div>
-            {svgSourceUrl && (
-              <>
-                <div className="field">
-                  <label htmlFor="svg-tint-mode">SVG color</label>
-                  <select
-                    id="svg-tint-mode"
-                    className="field-select"
-                    value={svgTintMode}
-                    onChange={(e) =>
-                      setSvgTintMode(
-                        e.target.value as "original" | "multiply" | "replace",
-                      )
-                    }
-                    aria-label="SVG color mode"
-                  >
-                    <option value="original">Original</option>
-                    <option value="multiply">Tint (multiply)</option>
-                    <option value="replace">Fill (replace)</option>
-                  </select>
-                  <p className="field-micro">
-                    Fill: flat color using the SVG’s alpha. Tint: multiply
-                    (works well for white or light graphics).
-                  </p>
-                </div>
-                {svgTintMode !== "original" && (
-                  <div className="field">
-                    <label>
-                      Tint color
-                      <span className="val">{svgTintHex}</span>
-                    </label>
-                    <div className="row">
-                      <input
-                        type="color"
-                        value={svgTintHex}
-                        onChange={(e) => setSvgTintHex(e.target.value)}
-                        aria-label="SVG tint color"
-                      />
-                      <input
-                        type="text"
-                        value={svgTintHex}
-                        onChange={(e) => setSvgTintHex(e.target.value)}
-                        spellCheck={false}
-                        aria-label="SVG tint color hex"
-                      />
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
-          </section>
-
-          <h2>Lens</h2>
-          <section>
-            <div className="field">
-              <label htmlFor="shape-mode">Shape</label>
-              <select
-                id="shape-mode"
-                className="field-select"
-                value={shapeMode}
-                onChange={(e) =>
-                  setShapeMode(Number(e.target.value) as ShapeMode)
-                }
-                aria-label="Refracting shape"
-              >
-                <option value={0}>Blob</option>
-                <option value={1}>Cube (3D)</option>
-                <option value={2}>Metaballs</option>
-              </select>
-            </div>
-            <div className="field">
-              <label>
-                Size
-                <span className="val">{blobSize.toFixed(2)}</span>
-              </label>
-              <input
-                type="range"
-                min={0.08}
-                max={1}
-                step={0.005}
-                value={blobSize}
-                onChange={(e) => setBlobSize(Number(e.target.value))}
-              />
-            </div>
-            <div className="field">
-              <label>
-                Animation speed
-                <span className="val">
-                  {pauseAnimation ? "paused" : `${blobSpeed.toFixed(2)}×`}
-                </span>
-              </label>
-              <input
-                type="range"
-                min={0}
-                max={3}
-                step={0.05}
-                value={blobSpeed}
-                onChange={(e) => setBlobSpeed(Number(e.target.value))}
-              />
-              <p className="field-micro">
-                Wobble (blob), rotation (cube), or orbits (metaballs)
-              </p>
-            </div>
-            <div className="field field--checkbox">
-              <label className="field-checkbox-label">
-                <input
-                  type="checkbox"
-                  checked={pauseAnimation}
-                  onChange={(e) => setPauseAnimation(e.target.checked)}
-                  aria-label="Pause animation"
-                />
-                Pause animation
-              </label>
-            </div>
-            {shapeMode === 0 && (
-              <>
-                <div className="field">
-                  <label>
-                    Wave frequency
-                    <span className="val">{waveFreq.toFixed(1)}</span>
-                  </label>
-                  <input
-                    type="range"
-                    min={1}
-                    max={16}
-                    step={0.5}
-                    value={waveFreq}
-                    onChange={(e) => setWaveFreq(Number(e.target.value))}
-                  />
-                </div>
-                <div className="field">
-                  <label>
-                    Wave strength
-                    <span className="val">{waveAmp.toFixed(2)}</span>
-                  </label>
-                  <input
-                    type="range"
-                    min={0}
-                    max={0.55}
-                    step={0.01}
-                    value={waveAmp}
-                    onChange={(e) => setWaveAmp(Number(e.target.value))}
-                  />
-                </div>
-              </>
-            )}
-            <div className="field">
-              <label>
-                Refraction
-                <span className="val">{refract.toFixed(2)}</span>
-              </label>
-              <input
-                type="range"
-                min={0}
-                max={0.35}
-                step={0.005}
-                value={refract}
-                onChange={(e) => setRefract(Number(e.target.value))}
-              />
-            </div>
-            <div className="field">
-              <label>
-                Edge softness
-                <span className="val">{edgeSoft.toFixed(3)}</span>
-              </label>
-              <input
-                type="range"
-                min={0.004}
-                max={0.08}
-                step={0.001}
-                value={edgeSoft}
-                onChange={(e) => setEdgeSoft(Number(e.target.value))}
-              />
-            </div>
-          </section>
-
-          <h2>Bloom</h2>
-          <section>
-            <div className="field">
-              <label>
-                Strength
-                <span className="val">{bloomStrength.toFixed(2)}</span>
-              </label>
-              <input
-                type="range"
-                min={0}
-                max={1.5}
-                step={0.05}
-                value={bloomStrength}
-                onChange={(e) => setBloomStrength(Number(e.target.value))}
-              />
-            </div>
-            <div className="field">
-              <label>
-                Radius
-                <span className="val">{bloomRadius.toFixed(2)}</span>
-              </label>
-              <input
-                type="range"
-                min={0.05}
-                max={1}
-                step={0.05}
-                value={bloomRadius}
-                onChange={(e) => setBloomRadius(Number(e.target.value))}
-              />
-            </div>
-            <div className="field">
-              <label>
-                Threshold
-                <span className="val">{bloomThreshold.toFixed(2)}</span>
-              </label>
-              <input
-                type="range"
-                min={0}
-                max={1.5}
-                step={0.05}
-                value={bloomThreshold}
-                onChange={(e) => setBloomThreshold(Number(e.target.value))}
-              />
-              <p className="field-micro">
-                Dreams-style: higher = only brighter pixels glow (default 1). Set strength to 0 to
-                disable.
-              </p>
-            </div>
-          </section>
-
-          <h2>Effects</h2>
-          <section>
-            <div className="field">
-              <label>
-                Lens blur (frost)
-                <span className="val">{frostBlur.toFixed(1)} px</span>
-              </label>
-              <input
-                type="range"
-                min={0}
-                max={10}
-                step={0.25}
-                value={frostBlur}
-                onChange={(e) => setFrostBlur(Number(e.target.value))}
-              />
-            </div>
-            <div className="field">
-              <label>
-                Blur samples
-                <span className="val">
-                  {blurQuality === 1 ? "9" : blurQuality === 2 ? "25" : "49"}
-                </span>
-              </label>
-              <input
-                type="range"
-                min={1}
-                max={3}
-                step={1}
-                value={blurQuality}
-                onChange={(e) => setBlurQuality(Number(e.target.value))}
-                aria-label="Frost blur kernel quality"
-              />
-              <p className="field-micro">
-                Binomial kernel: fast / balanced / soft. Chromatic aberration ×3 reads.
-              </p>
-            </div>
-            <div className="field">
-              <label>
-                Chromatic aberration
-                <span className="val">{chroma.toFixed(2)}</span>
-              </label>
-              <input
-                type="range"
-                min={0}
-                max={1}
-                step={0.01}
-                value={chroma}
-                onChange={(e) => setChroma(Number(e.target.value))}
-              />
-            </div>
-            <p className="note">
-              Edge AA + lens blur stack with refraction; bloom lives in its own section above.
-            </p>
-            <span className="fx-tag">FX pipeline ready for extensions</span>
-          </section>
-
-          <p className="shortcut-hint">
-            <kbd>1</kbd> blob · <kbd>2</kbd> cube · <kbd>3</kbd> metaballs ·{" "}
-            <kbd>Space</kbd> pause · <kbd>P</kbd> panel · <kbd>F</kbd> focus ·{" "}
-            <kbd>C</kbd> screenshot
-          </p>
-        </aside>
+        <SettingsSidebar
+          uiVisible={uiVisible}
+          onFile={onFile}
+          appearance={sidebar.appearance}
+          lens={sidebar.lens}
+          bloom={sidebar.bloom}
+          effects={sidebar.effects}
+        />
       </div>
     </div>
   );
