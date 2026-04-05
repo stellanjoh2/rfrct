@@ -76,6 +76,8 @@ body {
   width: 100%;
   height: 100%;
   background: #fff;
+  /* Avoid 1px gaps at edges when layout uses fractional pixels during pan/zoom. */
+  overflow: hidden;
 }
 
 .viewport canvas {
@@ -83,6 +85,13 @@ body {
   width: 100%;
   height: 100%;
   touch-action: none;
+  /* tabIndex=-1 makes the canvas focusable; without this, pan-drag shows the default blue focus ring. */
+  outline: none;
+}
+
+.viewport canvas:focus,
+.viewport canvas:focus-visible {
+  outline: none;
 }
 
 /* Frosted glass sidebar — blurs the WebGL canvas behind it */
