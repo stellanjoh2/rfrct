@@ -225,7 +225,8 @@ void main() {
 
   float sdf = shapeSdf(p);
   vec2 g = sdfGradient(p);
-  float core = smoothstep(0.0, u_blobRadius * 0.045 + 1e-6, length(p));
+  // Kill unstable gradients in a slightly wider core (reduces center “pinch / star”).
+  float core = smoothstep(0.0, u_blobRadius * 0.08 + 1e-6, length(p));
   g *= core;
   float glen = length(g);
   vec2 n = glen > 1e-4 ? g / glen : vec2(0.0);
@@ -239,7 +240,13 @@ void main() {
   refr.x /= aspect.x;
 
   float falloff = lens * (0.35 + 0.65 * smoothstep(-u_blobRadius * 0.35, 0.0, sdf));
-  vec2 distort = refr * u_refractStrength * falloff;
+  // Surface-band: refraction mostly near |sdf|≈0 (interface), not deep in the interior where
+  // SDF gradients are unreliable — avoids the center pinching star.
+  float surfBand = max(edgeW * 0.65, u_blobRadius * 0.09);
+  float shell = 1.0 - smoothstep(0.0, surfBand, abs(sdf));
+  float refrWeight = falloff * shell;
+
+  vec2 distort = refr * u_refractStrength * refrWeight;
 
   vec2 uvR = uv + distort;
 
@@ -248,7 +255,7 @@ void main() {
   float frostOuter = edgeW * (1.0 + 0.32 * clamp(u_frostBlur, 0.0, 14.0));
   float frostBlend = smoothstep(frostOuter, -edgeW, sdf);
   float frostPx = u_frostBlur * frostBlend;
-  vec3 col = sampleSceneChroma(uvR, u_chroma * falloff * 48.0, frostPx);
+  vec3 col = sampleSceneChroma(uvR, u_chroma * refrWeight * 48.0, frostPx);
 
   fragColor = vec4(col, 1.0);
 }
