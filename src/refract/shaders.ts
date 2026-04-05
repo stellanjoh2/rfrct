@@ -26,6 +26,8 @@ uniform float u_frostBlur;
 uniform float u_blurQuality;
 
 uniform float u_chroma;
+/** 0 = wobbly blob, 1 = rotating 3D box SDF (slice at z=0), 2 = smooth metaballs */
+uniform int u_shapeMode;
 
 out vec4 fragColor;
 
@@ -36,26 +38,103 @@ const float BLUR_W7[7] = float[](
   0.015625, 0.09375, 0.234375, 0.3125, 0.234375, 0.09375, 0.015625
 );
 
+vec2 cmul(vec2 a, vec2 b) {
+  return vec2(a.x * b.x - a.y * b.y, a.x * b.y + a.y * b.x);
+}
+
 float blobSdf(vec2 p) {
   float r = length(p);
-  // atan(y,x) jumps by 2π across the negative-x axis. sin(ω*θ) is continuous across
-  // that cut only when ω is an integer; non-integer ω (e.g. 4.5) causes a hard seam
-  // (horizontal "pinch" through the blob). Use integer modes for the polar term,
-  // plus a smooth Cartesian ripple for the fractional part.
-  float ang = atan(p.y, p.x);
   float wInt = round(u_waveFreq);
   float wFrac = u_waveFreq - wInt;
-  float wobble = u_waveAmp * sin(wInt * ang + u_time);
+  // Integer polar modes: sin(w·θ+t) without atan — avoids a fixed screen seam on negative-x.
+  float rr = max(r, 1e-5);
+  vec2 c = vec2(p.x / rr, p.y / rr);
+  int wi = int(clamp(wInt, 1.0, 16.0));
+  vec2 z = vec2(1.0, 0.0);
+  for (int i = 0; i < 16; i++) {
+    if (i >= wi) break;
+    z = cmul(z, c);
+  }
+  vec2 eit = vec2(cos(u_time), sin(u_time));
+  vec2 wv = cmul(z, eit);
+  float wobble = u_waveAmp * wv.y;
   wobble += u_waveAmp * wFrac * 0.45 * sin(dot(p, vec2(3.2, 2.7)) + u_time * 0.85);
   float boundary = u_blobRadius + wobble;
   return r - boundary;
 }
 
+mat3 rot3X(float a) {
+  float c = cos(a), s = sin(a);
+  return mat3(1.0, 0.0, 0.0, 0.0, c, -s, 0.0, s, c);
+}
+mat3 rot3Y(float a) {
+  float c = cos(a), s = sin(a);
+  return mat3(c, 0.0, s, 0.0, 1.0, 0.0, -s, 0.0, c);
+}
+mat3 rot3Z(float a) {
+  float c = cos(a), s = sin(a);
+  return mat3(c, -s, 0.0, s, c, 0.0, 0.0, 0.0, 1.0);
+}
+
+/** Exact box SDF has strong gradient seams (face/edge Voronoi); rounded box removes the “cross” on z-slices. */
+float sdRoundBox3(vec3 p, vec3 b, float r) {
+  vec3 q = abs(p) - b;
+  return length(max(q, vec3(0.0))) + min(max(q.x, max(q.y, q.z)), 0.0) - r;
+}
+
+float cubeSdf(vec2 p) {
+  float h = u_blobRadius * 0.92;
+  float cornerR = h * 0.1;
+  vec3 b = vec3(h - cornerR);
+  vec3 p3 = vec3(p.x, p.y, 0.0);
+  float t = u_time;
+  // Precession: slowly rotates the spin frame so the z=0 slice does not sit in a symmetric “top” pose.
+  mat3 precess = rot3Z(t * 0.19) * rot3X(t * 0.14) * rot3Y(t * 0.11);
+  // Body spin: three incommensurate rates so motion does not repeat on a short cycle.
+  mat3 spin = rot3Z(t * 1.03) * rot3Y(t * 0.67) * rot3X(t * 0.89);
+  mat3 R = precess * spin;
+  p3 = R * p3;
+  return sdRoundBox3(p3, b, cornerR);
+}
+
+float smin(float a, float b, float k) {
+  float h = clamp(0.5 + 0.5 * (b - a) / k, 0.0, 1.0);
+  return mix(b, a, h) - k * h * (1.0 - h);
+}
+
+float metaballsSdf(vec2 p) {
+  float R = u_blobRadius;
+  float orbit = R * 0.5;
+  float ballR = R * 0.36;
+  float blend = R * 0.28;
+  float t = u_time;
+  float d = 1e6;
+  const int N = 4;
+  for (int i = 0; i < N; i++) {
+    float ang = float(i) * (6.28318530718 / float(N)) + t * 0.85;
+    vec2 c = vec2(cos(ang), sin(ang)) * orbit;
+    float di = length(p - c) - ballR;
+    d = smin(d, di, blend);
+  }
+  float dc = length(p) - ballR * 0.62;
+  d = smin(d, dc, blend * 0.75);
+  return d;
+}
+
+float shapeSdf(vec2 p) {
+  if (u_shapeMode == 0) {
+    return blobSdf(p);
+  }
+  if (u_shapeMode == 1) {
+    return cubeSdf(p);
+  }
+  return metaballsSdf(p);
+}
+
 vec2 sdfGradient(vec2 p) {
-  float e = 0.0012;
-  float a = blobSdf(p);
-  float gx = blobSdf(p + vec2(e, 0.0)) - blobSdf(p - vec2(e, 0.0));
-  float gy = blobSdf(p + vec2(0.0, e)) - blobSdf(p - vec2(0.0, e));
+  float e = 0.0012 * max(u_blobRadius, 0.08);
+  float gx = shapeSdf(p + vec2(e, 0.0)) - shapeSdf(p - vec2(e, 0.0));
+  float gy = shapeSdf(p + vec2(0.0, e)) - shapeSdf(p - vec2(0.0, e));
   return vec2(gx, gy) / (2.0 * e);
 }
 
@@ -143,10 +222,12 @@ void main() {
   vec2 aspect = vec2(u_resolution.x / u_resolution.y, 1.0);
   vec2 p = (uv - u_blobCenter) * aspect;
 
-  float sdf = blobSdf(p);
+  float sdf = shapeSdf(p);
   vec2 g = sdfGradient(p);
+  float core = smoothstep(0.0, u_blobRadius * 0.045 + 1e-6, length(p));
+  g *= core;
   float glen = length(g);
-  vec2 n = glen > 1e-5 ? g / glen : vec2(0.0);
+  vec2 n = glen > 1e-4 ? g / glen : vec2(0.0);
 
   // Single edge band: softness + fwidth AA. Refraction and frost both key off this width.
   float aa = max(fwidth(sdf), 1e-6);

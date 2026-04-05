@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { downloadCanvasAsPng } from "./capture";
 import { applyPanToRect, computeImageRect } from "./refract/layout";
-import { RefractRenderer } from "./refract/RefractRenderer";
+import { RefractRenderer, type ShapeMode } from "./refract/RefractRenderer";
 import {
   computeSvgRasterDimensions,
   isSvgFile,
@@ -49,6 +49,7 @@ export function App() {
   /** 1=9 / 2=25 / 3=49 texture taps for frost blur kernel. */
   const [blurQuality, setBlurQuality] = useState(1);
   const [chroma, setChroma] = useState(0);
+  const [shapeMode, setShapeMode] = useState<ShapeMode>(0);
 
   const blobCenterRef = useRef({ x: 0.5, y: 0.5 });
   /** none | pan (left) | fx (right, blob) */
@@ -173,6 +174,7 @@ export function App() {
     r.blob.frostBlur = frostBlur;
     r.blob.blurQuality = blurQuality;
     r.blob.chroma = chroma;
+    r.blob.shapeMode = shapeMode;
     r.blob.centerX = blobCenterRef.current.x;
     r.blob.centerY = blobCenterRef.current.y;
   }, [
@@ -185,6 +187,7 @@ export function App() {
     frostBlur,
     blurQuality,
     chroma,
+    shapeMode,
   ]);
 
   useEffect(() => {
@@ -381,7 +384,7 @@ export function App() {
               />
             </label>
             <span className="hint">
-              Left drag: pan image · Right drag: move blob · Wheel: zoom
+              Left drag: pan image · Right drag: move lens · Wheel: zoom
             </span>
           </div>
 
@@ -424,8 +427,24 @@ export function App() {
             </div>
           </section>
 
-          <h2>Blob</h2>
+          <h2>Lens</h2>
           <section>
+            <div className="field">
+              <label htmlFor="shape-mode">Shape</label>
+              <select
+                id="shape-mode"
+                className="field-select"
+                value={shapeMode}
+                onChange={(e) =>
+                  setShapeMode(Number(e.target.value) as ShapeMode)
+                }
+                aria-label="Refracting shape"
+              >
+                <option value={0}>Blob</option>
+                <option value={1}>Cube (3D)</option>
+                <option value={2}>Metaballs</option>
+              </select>
+            </div>
             <div className="field">
               <label>
                 Size
@@ -442,7 +461,7 @@ export function App() {
             </div>
             <div className="field">
               <label>
-                Blob speed
+                Animation speed
                 <span className="val">{blobSpeed.toFixed(2)}×</span>
               </label>
               <input
@@ -453,35 +472,42 @@ export function App() {
                 value={blobSpeed}
                 onChange={(e) => setBlobSpeed(Number(e.target.value))}
               />
+              <p className="field-micro">
+                Wobble (blob), rotation (cube), or orbits (metaballs)
+              </p>
             </div>
-            <div className="field">
-              <label>
-                Wave frequency
-                <span className="val">{waveFreq.toFixed(1)}</span>
-              </label>
-              <input
-                type="range"
-                min={1}
-                max={16}
-                step={0.5}
-                value={waveFreq}
-                onChange={(e) => setWaveFreq(Number(e.target.value))}
-              />
-            </div>
-            <div className="field">
-              <label>
-                Wave strength
-                <span className="val">{waveAmp.toFixed(2)}</span>
-              </label>
-              <input
-                type="range"
-                min={0}
-                max={0.55}
-                step={0.01}
-                value={waveAmp}
-                onChange={(e) => setWaveAmp(Number(e.target.value))}
-              />
-            </div>
+            {shapeMode === 0 && (
+              <>
+                <div className="field">
+                  <label>
+                    Wave frequency
+                    <span className="val">{waveFreq.toFixed(1)}</span>
+                  </label>
+                  <input
+                    type="range"
+                    min={1}
+                    max={16}
+                    step={0.5}
+                    value={waveFreq}
+                    onChange={(e) => setWaveFreq(Number(e.target.value))}
+                  />
+                </div>
+                <div className="field">
+                  <label>
+                    Wave strength
+                    <span className="val">{waveAmp.toFixed(2)}</span>
+                  </label>
+                  <input
+                    type="range"
+                    min={0}
+                    max={0.55}
+                    step={0.01}
+                    value={waveAmp}
+                    onChange={(e) => setWaveAmp(Number(e.target.value))}
+                  />
+                </div>
+              </>
+            )}
             <div className="field">
               <label>
                 Refraction

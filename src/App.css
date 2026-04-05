@@ -236,6 +236,23 @@ label.file-btn input[type="file"] {
   cursor: pointer;
 }
 
+.field-select {
+  width: 100%;
+  font-family: inherit;
+  font-size: 11px;
+  padding: 9px 10px;
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.22);
+  color: var(--glass-text);
+  cursor: pointer;
+}
+
+.field-select:focus {
+  outline: 1px solid var(--accent);
+  outline-offset: 1px;
+}
+
 .field input[type="color"] {
   width: 100%;
   height: 36px;

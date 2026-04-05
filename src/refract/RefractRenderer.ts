@@ -27,6 +27,9 @@ function link(gl: WebGL2RenderingContext, vs: WebGLShader, fs: WebGLShader) {
   return p;
 }
 
+/** 0 = blob, 1 = 3D cube slice, 2 = metaballs */
+export type ShapeMode = 0 | 1 | 2;
+
 export type BlobParams = {
   centerX: number;
   centerY: number;
@@ -42,6 +45,7 @@ export type BlobParams = {
   /** 1 = 9 taps, 2 = 25, 3 = 49 (binomial kernels; higher = softer, heavier GPU). */
   blurQuality: number;
   chroma: number;
+  shapeMode: ShapeMode;
 };
 
 export type ImageLayout = {
@@ -93,6 +97,7 @@ export class RefractRenderer {
     frostBlur: 2,
     blurQuality: 1,
     chroma: 0,
+    shapeMode: 0,
   };
 
   constructor(canvas: HTMLCanvasElement) {
@@ -127,6 +132,7 @@ export class RefractRenderer {
       "u_frostBlur",
       "u_blurQuality",
       "u_chroma",
+      "u_shapeMode",
     ] as const;
     for (const n of names) {
       this.locs[n] = gl.getUniformLocation(this.program, n);
@@ -212,6 +218,7 @@ export class RefractRenderer {
     gl.uniform1f(this.locs.u_frostBlur, this.blob.frostBlur);
     gl.uniform1f(this.locs.u_blurQuality, this.blob.blurQuality);
     gl.uniform1f(this.locs.u_chroma, this.blob.chroma);
+    gl.uniform1i(this.locs.u_shapeMode, this.blob.shapeMode);
 
     gl.drawArrays(gl.TRIANGLES, 0, 3);
   };
