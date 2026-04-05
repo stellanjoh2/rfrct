@@ -81,7 +81,9 @@ export class RefractRenderer {
   private texture: WebGLTexture;
   private locs: Record<string, WebGLUniformLocation | null> = {};
   private raf = 0;
-  private start = performance.now();
+  /** Monotonic shader time (seconds); advances by dt × speed so pause does not reset phase. */
+  private animationTime = 0;
+  private lastFrameTime = performance.now();
 
   imageLayout: ImageLayout | null = null;
   bgColor: [number, number, number, number] = [1, 1, 1, 1];
@@ -188,8 +190,14 @@ export class RefractRenderer {
     const gl = this.gl;
     const w = gl.canvas.width;
     const h = gl.canvas.height;
-    const time =
-      (performance.now() - this.start) * 0.001 * Math.max(0, this.blob.speed);
+    const now = performance.now();
+    let dt = (now - this.lastFrameTime) * 0.001;
+    this.lastFrameTime = now;
+    if (dt > 0.25) {
+      dt = 0.016;
+    }
+    const speed = Math.max(0, this.blob.speed);
+    this.animationTime += dt * speed;
 
     gl.clearColor(...this.bgColor);
     gl.clear(gl.COLOR_BUFFER_BIT);
@@ -212,7 +220,7 @@ export class RefractRenderer {
     gl.uniform1f(this.locs.u_blobRadius, r);
     gl.uniform1f(this.locs.u_waveFreq, this.blob.waveFreq);
     gl.uniform1f(this.locs.u_waveAmp, this.blob.waveAmp * r);
-    gl.uniform1f(this.locs.u_time, time);
+    gl.uniform1f(this.locs.u_time, this.animationTime);
     gl.uniform1f(this.locs.u_refractStrength, this.blob.refractStrength);
     gl.uniform1f(this.locs.u_edgeSoftness, this.blob.edgeSoftness);
     gl.uniform1f(this.locs.u_frostBlur, this.blob.frostBlur);
