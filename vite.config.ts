@@ -1,10 +1,9 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
-// Project Pages URL: https://stellanjoh2.github.io/rfrct/
-const pagesBase = "/rfrct/";
-
-export default defineConfig(({ mode }) => ({
+// Dev / vite preview: base "/". Production build: "./" so asset URLs are relative — works on
+// GitHub Pages (/rfrct/), localhost preview, and avoids 404s from /rfrct/... on :5173.
+export default defineConfig(({ command }) => ({
   plugins: [react()],
-  base: mode === "production" ? pagesBase : "/",
+  base: command === "serve" ? "/" : "./",
 }));
