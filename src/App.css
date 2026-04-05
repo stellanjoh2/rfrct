@@ -253,6 +253,33 @@ label.file-btn input[type="file"] {
   cursor: pointer;
 }
 
+.field--checkbox {
+  margin-bottom: 14px;
+}
+
+.field.field--checkbox label.field-checkbox-label {
+  justify-content: flex-start;
+  margin-bottom: 0;
+}
+
+.field-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  font-size: 11px;
+  color: var(--glass-text);
+  cursor: pointer;
+  user-select: none;
+}
+
+.field-checkbox-label input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
 .field-select {
   width: 100%;
   font-family: inherit;

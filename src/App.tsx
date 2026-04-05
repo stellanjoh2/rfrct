@@ -41,6 +41,8 @@ export function App() {
   const [blobSize, setBlobSize] = useState(0.22);
   /** Animation speed for blob wobble (1 = default). */
   const [blobSpeed, setBlobSpeed] = useState(1);
+  /** When true, lens motion is frozen (shader time stops). */
+  const [pauseAnimation, setPauseAnimation] = useState(false);
   const [waveFreq, setWaveFreq] = useState(5);
   const [waveAmp, setWaveAmp] = useState(0.16);
   const [refract, setRefract] = useState(0.12);
@@ -189,7 +191,7 @@ export function App() {
     const r = rendererRef.current;
     if (!r) return;
     r.blob.radius = blobSize;
-    r.blob.speed = blobSpeed;
+    r.blob.speed = pauseAnimation ? 0 : blobSpeed;
     r.blob.waveFreq = waveFreq;
     r.blob.waveAmp = waveAmp;
     r.blob.refractStrength = refract;
@@ -203,6 +205,7 @@ export function App() {
   }, [
     blobSize,
     blobSpeed,
+    pauseAnimation,
     waveFreq,
     waveAmp,
     refract,
@@ -490,7 +493,9 @@ export function App() {
             <div className="field">
               <label>
                 Animation speed
-                <span className="val">{blobSpeed.toFixed(2)}×</span>
+                <span className="val">
+                  {pauseAnimation ? "paused" : `${blobSpeed.toFixed(2)}×`}
+                </span>
               </label>
               <input
                 type="range"
@@ -503,6 +508,17 @@ export function App() {
               <p className="field-micro">
                 Wobble (blob), rotation (cube), or orbits (metaballs)
               </p>
+            </div>
+            <div className="field field--checkbox">
+              <label className="field-checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={pauseAnimation}
+                  onChange={(e) => setPauseAnimation(e.target.checked)}
+                  aria-label="Pause animation"
+                />
+                Pause animation
+              </label>
             </div>
             {shapeMode === 0 && (
               <>
