@@ -100,6 +100,13 @@ export function App() {
         captureScreenshot();
         return;
       }
+      if (e.key === " ") {
+        const t = e.target as HTMLElement | null;
+        if (t?.closest("button, a[href]")) return;
+        e.preventDefault();
+        setPauseAnimation((v) => !v);
+        return;
+      }
       if (e.ctrlKey || e.metaKey || e.altKey) return;
       if (e.key === "1") {
         e.preventDefault();
@@ -657,7 +664,8 @@ export function App() {
 
           <p className="shortcut-hint">
             <kbd>1</kbd> blob · <kbd>2</kbd> cube · <kbd>3</kbd> metaballs ·{" "}
-            <kbd>P</kbd> panel · <kbd>F</kbd> focus · <kbd>C</kbd> screenshot
+            <kbd>Space</kbd> pause · <kbd>P</kbd> panel · <kbd>F</kbd> focus ·{" "}
+            <kbd>C</kbd> screenshot
           </p>
         </aside>
       </div>
