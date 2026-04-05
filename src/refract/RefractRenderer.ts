@@ -75,12 +75,17 @@ export class RefractRenderer {
   };
 
   constructor(canvas: HTMLCanvasElement) {
-    const gl = canvas.getContext("webgl2", {
-      alpha: false,
-      antialias: true,
-      premultipliedAlpha: false,
-      preserveDrawingBuffer: true,
-    });
+    const gl = canvas.getContext(
+      "webgl2",
+      {
+        alpha: false,
+        antialias: true,
+        premultipliedAlpha: false,
+        preserveDrawingBuffer: true,
+        // Match CSS & color inputs: drawing buffer is sRGB (same encoding as hex / color picker).
+        colorSpace: "srgb",
+      } as WebGLContextAttributes & { colorSpace?: "srgb" | "display-p3" },
+    ) as WebGL2RenderingContext | null;
     if (!gl) throw new Error("WebGL2 required");
     this.gl = gl;
 

@@ -1,4 +1,4 @@
-/** Parse `#rrggbb` to linear-ish RGBA in 0–1. Invalid input → white. */
+/** Parse `#rrggbb` to sRGB channels in 0–1 — same encoding as CSS / `<input type="color">`. */
 export function parseHexColor(hex: string): [number, number, number, number] {
   const h = hex.replace(/^#/, "");
   if (h.length === 6) {

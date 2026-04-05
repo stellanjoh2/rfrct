@@ -39,6 +39,6 @@ export type SvgTintMode = 0 | 1 | 2;
 
 export type SvgTintParams = {
   mode: SvgTintMode;
-  /** Linear-ish RGB in 0–1 (from hex). */
+  /** sRGB 0–1 channels (same as CSS hex). */
   rgb: [number, number, number];
 };

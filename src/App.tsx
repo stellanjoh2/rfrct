@@ -5,6 +5,7 @@ import { Focus } from "./focus";
 import {
   applyRendererState,
   buildRendererSyncParams,
+  type RendererSyncSource,
 } from "./refract/applyRendererState";
 import { applyPanToRect, computeImageRect } from "./refract/layout";
 import { RefractRenderer, type ShapeMode } from "./refract/RefractRenderer";
@@ -13,6 +14,11 @@ import {
   isSvgFile,
   rasterizeToCanvas,
 } from "./refract/svgRaster";
+
+/** Pause lens shader time while scroll-zooming; resume after last wheel event. */
+const ZOOM_ANIM_RESUME_MS = 120;
+/** Avoid re-rasterizing SVG on every wheel tick (expensive). */
+const SVG_RASTER_DEBOUNCE_MS = 200;
 
 export function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -56,6 +62,18 @@ export function App() {
 
   const [uiVisible, setUiVisible] = useState(true);
   const [webglError, setWebglError] = useState<string | null>(null);
+
+  /** Debounced scale for SVG texture resolution; layout uses live `imageScale` via syncLayout. */
+  const [svgRasterScale, setSvgRasterScale] = useState(1);
+  useEffect(() => {
+    const t = window.setTimeout(
+      () => setSvgRasterScale(imageScale),
+      SVG_RASTER_DEBOUNCE_MS,
+    );
+    return () => clearTimeout(t);
+  }, [imageScale]);
+
+  const latestSyncRef = useRef<RendererSyncSource | null>(null);
 
   const captureScreenshot = useCallback(() => {
     const canvas = canvasRef.current;
@@ -127,15 +145,56 @@ export function App() {
     const el = wrapRef.current;
     if (!el) return;
 
+    const zoomResumeTimerRef = { current: 0 as number | null };
+
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
+      const r = rendererRef.current;
+      if (r) {
+        r.blob.speed = 0;
+      }
+      if (zoomResumeTimerRef.current !== null) {
+        window.clearTimeout(zoomResumeTimerRef.current);
+      }
+      zoomResumeTimerRef.current = window.setTimeout(() => {
+        zoomResumeTimerRef.current = null;
+        const rr = rendererRef.current;
+        const src = latestSyncRef.current;
+        if (!rr || !src) return;
+        applyRendererState(
+          rr,
+          buildRendererSyncParams({
+            ...src,
+            blobCenterX: blobCenterRef.current.x,
+            blobCenterY: blobCenterRef.current.y,
+          }),
+        );
+      }, ZOOM_ANIM_RESUME_MS);
+
       const zoomIntensity = 0.00115;
       const factor = Math.exp(-e.deltaY * zoomIntensity);
       setImageScale((s) => Math.min(3, Math.max(0.25, s * factor)));
     };
 
     el.addEventListener("wheel", onWheel, { passive: false });
-    return () => el.removeEventListener("wheel", onWheel);
+    return () => {
+      if (zoomResumeTimerRef.current !== null) {
+        window.clearTimeout(zoomResumeTimerRef.current);
+      }
+      const rr = rendererRef.current;
+      const src = latestSyncRef.current;
+      if (rr && src) {
+        applyRendererState(
+          rr,
+          buildRendererSyncParams({
+            ...src,
+            blobCenterX: blobCenterRef.current.x,
+            blobCenterY: blobCenterRef.current.y,
+          }),
+        );
+      }
+      el.removeEventListener("wheel", onWheel);
+    };
   }, []);
 
   const syncLayout = useCallback(() => {
@@ -266,11 +325,17 @@ export function App() {
         img,
         bw,
         bh,
-        imageScale,
+        svgRasterScale,
       );
       const raster = rasterizeToCanvas(img, w, h);
       setImgDims({ w, h });
-      const base = computeImageRect(bw, bh, w, h, imageScale);
+      const base = computeImageRect(
+        bw,
+        bh,
+        w,
+        h,
+        imageScaleRef.current,
+      );
       const rect = applyPanToRect(
         base,
         imagePanRef.current.x,
@@ -289,7 +354,7 @@ export function App() {
       img.onerror = null;
       img.src = "";
     };
-  }, [svgSourceUrl, viewportPx, imageScale]);
+  }, [svgSourceUrl, viewportPx, svgRasterScale]);
 
   useEffect(() => {
     return () => {
@@ -391,11 +456,16 @@ export function App() {
     }
 
     if (mode === "fx") {
-      const x = (e.clientX - bounds.left) / cw;
-      const y = 1 - (e.clientY - bounds.top) / ch;
-      blobCenterRef.current = { x, y };
-      r.blob.centerX = x;
-      r.blob.centerY = y;
+      // Delta drag (same basis as pan) so a new right-drag doesn’t snap the blob to the
+      // cursor on the first move — only motion while held updates position.
+      const dx = (e.clientX - lastPointerRef.current.x) / cw;
+      const dy = -(e.clientY - lastPointerRef.current.y) / ch;
+      lastPointerRef.current = { x: e.clientX, y: e.clientY };
+      const nx = Math.min(1, Math.max(0, blobCenterRef.current.x + dx));
+      const ny = Math.min(1, Math.max(0, blobCenterRef.current.y + dy));
+      blobCenterRef.current = { x: nx, y: ny };
+      r.blob.centerX = nx;
+      r.blob.centerY = ny;
     }
   };
 
@@ -473,6 +543,29 @@ export function App() {
       chroma,
     ],
   );
+
+  latestSyncRef.current = {
+    bgHex,
+    blobSize,
+    pauseAnimation,
+    blobSpeed,
+    waveFreq,
+    waveAmp,
+    refract,
+    edgeSoft,
+    frostBlur,
+    blurQuality,
+    chroma,
+    shapeMode,
+    blobCenterX: blobCenterRef.current.x,
+    blobCenterY: blobCenterRef.current.y,
+    bloomStrength,
+    bloomRadius,
+    bloomThreshold,
+    svgSourceUrl,
+    svgTintMode,
+    svgTintHex,
+  };
 
   return (
     <div className="app">
