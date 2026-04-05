@@ -26,7 +26,7 @@ uniform float u_frostBlur;
 uniform float u_blurQuality;
 
 uniform float u_chroma;
-/** 0 = wobbly blob, 1 = rotating 3D box SDF (slice at z=0), 2 = smooth metaballs */
+/** 0 = blob, 1 = rotating 3D box SDF, 2 = metaballs, 3 = water (traveling surface waves) */
 uniform int u_shapeMode;
 
 /** 0 = none, 1 = horizontal reeds, 2 = bullseye, 3 = speckle, 4 = halftone dots, 5 = vertical reeds */
@@ -133,6 +133,32 @@ float metaballsSdf(vec2 p) {
   return d;
 }
 
+/**
+ * Water lens: only smooth functions (no atan2 — polar angle caused a branch-cut seam / horizontal pinch).
+ * Traveling plane waves + radial swell + high-frequency chop.
+ */
+float waterSdf(vec2 p) {
+  float r = length(p);
+  float R = u_blobRadius;
+  float t = u_time;
+  float a = u_waveAmp;
+  float wf = clamp(u_waveFreq, 1.0, 16.0);
+  float ripple = mix(0.06, 0.38, (wf - 1.0) / 15.0);
+  float k = 7.0 + wf * 0.95;
+  vec2 dir1 = normalize(vec2(0.82, 0.57));
+  vec2 dir2 = normalize(vec2(-0.61, 0.79));
+  vec2 dir3 = normalize(vec2(0.45, -0.89));
+  float w1 = a * sin(dot(p, dir1) * k - t * 1.25);
+  float w2 = a * 0.78 * sin(dot(p, dir2) * (k * 0.72) + t * 1.05);
+  float w3 = a * 0.62 * sin(r * (10.0 + wf * 0.65) - t * 1.7);
+  float w4 =
+    a * 0.48 * sin(dot(p, vec2(3.1, -2.2)) * ripple * 14.0 - t * 2.05);
+  float w5 = a * 0.38 * sin(dot(p, dir3) * k * 1.05 + t * 0.92);
+  float w6 = a * 0.28 * sin(p.x * p.y * (8.0 + wf * 0.4) - t * 1.35);
+  float boundary = R + w1 + w2 + w3 + w4 + w5 + w6;
+  return r - boundary;
+}
+
 float shapeSdf(vec2 p) {
   if (u_shapeMode == 0) {
     return blobSdf(p);
@@ -140,7 +166,10 @@ float shapeSdf(vec2 p) {
   if (u_shapeMode == 1) {
     return cubeSdf(p);
   }
-  return metaballsSdf(p);
+  if (u_shapeMode == 2) {
+    return metaballsSdf(p);
+  }
+  return waterSdf(p);
 }
 
 vec2 sdfGradient(vec2 p) {

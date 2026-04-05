@@ -71,6 +71,7 @@ export function LensSection({
             <option value={0}>Blob</option>
             <option value={1}>Cube (3D)</option>
             <option value={2}>Metaballs</option>
+            <option value={3}>Water</option>
           </select>
         </div>
         <div className="field">
@@ -114,7 +115,7 @@ export function LensSection({
             Pause animation
           </label>
         </div>
-        {shapeMode === 0 && (
+        {(shapeMode === 0 || shapeMode === 3) && (
           <>
             <div className="field">
               <label>

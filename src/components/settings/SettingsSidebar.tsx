@@ -68,6 +68,7 @@ export function SettingsSidebar({
         <p className="shortcut-hint__title">Keyboard</p>
         <p className="shortcut-hint__line">
           <kbd>1</kbd> blob · <kbd>2</kbd> cube · <kbd>3</kbd> metaballs ·{" "}
+          <kbd>4</kbd> water ·{" "}
           <kbd>Space</kbd> pause animation · <kbd>P</kbd> toggle panel ·{" "}
           <kbd>F</kbd> focus (reset pan & scale) · <kbd>C</kbd> screenshot (2× PNG)
         </p>

@@ -154,6 +154,11 @@ export function App() {
         setShapeMode(2);
         return;
       }
+      if (e.key === "4") {
+        e.preventDefault();
+        setShapeMode(3);
+        return;
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);

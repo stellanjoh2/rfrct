@@ -1,5 +1,5 @@
-/** 0 = blob, 1 = 3D cube slice, 2 = metaballs */
-export type ShapeMode = 0 | 1 | 2;
+/** 0 = blob, 1 = 3D cube slice, 2 = metaballs, 3 = water (rolling waves) */
+export type ShapeMode = 0 | 1 | 2 | 3;
 
 /**
  * Full-screen glass displacement layered after the lens (screen-space UV offset).
