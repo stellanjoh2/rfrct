@@ -84,6 +84,7 @@ export class RefractRenderer {
   /** Monotonic shader time (seconds); advances by dt × speed so pause does not reset phase. */
   private animationTime = 0;
   private lastFrameTime = performance.now();
+  private onVisibilityChange: (() => void) | null = null;
 
   imageLayout: ImageLayout | null = null;
   bgColor: [number, number, number, number] = [1, 1, 1, 1];
@@ -152,6 +153,13 @@ export class RefractRenderer {
 
     gl.useProgram(this.program);
     gl.uniform1i(this.locs.u_image, 0);
+
+    this.onVisibilityChange = () => {
+      if (!document.hidden) {
+        this.lastFrameTime = performance.now();
+      }
+    };
+    document.addEventListener("visibilitychange", this.onVisibilityChange);
   }
 
   setImageFromSource(
@@ -187,6 +195,9 @@ export class RefractRenderer {
   }
 
   private drawFrame = () => {
+    if (document.hidden) {
+      return;
+    }
     const gl = this.gl;
     const w = gl.canvas.width;
     const h = gl.canvas.height;
@@ -249,6 +260,10 @@ export class RefractRenderer {
 
   destroy() {
     this.stopLoop();
+    if (this.onVisibilityChange) {
+      document.removeEventListener("visibilitychange", this.onVisibilityChange);
+      this.onVisibilityChange = null;
+    }
     this.gl.deleteTexture(this.texture);
     this.gl.deleteVertexArray(this.vao);
     this.gl.deleteProgram(this.program);
