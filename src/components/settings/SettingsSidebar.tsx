@@ -59,11 +59,22 @@ export function SettingsSidebar({
       <LensSection {...lens} />
       <BloomSection {...bloom} />
       <EffectsSection {...effects} />
-      <p className="shortcut-hint">
-        <kbd>1</kbd> blob · <kbd>2</kbd> cube · <kbd>3</kbd> metaballs ·{" "}
-        <kbd>Space</kbd> pause · <kbd>P</kbd> panel · <kbd>F</kbd> focus ·{" "}
-        <kbd>C</kbd> screenshot
-      </p>
+      <div className="shortcut-hint">
+        <p className="shortcut-hint__title">Mouse (canvas)</p>
+        <p className="shortcut-hint__line">
+          <strong>Left-drag</strong> — pan image · <strong>Right-drag</strong> — move
+          lens · <strong>Wheel</strong> — zoom
+        </p>
+        <p className="shortcut-hint__title">Keyboard</p>
+        <p className="shortcut-hint__line">
+          <kbd>1</kbd> blob · <kbd>2</kbd> cube · <kbd>3</kbd> metaballs ·{" "}
+          <kbd>Space</kbd> pause animation · <kbd>P</kbd> toggle panel ·{" "}
+          <kbd>F</kbd> focus (reset pan & scale) · <kbd>C</kbd> screenshot (2× PNG)
+        </p>
+        <p className="shortcut-hint__note">
+          Shortcuts don&apos;t apply while a text field or dropdown is focused.
+        </p>
+      </div>
     </aside>
   );
 }

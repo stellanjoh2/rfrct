@@ -29,6 +29,13 @@ uniform float u_chroma;
 /** 0 = wobbly blob, 1 = rotating 3D box SDF (slice at z=0), 2 = smooth metaballs */
 uniform int u_shapeMode;
 
+/** 0 = none, 1 = horizontal reeds, 2 = bullseye, 3 = speckle, 4 = halftone dots, 5 = vertical reeds */
+uniform int u_filterMode;
+uniform float u_filterStrength;
+/** 0 = finest features, 1 = coarsest (all modes use the same convention in filterGlass). */
+uniform float u_filterScale;
+uniform float u_filterMotionSpeed;
+
 /** 0 = none, 1 = multiply tex.rgb by tint, 2 = replace with tint (uses alpha only). SVG uploads only. */
 uniform float u_svgTintMode;
 uniform vec3 u_svgTintRgb;
@@ -229,6 +236,88 @@ vec3 sampleSceneChroma(vec2 uv, float spread, float frostPx) {
   return vec3(r, g, b);
 }
 
+/** 0–1 hash; decorrelated from neighbors for grain. */
+float hash12(vec2 p) {
+  vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+  p3 += dot(p3, p3.yzx + 33.33);
+  return fract((p3.x + p3.y) * p3.z);
+}
+
+/** Screen-space glass plate layered after lens refraction (additive UV offset). */
+vec2 filterGlass(vec2 uv) {
+  if (u_filterMode == 0) {
+    return vec2(0.0);
+  }
+  // 2× headroom vs original so slider=1 hits stronger displacement.
+  float fs = clamp(u_filterStrength, 0.0, 1.0) * 2.0;
+  if (fs < 1e-5) {
+    return vec2(0.0);
+  }
+  float sc = clamp(u_filterScale, 0.0, 1.0);
+  // All modes: sc=0 → smallest/thinnest features, sc=1 → largest/widest (inverted where needed).
+  float resPx = max(u_resolution.x, u_resolution.y);
+  vec2 aspect = vec2(u_resolution.x / max(u_resolution.y, 1.0), 1.0);
+
+  float mot = max(u_filterMotionSpeed, 0.0);
+  float tf = u_time * mot;
+  // Constant-direction drift (down-right); tf=0 → no motion. Halftone uses fract(uv+scroll) so it never blows up.
+  vec2 scroll = vec2(tf * 0.0019, tf * 0.00135);
+  vec2 uvP = uv + scroll;
+
+  if (u_filterMode == 1) {
+    float freq = mix(128.0, 20.0, sc);
+    float amp = 0.0052 * fs;
+    float ph = tf * 0.15;
+    return vec2(sin(uvP.y * freq * 6.28318530718 + ph), 0.0) * amp;
+  }
+  if (u_filterMode == 2) {
+    vec2 d = (uvP - u_blobCenter) * aspect;
+    float r = length(d);
+    vec2 nrm = r > 1e-5 ? d / r : vec2(0.0);
+    float rings = sin(r * mix(96.0, 28.0, sc) * 6.28318530718 - tf * 0.7);
+    float amp = 0.0038 * fs;
+    return vec2(nrm.x / aspect.x, nrm.y) * rings * amp;
+  }
+  if (u_filterMode == 3) {
+    float cells = mix(resPx, 96.0, sc);
+    vec2 g = floor(uvP * cells);
+    float a = hash12(g);
+    float b = hash12(g + vec2(31.0, 17.0));
+    float c = hash12(g + vec2(113.0, 47.0));
+    float m = hash12(floor(uvP * resPx * 1.5) + vec2(211.0, 91.0));
+    vec2 grain = vec2(
+      fract(a + b * 0.5 + c * 0.28 + m * 0.22) - 0.5,
+      fract(b + c * 0.52 + a * 0.26 + m * 0.24) - 0.5
+    ) * 2.0;
+    return grain * (0.0034 * fs);
+  }
+  if (u_filterMode == 4) {
+    // Halftone dots: wrapped grid + scroll. r/dir use aspect so dots are circular in pixels (uv is anisotropic).
+    float cells = mix(resPx, 22.0, sc);
+    vec2 uvG = fract(uv + scroll);
+    vec2 st = fract(uvG * cells);
+    vec2 local = st - 0.5;
+    float ax = u_resolution.x / max(u_resolution.y, 1.0);
+    vec2 localPx = vec2(local.x * ax, local.y);
+    float r = length(localPx);
+    vec2 dir =
+      r > 1e-4 ? normalize(vec2(local.x, local.y / (ax * ax))) : vec2(0.0);
+    float dotR = 0.44;
+    float win =
+      smoothstep(dotR + 0.05, dotR - 0.03, r) * smoothstep(0.04, 0.1, r);
+    float rosette = sin(r * 6.28318530718 * 3.0 + tf * 0.25);
+    float amp = 0.0042 * fs;
+    return dir * rosette * win * amp;
+  }
+  if (u_filterMode == 5) {
+    float freq = mix(128.0, 20.0, sc);
+    float amp = 0.0052 * fs;
+    float ph = tf * 0.15;
+    return vec2(0.0, sin(uvP.x * freq * 6.28318530718 + ph)) * amp;
+  }
+  return vec2(0.0);
+}
+
 void main() {
   vec2 uv = gl_FragCoord.xy / u_resolution;
 
@@ -253,7 +342,7 @@ void main() {
   float falloff = lens * (0.35 + 0.65 * smoothstep(-u_blobRadius * 0.35, 0.0, sdf));
   vec2 distort = refr * u_refractStrength * falloff;
 
-  vec2 uvR = uv + distort;
+  vec2 uvR = uv + distort + filterGlass(uv);
 
   // Frost: same edgeW as silhouette, but outer ramp extends when frost is high so blur
   // feathers the transition (no second hard ring). No extra “glow” — only blurred samples.

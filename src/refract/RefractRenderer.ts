@@ -1,3 +1,4 @@
+import { downloadCanvasAsPng } from "../capture";
 import { BloomPipeline } from "./BloomPipeline";
 import { FRAG, VERT } from "./shaders";
 import type { BlobParams, BloomParams, ImageLayout, SvgTintParams } from "./types";
@@ -6,6 +7,7 @@ import { compileShader, linkProgram } from "./webgl";
 export type {
   BlobParams,
   BloomParams,
+  FilterMode,
   ImageLayout,
   ShapeMode,
   SvgTintMode,
@@ -60,10 +62,14 @@ export class RefractRenderer {
     blurQuality: 1,
     chroma: 0,
     shapeMode: 0,
+    filterMode: 0,
+    filterStrength: 0,
+    filterScale: 0.5,
+    filterMotionSpeed: 1,
   };
 
   bloom: BloomParams = {
-    strength: 0.5,
+    strength: 0,
     radius: 0.2,
     threshold: 0.88,
     softKnee: 0.1,
@@ -114,6 +120,10 @@ export class RefractRenderer {
       "u_blurQuality",
       "u_chroma",
       "u_shapeMode",
+      "u_filterMode",
+      "u_filterStrength",
+      "u_filterScale",
+      "u_filterMotionSpeed",
       "u_svgTintMode",
       "u_svgTintRgb",
     ] as const;
@@ -202,6 +212,10 @@ export class RefractRenderer {
     gl.uniform1f(this.locs.u_blurQuality, this.blob.blurQuality);
     gl.uniform1f(this.locs.u_chroma, this.blob.chroma);
     gl.uniform1i(this.locs.u_shapeMode, this.blob.shapeMode);
+    gl.uniform1i(this.locs.u_filterMode, this.blob.filterMode);
+    gl.uniform1f(this.locs.u_filterStrength, this.blob.filterStrength);
+    gl.uniform1f(this.locs.u_filterScale, this.blob.filterScale);
+    gl.uniform1f(this.locs.u_filterMotionSpeed, this.blob.filterMotionSpeed);
     gl.uniform1f(this.locs.u_svgTintMode, this.svgTint.mode);
     gl.uniform3f(
       this.locs.u_svgTintRgb,
@@ -264,6 +278,35 @@ export class RefractRenderer {
 
   requestDraw() {
     this.drawFrame();
+  }
+
+  /**
+   * Renders at 2× current backing-store resolution, downloads PNG, then restores size and redraws.
+   */
+  capturePng2x(basename = "refrct"): void {
+    const gl = this.gl;
+    const canvas = gl.canvas as HTMLCanvasElement;
+    const w0 = canvas.width;
+    const h0 = canvas.height;
+    const nw = Math.max(1, w0 * 2);
+    const nh = Math.max(1, h0 * 2);
+
+    canvas.width = nw;
+    canvas.height = nh;
+    gl.viewport(0, 0, nw, nh);
+    this.bloomPipeline.releaseFramebuffers();
+    this.drawFrame();
+
+    requestAnimationFrame(() => {
+      downloadCanvasAsPng(canvas, basename, () => {
+        canvas.width = w0;
+        canvas.height = h0;
+        gl.viewport(0, 0, w0, h0);
+        this.bloomPipeline.releaseFramebuffers();
+        this.drawFrame();
+        canvas.focus({ preventScroll: true });
+      });
+    });
   }
 
   destroy() {

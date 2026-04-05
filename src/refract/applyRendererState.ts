@@ -2,6 +2,7 @@ import { parseHexColor } from "../color";
 import type {
   BlobParams,
   BloomParams,
+  FilterMode,
   ShapeMode,
   SvgTintParams,
 } from "./types";
@@ -49,6 +50,10 @@ export type RendererSyncSource = {
   blurQuality: number;
   chroma: number;
   shapeMode: ShapeMode;
+  filterMode: FilterMode;
+  filterStrength: number;
+  filterScale: number;
+  filterMotionSpeed: number;
   blobCenterX: number;
   blobCenterY: number;
   bloomStrength: number;
@@ -99,6 +104,10 @@ export function buildRendererSyncParams(
     blurQuality: s.blurQuality,
     chroma: s.chroma,
     shapeMode: s.shapeMode,
+    filterMode: s.filterMode,
+    filterStrength: s.filterStrength,
+    filterScale: s.filterScale,
+    filterMotionSpeed: s.filterMotionSpeed,
   };
 
   return {

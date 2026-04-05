@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { SettingsSidebar } from "./components/settings/SettingsSidebar";
-import { downloadCanvasAsPng } from "./capture";
 import { Focus } from "./focus";
 import {
   applyRendererState,
@@ -8,7 +7,11 @@ import {
   type RendererSyncSource,
 } from "./refract/applyRendererState";
 import { applyPanToRect, computeImageRect } from "./refract/layout";
-import { RefractRenderer, type ShapeMode } from "./refract/RefractRenderer";
+import {
+  RefractRenderer,
+  type FilterMode,
+  type ShapeMode,
+} from "./refract/RefractRenderer";
 import {
   computeSvgRasterDimensions,
   isSvgFile,
@@ -50,10 +53,14 @@ export function App() {
   const [frostBlur, setFrostBlur] = useState(2);
   const [blurQuality, setBlurQuality] = useState(1);
   const [chroma, setChroma] = useState(0);
-  const [bloomStrength, setBloomStrength] = useState(0.5);
+  const [bloomStrength, setBloomStrength] = useState(0);
   const [bloomRadius, setBloomRadius] = useState(0.2);
   const [bloomThreshold, setBloomThreshold] = useState(0.88);
   const [shapeMode, setShapeMode] = useState<ShapeMode>(0);
+  const [filterMode, setFilterMode] = useState<FilterMode>(0);
+  const [filterStrength, setFilterStrength] = useState(0);
+  const [filterScale, setFilterScale] = useState(0.5);
+  const [filterMotionSpeed, setFilterMotionSpeed] = useState(1);
 
   const blobCenterRef = useRef({ x: 0.5, y: 0.5 });
   const dragModeRef = useRef<"none" | "pan" | "fx">("none");
@@ -76,13 +83,9 @@ export function App() {
   const latestSyncRef = useRef<RendererSyncSource | null>(null);
 
   const captureScreenshot = useCallback(() => {
-    const canvas = canvasRef.current;
     const r = rendererRef.current;
-    if (!canvas || !r) return;
-    r.requestDraw();
-    requestAnimationFrame(() => {
-      downloadCanvasAsPng(canvas);
-    });
+    if (!r) return;
+    r.capturePng2x();
   }, []);
 
   const focusImage = useCallback(() => {
@@ -95,6 +98,28 @@ export function App() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const el = e.target as HTMLElement | null;
+
+      // Space: pause — must run before the "select blocks all shortcuts" guard, otherwise
+      // focus on a <select> (e.g. after a file download) prevents unpause.
+      if (e.key === " ") {
+        if (el?.closest("textarea, [contenteditable='true']")) return;
+        const textInput = el?.closest("input");
+        if (textInput instanceof HTMLInputElement) {
+          const ty = (textInput.type || "text").toLowerCase();
+          if (
+            ["text", "search", "email", "password", "url", "tel", "number"].includes(
+              ty,
+            )
+          ) {
+            return;
+          }
+        }
+        if (el?.closest("button, a[href]")) return;
+        e.preventDefault();
+        setPauseAnimation((v) => !v);
+        return;
+      }
+
       if (el?.closest("input, textarea, select, [contenteditable='true']"))
         return;
 
@@ -111,13 +136,6 @@ export function App() {
       if (e.key === "c" || e.key === "C") {
         e.preventDefault();
         captureScreenshot();
-        return;
-      }
-      if (e.key === " ") {
-        const t = e.target as HTMLElement | null;
-        if (t?.closest("button, a[href]")) return;
-        e.preventDefault();
-        setPauseAnimation((v) => !v);
         return;
       }
       if (e.ctrlKey || e.metaKey || e.altKey) return;
@@ -276,6 +294,10 @@ export function App() {
         blurQuality,
         chroma,
         shapeMode,
+        filterMode,
+        filterStrength,
+        filterScale,
+        filterMotionSpeed,
         blobCenterX: blobCenterRef.current.x,
         blobCenterY: blobCenterRef.current.y,
         bloomStrength,
@@ -299,6 +321,10 @@ export function App() {
     blurQuality,
     chroma,
     shapeMode,
+    filterMode,
+    filterStrength,
+    filterScale,
+    filterMotionSpeed,
     bloomStrength,
     bloomRadius,
     bloomThreshold,
@@ -503,6 +529,14 @@ export function App() {
         setRefract,
         edgeSoft,
         setEdgeSoft,
+        filterMode,
+        setFilterMode,
+        filterStrength,
+        setFilterStrength,
+        filterScale,
+        setFilterScale,
+        filterMotionSpeed,
+        setFilterMotionSpeed,
       },
       bloom: {
         bloomStrength,
@@ -535,6 +569,10 @@ export function App() {
       waveAmp,
       refract,
       edgeSoft,
+      filterMode,
+      filterStrength,
+      filterScale,
+      filterMotionSpeed,
       bloomStrength,
       bloomRadius,
       bloomThreshold,
@@ -557,6 +595,10 @@ export function App() {
     blurQuality,
     chroma,
     shapeMode,
+    filterMode,
+    filterStrength,
+    filterScale,
+    filterMotionSpeed,
     blobCenterX: blobCenterRef.current.x,
     blobCenterY: blobCenterRef.current.y,
     bloomStrength,
@@ -578,6 +620,7 @@ export function App() {
         <div className="viewport" ref={wrapRef} style={{ background: bgHex }}>
           <canvas
             ref={canvasRef}
+            tabIndex={-1}
             style={{
               cursor:
                 pointerDrag === "pan"

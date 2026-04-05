@@ -1,8 +1,16 @@
-import type { ShapeMode } from "../../refract/RefractRenderer";
+import type { FilterMode, ShapeMode } from "../../refract/RefractRenderer";
 
 export type LensSectionProps = {
   shapeMode: ShapeMode;
   setShapeMode: (v: ShapeMode) => void;
+  filterMode: FilterMode;
+  setFilterMode: (v: FilterMode) => void;
+  filterStrength: number;
+  setFilterStrength: (v: number) => void;
+  filterScale: number;
+  setFilterScale: (v: number) => void;
+  filterMotionSpeed: number;
+  setFilterMotionSpeed: (v: number) => void;
   blobSize: number;
   setBlobSize: (v: number) => void;
   pauseAnimation: boolean;
@@ -36,6 +44,14 @@ export function LensSection({
   setRefract,
   edgeSoft,
   setEdgeSoft,
+  filterMode,
+  setFilterMode,
+  filterStrength,
+  setFilterStrength,
+  filterScale,
+  setFilterScale,
+  filterMotionSpeed,
+  setFilterMotionSpeed,
 }: LensSectionProps) {
   return (
     <>
@@ -156,6 +172,73 @@ export function LensSection({
             step={0.001}
             value={edgeSoft}
             onChange={(e) => setEdgeSoft(Number(e.target.value))}
+          />
+        </div>
+      </section>
+      <h2>Glass filter</h2>
+      <section>
+        <div className="field">
+          <label htmlFor="filter-mode">Mode</label>
+          <select
+            id="filter-mode"
+            className="field-select"
+            value={filterMode}
+            onChange={(e) =>
+              setFilterMode(Number(e.target.value) as FilterMode)
+            }
+            aria-label="Screen-space glass filter"
+          >
+            <option value={0}>None</option>
+            <option value={1}>Reeds - Horizontal</option>
+            <option value={5}>Reeds - Vertical</option>
+            <option value={2}>Bullseye rings</option>
+            <option value={3}>Speckle grain</option>
+            <option value={4}>Halftone dots</option>
+          </select>
+        </div>
+        <div className="field">
+          <label>
+            Filter strength
+            <span className="val">{filterStrength.toFixed(2)}</span>
+          </label>
+          <input
+            type="range"
+            min={0}
+            max={1}
+            step={0.02}
+            value={filterStrength}
+            onChange={(e) => setFilterStrength(Number(e.target.value))}
+            disabled={filterMode === 0}
+          />
+        </div>
+        <div className="field">
+          <label title="0 = finest / smallest, 1 = coarsest / largest (all filter modes)">
+            Filter scale
+            <span className="val">{filterScale.toFixed(2)}</span>
+          </label>
+          <input
+            type="range"
+            min={0}
+            max={1}
+            step={0.02}
+            value={filterScale}
+            onChange={(e) => setFilterScale(Number(e.target.value))}
+            disabled={filterMode === 0}
+          />
+        </div>
+        <div className="field">
+          <label>
+            Filter motion speed
+            <span className="val">{filterMotionSpeed.toFixed(2)}×</span>
+          </label>
+          <input
+            type="range"
+            min={0}
+            max={6}
+            step={0.05}
+            value={filterMotionSpeed}
+            onChange={(e) => setFilterMotionSpeed(Number(e.target.value))}
+            disabled={filterMode === 0}
           />
         </div>
       </section>

@@ -227,6 +227,36 @@ label.file-btn input[type="file"] {
   letter-spacing: 0.04em;
 }
 
+.shortcut-hint__title {
+  margin: 12px 0 6px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.38);
+}
+
+.shortcut-hint__title:first-child {
+  margin-top: 0;
+}
+
+.shortcut-hint__line {
+  margin: 0 0 6px;
+  line-height: 1.55;
+}
+
+.shortcut-hint__line strong {
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.shortcut-hint__note {
+  margin: 8px 0 0;
+  font-size: 10px;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.32);
+}
+
 .shortcut-hint kbd {
   display: inline-block;
   padding: 2px 7px;

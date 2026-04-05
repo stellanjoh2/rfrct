@@ -5,28 +5,36 @@
 export function downloadCanvasAsPng(
   canvas: HTMLCanvasElement,
   basename = "refrct",
+  onComplete?: () => void,
 ): void {
   const name = `${basename}-${Date.now()}.png`;
 
   canvas.toBlob(
     (blob) => {
       if (!blob) {
-        fallbackDataUrl(canvas, name);
+        fallbackDataUrl(canvas, name, onComplete);
         return;
       }
       triggerDownload(URL.createObjectURL(blob), name);
+      onComplete?.();
     },
     "image/png",
     1,
   );
 }
 
-function fallbackDataUrl(canvas: HTMLCanvasElement, filename: string): void {
+function fallbackDataUrl(
+  canvas: HTMLCanvasElement,
+  filename: string,
+  onComplete?: () => void,
+): void {
   try {
     const dataUrl = canvas.toDataURL("image/png");
     triggerDownload(dataUrl, filename);
   } catch {
     console.warn("Could not export canvas (tainted or unsupported).");
+  } finally {
+    onComplete?.();
   }
 }
 

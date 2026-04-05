@@ -1,6 +1,12 @@
 /** 0 = blob, 1 = 3D cube slice, 2 = metaballs */
 export type ShapeMode = 0 | 1 | 2;
 
+/**
+ * Full-screen glass displacement layered after the lens (screen-space UV offset).
+ * 0 = none, 1 = horizontal reeds, 2 = bullseye, 3 = speckle, 4 = halftone dots, 5 = vertical reeds
+ */
+export type FilterMode = 0 | 1 | 2 | 3 | 4 | 5;
+
 export type BlobParams = {
   centerX: number;
   centerY: number;
@@ -17,6 +23,13 @@ export type BlobParams = {
   blurQuality: number;
   chroma: number;
   shapeMode: ShapeMode;
+  filterMode: FilterMode;
+  /** 0–1 UI strength; shader applies 2× so max displacement is 2× the original baseline. */
+  filterStrength: number;
+  /** 0–1 feature size: 0 = finest/thinnest/smallest, 1 = coarsest/widest (all glass filter modes). */
+  filterScale: number;
+  /** Multiplier on glass filter motion only (0 = frozen pattern, >1 = faster drift / phase). */
+  filterMotionSpeed: number;
 };
 
 export type ImageLayout = {
