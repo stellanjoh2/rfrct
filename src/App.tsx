@@ -70,6 +70,9 @@ export function App() {
   const [uiVisible, setUiVisible] = useState(true);
   const [webglError, setWebglError] = useState<string | null>(null);
 
+  const [exportTransparent, setExportTransparent] = useState(false);
+  const [exportRegion, setExportRegion] = useState<"full" | "image">("full");
+
   /** Debounced scale for SVG texture resolution; layout uses live `imageScale` via syncLayout. */
   const [svgRasterScale, setSvgRasterScale] = useState(1);
   useEffect(() => {
@@ -82,11 +85,22 @@ export function App() {
 
   const latestSyncRef = useRef<RendererSyncSource | null>(null);
 
+  const runPngExport = useCallback(
+    (scale: 1 | 2) => {
+      const r = rendererRef.current;
+      if (!r) return;
+      r.exportPng({
+        scale,
+        transparentBackground: exportTransparent,
+        region: imgDims && exportRegion === "image" ? "image" : "full",
+      });
+    },
+    [exportTransparent, exportRegion, imgDims],
+  );
+
   const captureScreenshot = useCallback(() => {
-    const r = rendererRef.current;
-    if (!r) return;
-    r.capturePng2x();
-  }, []);
+    runPngExport(2);
+  }, [runPngExport]);
 
   const focusImage = useCallback(() => {
     if (!imgDims) return;
@@ -163,6 +177,12 @@ export function App() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [captureScreenshot, focusImage]);
+
+  useEffect(() => {
+    if (!imgDims) {
+      setExportRegion("full");
+    }
+  }, [imgDims]);
 
   useEffect(() => {
     const el = wrapRef.current;
@@ -559,6 +579,15 @@ export function App() {
         chroma,
         setChroma,
       },
+      exportSection: {
+        transparentBackground: exportTransparent,
+        setTransparentBackground: setExportTransparent,
+        region: exportRegion,
+        setRegion: setExportRegion,
+        hasImage: !!imgDims,
+        onExport1x: () => runPngExport(1),
+        onExport2x: () => runPngExport(2),
+      },
     }),
     [
       bgHex,
@@ -584,6 +613,10 @@ export function App() {
       frostBlur,
       blurQuality,
       chroma,
+      exportTransparent,
+      exportRegion,
+      imgDims,
+      runPngExport,
     ],
   );
 
@@ -649,6 +682,7 @@ export function App() {
           lens={sidebar.lens}
           bloom={sidebar.bloom}
           effects={sidebar.effects}
+          exportSection={sidebar.exportSection}
         />
       </div>
     </div>

@@ -179,13 +179,14 @@ vec2 sdfGradient(vec2 p) {
   return vec2(gx, gy) / (2.0 * e);
 }
 
-vec3 sampleScene(vec2 uv) {
+/** Straight RGBA from the image (no background); alpha 0 outside the image rect or if no image. */
+vec4 sampleSceneTex(vec2 uv) {
   if (u_hasImage < 0.5) {
-    return u_bgColor.rgb;
+    return vec4(0.0);
   }
   vec2 local = (uv - u_imageRect.xy) / u_imageRect.zw;
   if (local.x < 0.0 || local.x > 1.0 || local.y < 0.0 || local.y > 1.0) {
-    return u_bgColor.rgb;
+    return vec4(0.0);
   }
   vec4 tex = texture(u_image, local);
   vec3 rgb = tex.rgb;
@@ -196,7 +197,20 @@ vec3 sampleScene(vec2 uv) {
       rgb = u_svgTintRgb;
     }
   }
-  return mix(u_bgColor.rgb, rgb, tex.a);
+  return vec4(rgb, tex.a);
+}
+
+/**
+ * Scene color for chroma + frost: composite image over canvas background in display (sRGB) space.
+ * Grayscale art has R=G=B per texel; splitting R/G/B *after* mixing with a bg reproduces
+ * colored fringes (same as the live viewport).
+ */
+vec3 sampleScene(vec2 uv) {
+  if (u_hasImage < 0.5) {
+    return u_bgColor.rgb;
+  }
+  vec4 t = sampleSceneTex(uv);
+  return mix(u_bgColor.rgb, t.rgb, t.a);
 }
 
 vec3 blurBinomial3x3(vec2 uv, vec2 s) {
@@ -378,8 +392,8 @@ void main() {
   float frostOuter = edgeW * (1.0 + 0.32 * clamp(u_frostBlur, 0.0, 14.0));
   float frostBlend = smoothstep(frostOuter, -edgeW, sdf);
   float frostPx = u_frostBlur * frostBlend;
-  vec3 col = sampleSceneChroma(uvR, u_chroma * falloff * 48.0, frostPx);
-
+  float chromaSpread = u_chroma * falloff * 48.0;
+  vec3 col = sampleSceneChroma(uvR, chromaSpread, frostPx);
   fragColor = vec4(col, 1.0);
 }
 `;

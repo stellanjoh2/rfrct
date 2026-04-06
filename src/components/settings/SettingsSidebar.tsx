@@ -2,11 +2,13 @@ import { useEffect } from "react";
 import { AppearanceSection } from "./AppearanceSection";
 import { BloomSection } from "./BloomSection";
 import { EffectsSection } from "./EffectsSection";
+import { ExportSection } from "./ExportSection";
 import { LensSection } from "./LensSection";
 import { UploadBlock } from "./UploadBlock";
 import type { AppearanceSectionProps } from "./AppearanceSection";
 import type { BloomSectionProps } from "./BloomSection";
 import type { EffectsSectionProps } from "./EffectsSection";
+import type { ExportSectionProps } from "./ExportSection";
 import type { LensSectionProps } from "./LensSection";
 
 export type SettingsSidebarProps = {
@@ -16,6 +18,7 @@ export type SettingsSidebarProps = {
   lens: LensSectionProps;
   bloom: BloomSectionProps;
   effects: EffectsSectionProps;
+  exportSection: ExportSectionProps;
 };
 
 export function SettingsSidebar({
@@ -25,6 +28,7 @@ export function SettingsSidebar({
   lens,
   bloom,
   effects,
+  exportSection,
 }: SettingsSidebarProps) {
   useEffect(() => {
     const clearRangeDrag = () => {
@@ -59,6 +63,7 @@ export function SettingsSidebar({
       <LensSection {...lens} />
       <BloomSection {...bloom} />
       <EffectsSection {...effects} />
+      <ExportSection {...exportSection} />
       <div className="shortcut-hint">
         <p className="shortcut-hint__title">Mouse (canvas)</p>
         <p className="shortcut-hint__line">
@@ -70,7 +75,7 @@ export function SettingsSidebar({
           <kbd>1</kbd> blob · <kbd>2</kbd> cube · <kbd>3</kbd> metaballs ·{" "}
           <kbd>4</kbd> water ·{" "}
           <kbd>Space</kbd> pause animation · <kbd>P</kbd> toggle panel ·{" "}
-          <kbd>F</kbd> focus (reset pan & scale) · <kbd>C</kbd> screenshot (2× PNG)
+          <kbd>F</kbd> focus (reset pan & scale) · <kbd>C</kbd> PNG (2×, export options)
         </p>
         <p className="shortcut-hint__note">
           Shortcuts don&apos;t apply while a text field or dropdown is focused.

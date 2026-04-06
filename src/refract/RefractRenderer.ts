@@ -1,4 +1,9 @@
-import { downloadCanvasAsPng } from "../capture";
+import {
+  cropCanvasToImageRect,
+  downloadCanvasAsPng,
+  removeSolidBackgroundForPng,
+} from "../capture";
+import type { PngExportParams } from "../export/pngExportSettings";
 import { BloomPipeline } from "./BloomPipeline";
 import { FRAG, VERT } from "./shaders";
 import type { BlobParams, BloomParams, ImageLayout, SvgTintParams } from "./types";
@@ -13,6 +18,8 @@ export type {
   SvgTintMode,
   SvgTintParams,
 } from "./types";
+
+export type { PngExportParams } from "../export/pngExportSettings";
 
 function textureDimensions(source: TexImageSource): { w: number; h: number } {
   if (source instanceof HTMLCanvasElement) {
@@ -46,6 +53,8 @@ export class RefractRenderer {
   private animationTime = 0;
   private lastFrameTime = performance.now();
   private onVisibilityChange: (() => void) | null = null;
+  /** Skips the per-frame draw so an export render is not overwritten before `toBlob`. */
+  private suppressAnimationDraw = false;
 
   imageLayout: ImageLayout | null = null;
   bgColor: [number, number, number, number] = [1, 1, 1, 1];
@@ -80,11 +89,11 @@ export class RefractRenderer {
     rgb: [1, 1, 1],
   };
 
-  constructor(canvas: HTMLCanvasElement) {
+    constructor(canvas: HTMLCanvasElement) {
     const gl = canvas.getContext(
       "webgl2",
       {
-        alpha: false,
+        alpha: true,
         antialias: true,
         premultipliedAlpha: false,
         preserveDrawingBuffer: true,
@@ -228,6 +237,9 @@ export class RefractRenderer {
   }
 
   private drawFrame = () => {
+    if (this.suppressAnimationDraw) {
+      return;
+    }
     if (document.hidden) {
       return;
     }
@@ -245,10 +257,12 @@ export class RefractRenderer {
 
     const bloomOn = this.bloom.strength > 1e-4;
 
+    const clear: [number, number, number, number] = this.bgColor;
+
     if (!bloomOn) {
       gl.bindFramebuffer(gl.FRAMEBUFFER, null);
       gl.viewport(0, 0, w, h);
-      gl.clearColor(...this.bgColor);
+      gl.clearColor(clear[0], clear[1], clear[2], clear[3]);
       gl.clear(gl.COLOR_BUFFER_BIT);
       this.drawScenePass(w, h);
       return;
@@ -257,7 +271,7 @@ export class RefractRenderer {
     this.bloomPipeline.ensureFramebuffers(w, h);
     gl.bindFramebuffer(gl.FRAMEBUFFER, this.bloomPipeline.getSceneFramebuffer());
     gl.viewport(0, 0, w, h);
-    gl.clearColor(...this.bgColor);
+    gl.clearColor(clear[0], clear[1], clear[2], clear[3]);
     gl.clear(gl.COLOR_BUFFER_BIT);
     this.drawScenePass(w, h);
 
@@ -281,24 +295,50 @@ export class RefractRenderer {
   }
 
   /**
-   * Renders at 2× current backing-store resolution, downloads PNG, then restores size and redraws.
+   * Renders at `params.scale`× backing-store resolution, optionally straight-alpha and/or
+   * cropped to the fitted image rect, downloads PNG, then restores size and redraws.
    */
-  capturePng2x(basename = "refrct"): void {
+  exportPng(params: PngExportParams, basename = "refrct"): void {
     const gl = this.gl;
     const canvas = gl.canvas as HTMLCanvasElement;
     const w0 = canvas.width;
     const h0 = canvas.height;
-    const nw = Math.max(1, w0 * 2);
-    const nh = Math.max(1, h0 * 2);
+    const scale = params.scale === 2 ? 2 : 1;
+    const nw = Math.max(1, Math.floor(w0 * scale));
+    const nh = Math.max(1, Math.floor(h0 * scale));
+
+    this.suppressAnimationDraw = true;
 
     canvas.width = nw;
     canvas.height = nh;
     gl.viewport(0, 0, nw, nh);
     this.bloomPipeline.releaseFramebuffers();
+
+    this.suppressAnimationDraw = false;
     this.drawFrame();
+    this.suppressAnimationDraw = true;
 
     requestAnimationFrame(() => {
-      downloadCanvasAsPng(canvas, basename, () => {
+      const rect = this.imageLayout?.rect;
+      const useCrop =
+        params.region === "image" &&
+        rect &&
+        (this.imageLayout?.naturalWidth ?? 0) > 0;
+
+      const bgRgb: [number, number, number] = [
+        this.bgColor[0],
+        this.bgColor[1],
+        this.bgColor[2],
+      ];
+      let target: HTMLCanvasElement = params.transparentBackground
+        ? removeSolidBackgroundForPng(canvas, bgRgb)
+        : canvas;
+      if (useCrop) {
+        target = cropCanvasToImageRect(target, rect);
+      }
+
+      downloadCanvasAsPng(target, basename, () => {
+        this.suppressAnimationDraw = false;
         canvas.width = w0;
         canvas.height = h0;
         gl.viewport(0, 0, w0, h0);
@@ -307,6 +347,14 @@ export class RefractRenderer {
         canvas.focus({ preventScroll: true });
       });
     });
+  }
+
+  /** @deprecated Use {@link exportPng} with `{ scale: 2, transparentBackground: false, region: "full" }`. */
+  capturePng2x(basename = "refrct"): void {
+    this.exportPng(
+      { scale: 2, transparentBackground: false, region: "full" },
+      basename,
+    );
   }
 
   destroy() {
