@@ -1,4 +1,5 @@
 import {
+  compositeStraightAlphaOverBackground,
   cropCanvasToImageRect,
   downloadCanvasAsPng,
   removeSolidBackgroundForPng,
@@ -55,6 +56,9 @@ export class RefractRenderer {
   private onVisibilityChange: (() => void) | null = null;
   /** Skips the per-frame draw so an export render is not overwritten before `toBlob`. */
   private suppressAnimationDraw = false;
+
+  /** Last uploaded bitmap for re-texImage2D after canvas resize (export can invalidate GPU texture). */
+  private texImageSource: TexImageSource | null = null;
 
   imageLayout: ImageLayout | null = null;
   bgColor: [number, number, number, number] = [1, 1, 1, 1];
@@ -166,6 +170,7 @@ export class RefractRenderer {
     layout: ImageLayout,
   ) {
     const gl = this.gl;
+    this.texImageSource = source;
     this.imageLayout = layout;
     gl.bindTexture(gl.TEXTURE_2D, this.texture);
     gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
@@ -181,6 +186,7 @@ export class RefractRenderer {
   }
 
   clearImage() {
+    this.texImageSource = null;
     this.imageLayout = null;
   }
 
@@ -236,11 +242,11 @@ export class RefractRenderer {
     gl.drawArrays(gl.TRIANGLES, 0, 3);
   }
 
-  private drawFrame = () => {
+  private drawFrame = (opts?: { skipHiddenCheck?: boolean }) => {
     if (this.suppressAnimationDraw) {
       return;
     }
-    if (document.hidden) {
+    if (!opts?.skipHiddenCheck && document.hidden) {
       return;
     }
     const gl = this.gl;
@@ -295,10 +301,20 @@ export class RefractRenderer {
   }
 
   /**
+   * Re-uploads the image texture from the last source (needed after export resizes the canvas).
+   */
+  private reuploadImageTexture(): void {
+    if (!this.texImageSource || !this.imageLayout) {
+      return;
+    }
+    this.setImageFromSource(this.texImageSource, this.imageLayout);
+  }
+
+  /**
    * Renders at `params.scale`× backing-store resolution, optionally straight-alpha and/or
    * cropped to the fitted image rect, downloads PNG, then restores size and redraws.
    */
-  exportPng(params: PngExportParams, basename = "refrct"): void {
+  exportPng(params: PngExportParams, basename = "refrct", onComplete?: () => void): void {
     const gl = this.gl;
     const canvas = gl.canvas as HTMLCanvasElement;
     const w0 = canvas.width;
@@ -315,10 +331,12 @@ export class RefractRenderer {
     this.bloomPipeline.releaseFramebuffers();
 
     this.suppressAnimationDraw = false;
-    this.drawFrame();
+    this.drawFrame({ skipHiddenCheck: true });
     this.suppressAnimationDraw = true;
 
     requestAnimationFrame(() => {
+      this.gl.finish();
+
       const rect = this.imageLayout?.rect;
       const useCrop =
         params.region === "image" &&
@@ -330,9 +348,10 @@ export class RefractRenderer {
         this.bgColor[1],
         this.bgColor[2],
       ];
+      const dematted = removeSolidBackgroundForPng(canvas, bgRgb);
       let target: HTMLCanvasElement = params.transparentBackground
-        ? removeSolidBackgroundForPng(canvas, bgRgb)
-        : canvas;
+        ? dematted
+        : compositeStraightAlphaOverBackground(dematted, bgRgb);
       if (useCrop) {
         target = cropCanvasToImageRect(target, rect);
       }
@@ -343,6 +362,8 @@ export class RefractRenderer {
         canvas.height = h0;
         gl.viewport(0, 0, w0, h0);
         this.bloomPipeline.releaseFramebuffers();
+        onComplete?.();
+        this.reuploadImageTexture();
         this.drawFrame();
         canvas.focus({ preventScroll: true });
       });

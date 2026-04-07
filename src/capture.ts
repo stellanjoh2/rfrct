@@ -1,9 +1,42 @@
 const EPS = 1e-5;
 
+function lum(r: number, g: number, b: number): number {
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+/**
+ * Straight-alpha RGBA composited over a solid background (full opacity). Used after de-matte
+ * so opaque PNG exports get the same edge recovery as transparent exports.
+ */
+export function compositeStraightAlphaOverBackground(
+  rgba: HTMLCanvasElement,
+  bg: [number, number, number],
+): HTMLCanvasElement {
+  const w = rgba.width;
+  const h = rgba.height;
+  const out = document.createElement("canvas");
+  out.width = w;
+  out.height = h;
+  const ctx = out.getContext("2d");
+  if (!ctx) {
+    return rgba;
+  }
+  const rr = Math.round(bg[0] * 255);
+  const gg = Math.round(bg[1] * 255);
+  const bb = Math.round(bg[2] * 255);
+  ctx.fillStyle = `rgb(${rr},${gg},${bb})`;
+  ctx.fillRect(0, 0, w, h);
+  ctx.drawImage(rgba, 0, 0);
+  return out;
+}
+
 /**
  * Copies WebGL output to a 2D canvas and removes the known solid background for PNG alpha.
  * Uses de-matting: V ≈ α·F + (1−α)·B with known B, so anti-aliased edges get partial α and
  * straight RGB without baked-in background (fixes light halos on dark logos on white).
+ *
+ * Light bg (dark art): luminance + channel α; dark bg (light art): α from (V−B)/(1−B) so
+ * white-on-black exports do not collapse to transparent.
  */
 export function removeSolidBackgroundForPng(
   source: HTMLCanvasElement,
@@ -29,26 +62,50 @@ export function removeSolidBackgroundForPng(
   const minB = Math.min(Br, Bg, Bb);
   /** Dark-on-light de-matte needs Bc > 0 in every channel. */
   const useDematte = minB > 0.02;
+  /** Extra background subtraction for dark strokes on light backgrounds (reduces gray fringe). */
+  const lightBg = minB > 0.18;
+  /**
+   * Dark ink on light paper: α ≈ 1 − V/B. Light logo on dark bg: α ≈ (V−B)/(1−B) for F≈1 — mixing
+   * the two breaks white-on-black (e.g. #0a0a0a) and wipes the export to transparent.
+   */
+  const bgLum = lum(Br, Bg, Bb);
+  const lightBackground = bgLum > 0.5;
 
   const tol = tolerance * 255;
+
+  /** Slightly harden edge α to shrink semi-transparent halos (re-F is computed after). */
+  const EDGE_ALPHA_GAMMA = 1.09;
 
   for (let i = 0; i < d.length; i += 4) {
     const r = d[i] / 255;
     const g = d[i + 1] / 255;
     const b = d[i + 2] / 255;
 
-    if (useDematte) {
-      // V ≈ α·F + (1−α)·B. For black ink (F≈0), α_c = 1 − V_c/B_c. Using min(α_c) assumes a
-      // neutral blend and strips chromatic aberration when we clamp F. For CA, channels
-      // disagree; use max(α_c) = 1 − min_c(V_c/B_c) so α matches the strongest “ink” channel,
-      // then recover F — keeps colored fringes instead of forcing them to black.
+    if (useDematte && lightBackground) {
       const aR = 1 - r / Math.max(Br, EPS);
       const aG = 1 - g / Math.max(Bg, EPS);
       const aB = 1 - b / Math.max(Bb, EPS);
-      let alpha = Math.max(aR, aG, aB);
+      const aMax = Math.min(1, Math.max(0, Math.max(aR, aG, aB)));
+
+      const Lv = lum(r, g, b);
+      const Lb = bgLum;
+      const aLum =
+        Lb > EPS ? Math.min(1, Math.max(0, 1 - Lv / Lb)) : aMax;
+
+      const mx = Math.max(r, g, b);
+      const mn = Math.min(r, g, b);
+      const chroma = mx < 1e-6 ? 0 : (mx - mn) / mx;
+      const chromaMix = Math.min(1, chroma / 0.13);
+
+      let alpha = aLum * (1 - chromaMix) + aMax * chromaMix;
       alpha = Math.min(1, Math.max(0, alpha));
 
-      if (alpha < 0.02) {
+      if (alpha > 0.02 && alpha < 0.998) {
+        alpha = 1 - (1 - alpha) ** EDGE_ALPHA_GAMMA;
+      }
+      alpha = Math.min(1, Math.max(0, alpha));
+
+      if (alpha < 0.015) {
         d[i] = 0;
         d[i + 1] = 0;
         d[i + 2] = 0;
@@ -60,7 +117,65 @@ export function removeSolidBackgroundForPng(
       let fr = (r - (1 - alpha) * Br) * invA;
       let fg = (g - (1 - alpha) * Bg) * invA;
       let fb = (b - (1 - alpha) * Bb) * invA;
-      // Keep chroma: only clamp when values are out of display range (no channel-wise clamp to 0).
+      fr = Math.min(1, Math.max(0, fr));
+      fg = Math.min(1, Math.max(0, fg));
+      fb = Math.min(1, Math.max(0, fb));
+
+      if (lightBg && alpha > 0.04) {
+        const fgMax = Math.max(fr, fg, fb);
+        const bgMax = Math.max(Br, Bg, Bb);
+        if (fgMax < bgMax * 0.9) {
+          const bleed = 0.24 * (1 - alpha);
+          fr -= bleed * Br;
+          fg -= bleed * Bg;
+          fb -= bleed * Bb;
+          fr = Math.min(1, Math.max(0, fr));
+          fg = Math.min(1, Math.max(0, fg));
+          fb = Math.min(1, Math.max(0, fb));
+        }
+      }
+
+      d[i] = Math.round(fr * 255);
+      d[i + 1] = Math.round(fg * 255);
+      d[i + 2] = Math.round(fb * 255);
+      d[i + 3] = Math.round(alpha * 255);
+    } else if (useDematte) {
+      const Lb = bgLum;
+      const Lv = lum(r, g, b);
+      const aR = (r - Br) / Math.max(1 - Br, EPS);
+      const aG = (g - Bg) / Math.max(1 - Bg, EPS);
+      const aB = (b - Bb) / Math.max(1 - Bb, EPS);
+      const aMax = Math.min(1, Math.max(0, Math.max(aR, aG, aB)));
+      const aLum =
+        Lb < 1 - EPS
+          ? Math.min(1, Math.max(0, (Lv - Lb) / (1 - Lb)))
+          : aMax;
+
+      const mx = Math.max(r, g, b);
+      const mn = Math.min(r, g, b);
+      const chroma = mx < 1e-6 ? 0 : (mx - mn) / mx;
+      const chromaMix = Math.min(1, chroma / 0.13);
+
+      let alpha = aLum * (1 - chromaMix) + aMax * chromaMix;
+      alpha = Math.min(1, Math.max(0, alpha));
+
+      if (alpha > 0.02 && alpha < 0.998) {
+        alpha = 1 - (1 - alpha) ** EDGE_ALPHA_GAMMA;
+      }
+      alpha = Math.min(1, Math.max(0, alpha));
+
+      if (alpha < 0.015) {
+        d[i] = 0;
+        d[i + 1] = 0;
+        d[i + 2] = 0;
+        d[i + 3] = 0;
+        continue;
+      }
+
+      const invA = 1 / alpha;
+      let fr = (r - (1 - alpha) * Br) * invA;
+      let fg = (g - (1 - alpha) * Bg) * invA;
+      let fb = (b - (1 - alpha) * Bb) * invA;
       fr = Math.min(1, Math.max(0, fr));
       fg = Math.min(1, Math.max(0, fg));
       fb = Math.min(1, Math.max(0, fb));

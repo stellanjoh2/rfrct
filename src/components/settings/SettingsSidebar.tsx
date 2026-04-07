@@ -1,11 +1,13 @@
 import { useEffect } from "react";
 import { AppearanceSection } from "./AppearanceSection";
+import { AudioSection } from "./AudioSection";
 import { BloomSection } from "./BloomSection";
 import { EffectsSection } from "./EffectsSection";
 import { ExportSection } from "./ExportSection";
 import { LensSection } from "./LensSection";
 import { UploadBlock } from "./UploadBlock";
 import type { AppearanceSectionProps } from "./AppearanceSection";
+import type { AudioSectionProps } from "./AudioSection";
 import type { BloomSectionProps } from "./BloomSection";
 import type { EffectsSectionProps } from "./EffectsSection";
 import type { ExportSectionProps } from "./ExportSection";
@@ -18,6 +20,7 @@ export type SettingsSidebarProps = {
   lens: LensSectionProps;
   bloom: BloomSectionProps;
   effects: EffectsSectionProps;
+  audio: AudioSectionProps;
   exportSection: ExportSectionProps;
 };
 
@@ -28,6 +31,7 @@ export function SettingsSidebar({
   lens,
   bloom,
   effects,
+  audio,
   exportSection,
 }: SettingsSidebarProps) {
   useEffect(() => {
@@ -63,6 +67,7 @@ export function SettingsSidebar({
       <LensSection {...lens} />
       <BloomSection {...bloom} />
       <EffectsSection {...effects} />
+      <AudioSection {...audio} />
       <ExportSection {...exportSection} />
       <div className="shortcut-hint">
         <p className="shortcut-hint__title">Mouse (canvas)</p>

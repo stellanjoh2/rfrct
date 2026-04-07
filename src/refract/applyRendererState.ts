@@ -8,6 +8,10 @@ import type {
 } from "./types";
 
 const BLOOM_SOFT_KNEE = 0.1;
+/** Max refraction slider matches Lens UI (0.35). */
+const REFRACT_CAP = 0.35;
+/** Extra refraction at envelope=1, boost=1 (keeps usable range below cap). */
+const MIC_REFRACT_GAIN = 0.48;
 
 export type RendererSyncParams = {
   bgColor: [number, number, number, number];
@@ -62,6 +66,10 @@ export type RendererSyncSource = {
   svgSourceUrl: string | null;
   svgTintMode: "original" | "multiply" | "replace";
   svgTintHex: string;
+  /** When true, refraction adds micEnvelope × micRefractBoost × scale (clamped to max refraction). */
+  micDrivingRefraction: boolean;
+  micRefractBoost: number;
+  micEnvelope: number;
 };
 
 export function buildRendererSyncParams(
@@ -91,6 +99,14 @@ export function buildRendererSyncParams(
     softKnee: BLOOM_SOFT_KNEE,
   };
 
+  const refractStrength = s.micDrivingRefraction
+    ? Math.min(
+        REFRACT_CAP,
+        s.refract +
+          s.micEnvelope * s.micRefractBoost * MIC_REFRACT_GAIN,
+      )
+    : s.refract;
+
   const blob: BlobParams = {
     centerX: s.blobCenterX,
     centerY: s.blobCenterY,
@@ -98,7 +114,7 @@ export function buildRendererSyncParams(
     speed: s.pauseAnimation ? 0 : s.blobSpeed,
     waveFreq: s.waveFreq,
     waveAmp: s.waveAmp,
-    refractStrength: s.refract,
+    refractStrength,
     edgeSoftness: s.edgeSoft,
     frostBlur: s.frostBlur,
     blurQuality: s.blurQuality,

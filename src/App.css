@@ -227,6 +227,52 @@ label.file-btn input[type="file"] {
   opacity: 0;
 }
 
+.mic-toggle {
+  width: 100%;
+  cursor: pointer;
+  padding: 12px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  font-family: inherit;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--glass-text);
+  border-radius: 12px;
+  border: 1px solid var(--glass-border);
+  background: rgba(255, 255, 255, 0.06);
+  transition:
+    background var(--ui-duration) var(--ui-ease),
+    border-color var(--ui-duration) var(--ui-ease),
+    color var(--ui-duration) var(--ui-ease),
+    transform var(--ui-duration) var(--ui-ease);
+}
+
+.mic-toggle:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.28);
+}
+
+.mic-toggle:active {
+  transform: scale(0.985);
+}
+
+.mic-toggle--on {
+  border-color: rgba(var(--brand-rgb), 0.55);
+  background: rgba(var(--brand-rgb), 0.12);
+  color: #0a0a12;
+}
+
+.field-hint {
+  margin: 0 0 10px;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--glass-muted);
+}
+
+.field-hint--error {
+  color: #ff9a9a;
+}
+
 .shortcut-hint {
   margin-top: 18px;
   padding-top: 16px;

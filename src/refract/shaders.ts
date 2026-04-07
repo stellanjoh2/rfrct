@@ -134,8 +134,9 @@ float metaballsSdf(vec2 p) {
 }
 
 /**
- * Water lens: only smooth functions (no atan2 — polar angle caused a branch-cut seam / horizontal pinch).
- * Traveling plane waves + radial swell + high-frequency chop.
+ * Water lens: smooth functions only (no atan2 — avoids branch-cut seam).
+ * Layered swell / rollers / chop with deep-water-style dispersion ω ∝ √k so long
+ * waves roll slowly and short ripples shimmer faster (see dispersion of surface waves).
  */
 float waterSdf(vec2 p) {
   float r = length(p);
@@ -143,19 +144,43 @@ float waterSdf(vec2 p) {
   float t = u_time;
   float a = u_waveAmp;
   float wf = clamp(u_waveFreq, 1.0, 16.0);
-  float ripple = mix(0.06, 0.38, (wf - 1.0) / 15.0);
-  float k = 7.0 + wf * 0.95;
-  vec2 dir1 = normalize(vec2(0.82, 0.57));
-  vec2 dir2 = normalize(vec2(-0.61, 0.79));
-  vec2 dir3 = normalize(vec2(0.45, -0.89));
-  float w1 = a * sin(dot(p, dir1) * k - t * 1.25);
-  float w2 = a * 0.78 * sin(dot(p, dir2) * (k * 0.72) + t * 1.05);
-  float w3 = a * 0.62 * sin(r * (10.0 + wf * 0.65) - t * 1.7);
-  float w4 =
-    a * 0.48 * sin(dot(p, vec2(3.1, -2.2)) * ripple * 14.0 - t * 2.05);
-  float w5 = a * 0.38 * sin(dot(p, dir3) * k * 1.05 + t * 0.92);
-  float w6 = a * 0.28 * sin(p.x * p.y * (8.0 + wf * 0.4) - t * 1.35);
-  float boundary = R + w1 + w2 + w3 + w4 + w5 + w6;
+  float wfN = (wf - 1.0) / 15.0;
+
+  vec2 d0 = normalize(vec2(0.82, 0.57));
+  vec2 d1 = normalize(vec2(-0.61, 0.79));
+  vec2 d2 = normalize(vec2(0.45, -0.89));
+  vec2 d3 = normalize(vec2(0.93, -0.37));
+  vec2 d4 = normalize(vec2(0.28, 0.96));
+
+  // --- Swell: long wavelength (low k), slow rolling ---
+  float kSwell = 2.2 + wf * 0.28;
+  float wSwell = sqrt(max(kSwell, 0.15)) * 1.1;
+  float s0 = a * 0.95 * sin(dot(p, d0) * kSwell - t * wSwell);
+  float s1 = a * 0.82 * sin(dot(p, d1) * kSwell * 0.88 + t * wSwell * 0.94);
+
+  // --- Mid rollers: traveling across the lens ---
+  float kMid = 5.5 + wf * 0.62;
+  float wMid = sqrt(max(kMid, 0.2)) * 1.28;
+  float m0 = a * 0.72 * sin(dot(p, d0) * kMid * 1.05 - t * wMid);
+  float m1 = a * 0.64 * sin(dot(p, d2) * kMid * 0.92 + t * wMid * 0.86);
+  float m2 = a * 0.52 * sin(dot(p, d4) * kMid * 0.78 - t * wMid * 1.08);
+
+  // --- Fine chop / capillary-like ripples (high k, faster phase) ---
+  float kRip = 12.0 + wf * 1.85;
+  float wRip = sqrt(max(kRip, 0.35)) * 1.55;
+  float c0 = a * 0.5 * sin(dot(p, d0) * kRip - t * wRip);
+  float c1 = a * 0.44 * sin(dot(p, d3) * kRip * 0.91 + t * wRip * 1.02);
+  float c2 =
+    a * 0.36 * sin(dot(p, vec2(3.05, -2.18)) * (kRip * 0.68) - t * wRip * 1.12);
+
+  // --- Radial ring ripples + cross term (sparkle without polar singularity) ---
+  float kRad = 9.5 + wf * 0.75;
+  float rad = a * 0.42 * sin(r * kRad - t * sqrt(kRad) * 1.35);
+  float xym = mix(6.5, 11.0, wfN);
+  float xy = a * 0.26 * sin(p.x * p.y * xym - t * (1.45 + wf * 0.06));
+
+  float boundary =
+    R + s0 + s1 + m0 + m1 + m2 + c0 + c1 + c2 + rad + xy;
   return r - boundary;
 }
 

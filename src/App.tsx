@@ -17,6 +17,11 @@ import {
   isSvgFile,
   rasterizeToCanvas,
 } from "./refract/svgRaster";
+import {
+  MicAnalyzer,
+  type AudioInputMode,
+  audioCaptureErrorMessage,
+} from "./audio/micAnalyzer";
 
 /** Pause lens shader time while scroll-zooming; resume after last wheel event. */
 const ZOOM_ANIM_RESUME_MS = 120;
@@ -73,6 +78,14 @@ export function App() {
   const [exportTransparent, setExportTransparent] = useState(false);
   const [exportRegion, setExportRegion] = useState<"full" | "image">("full");
 
+  const [micDrivingRefraction, setMicDrivingRefraction] = useState(false);
+  const [audioInputMode, setAudioInputMode] =
+    useState<AudioInputMode>("mic");
+  const [micRefractBoost, setMicRefractBoost] = useState(0.65);
+  const [micError, setMicError] = useState<string | null>(null);
+  const micAnalyzerRef = useRef<MicAnalyzer | null>(null);
+  const micEnvelopeRef = useRef(0);
+
   /** Debounced scale for SVG texture resolution; layout uses live `imageScale` via syncLayout. */
   const [svgRasterScale, setSvgRasterScale] = useState(1);
   useEffect(() => {
@@ -85,17 +98,42 @@ export function App() {
 
   const latestSyncRef = useRef<RendererSyncSource | null>(null);
 
+  const syncLayout = useCallback(() => {
+    const canvas = canvasRef.current;
+    const r = rendererRef.current;
+    if (!canvas || !r || !imgDims) return;
+    const base = computeImageRect(
+      canvas.width,
+      canvas.height,
+      imgDims.w,
+      imgDims.h,
+      imageScale,
+    );
+    const rect = applyPanToRect(base, imagePan.x, imagePan.y);
+    r.imageLayout = {
+      rect,
+      naturalWidth: imgDims.w,
+      naturalHeight: imgDims.h,
+    };
+  }, [imgDims, imageScale, imagePan]);
+
   const runPngExport = useCallback(
     (scale: 1 | 2) => {
       const r = rendererRef.current;
       if (!r) return;
-      r.exportPng({
-        scale,
-        transparentBackground: exportTransparent,
-        region: imgDims && exportRegion === "image" ? "image" : "full",
-      });
+      r.exportPng(
+        {
+          scale,
+          transparentBackground: exportTransparent,
+          region: imgDims && exportRegion === "image" ? "image" : "full",
+        },
+        "refrct",
+        () => {
+          syncLayout();
+        },
+      );
     },
-    [exportTransparent, exportRegion, imgDims],
+    [exportTransparent, exportRegion, imgDims, syncLayout],
   );
 
   const captureScreenshot = useCallback(() => {
@@ -240,25 +278,6 @@ export function App() {
     };
   }, []);
 
-  const syncLayout = useCallback(() => {
-    const canvas = canvasRef.current;
-    const r = rendererRef.current;
-    if (!canvas || !r || !imgDims) return;
-    const base = computeImageRect(
-      canvas.width,
-      canvas.height,
-      imgDims.w,
-      imgDims.h,
-      imageScale,
-    );
-    const rect = applyPanToRect(base, imagePan.x, imagePan.y);
-    r.imageLayout = {
-      rect,
-      naturalWidth: imgDims.w,
-      naturalHeight: imgDims.h,
-    };
-  }, [imgDims, imageScale, imagePan]);
-
   useEffect(() => {
     const canvas = canvasRef.current;
     const wrap = wrapRef.current;
@@ -331,6 +350,9 @@ export function App() {
         svgSourceUrl,
         svgTintMode,
         svgTintHex,
+        micDrivingRefraction,
+        micRefractBoost,
+        micEnvelope: micDrivingRefraction ? micEnvelopeRef.current : 0,
       }),
     );
   }, [
@@ -356,7 +378,46 @@ export function App() {
     svgSourceUrl,
     svgTintMode,
     svgTintHex,
+    micDrivingRefraction,
+    micRefractBoost,
   ]);
+
+  useEffect(() => {
+    if (!micDrivingRefraction) {
+      micEnvelopeRef.current = 0;
+      return;
+    }
+    let id = 0;
+    const loop = () => {
+      const a = micAnalyzerRef.current;
+      if (a) {
+        micEnvelopeRef.current = a.tick();
+      }
+      const r = rendererRef.current;
+      const src = latestSyncRef.current;
+      if (r && src) {
+        applyRendererState(
+          r,
+          buildRendererSyncParams({
+            ...src,
+            micDrivingRefraction: true,
+            micRefractBoost,
+            micEnvelope: micEnvelopeRef.current,
+          }),
+        );
+      }
+      id = requestAnimationFrame(loop);
+    };
+    id = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(id);
+  }, [micDrivingRefraction, micRefractBoost]);
+
+  useEffect(() => {
+    return () => {
+      micAnalyzerRef.current?.stop();
+      micAnalyzerRef.current = null;
+    };
+  }, []);
 
   useEffect(() => {
     syncLayout();
@@ -524,6 +585,28 @@ export function App() {
     e.preventDefault();
   };
 
+  const toggleMicRefraction = useCallback(async () => {
+    if (micDrivingRefraction) {
+      micAnalyzerRef.current?.stop();
+      micAnalyzerRef.current = null;
+      micEnvelopeRef.current = 0;
+      setMicDrivingRefraction(false);
+      setMicError(null);
+      return;
+    }
+    const m = new MicAnalyzer();
+    setMicError(null);
+    try {
+      await m.start(audioInputMode);
+      micAnalyzerRef.current = m;
+      setMicDrivingRefraction(true);
+    } catch (e) {
+      m.stop();
+      setMicError(audioCaptureErrorMessage(audioInputMode, e));
+      setMicDrivingRefraction(false);
+    }
+  }, [micDrivingRefraction, audioInputMode]);
+
   const sidebar = useMemo(
     () => ({
       appearance: {
@@ -579,6 +662,15 @@ export function App() {
         chroma,
         setChroma,
       },
+      audio: {
+        micDrivingRefraction,
+        audioInputMode,
+        setAudioInputMode,
+        micRefractBoost,
+        setMicRefractBoost,
+        toggleMicRefraction,
+        micError,
+      },
       exportSection: {
         transparentBackground: exportTransparent,
         setTransparentBackground: setExportTransparent,
@@ -617,6 +709,11 @@ export function App() {
       exportRegion,
       imgDims,
       runPngExport,
+      micDrivingRefraction,
+      audioInputMode,
+      micRefractBoost,
+      toggleMicRefraction,
+      micError,
     ],
   );
 
@@ -645,6 +742,9 @@ export function App() {
     svgSourceUrl,
     svgTintMode,
     svgTintHex,
+    micDrivingRefraction,
+    micRefractBoost,
+    micEnvelope: micDrivingRefraction ? micEnvelopeRef.current : 0,
   };
 
   return (
@@ -682,6 +782,7 @@ export function App() {
           lens={sidebar.lens}
           bloom={sidebar.bloom}
           effects={sidebar.effects}
+          audio={sidebar.audio}
           exportSection={sidebar.exportSection}
         />
       </div>
