@@ -570,6 +570,13 @@ label.file-btn input[type="file"] {
   margin-bottom: 14px;
 }
 
+.field--audio-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
 .field.field--checkbox label.field-checkbox-label {
   justify-content: flex-start;
   margin-bottom: 0;

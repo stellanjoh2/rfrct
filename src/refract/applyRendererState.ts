@@ -107,6 +107,10 @@ export function buildRendererSyncParams(
       )
     : s.refract;
 
+  const filterStrength = s.micDrivingRefraction
+    ? Math.min(1, s.micEnvelope * s.filterStrength)
+    : s.filterStrength;
+
   const blob: BlobParams = {
     centerX: s.blobCenterX,
     centerY: s.blobCenterY,
@@ -121,7 +125,7 @@ export function buildRendererSyncParams(
     chroma: s.chroma,
     shapeMode: s.shapeMode,
     filterMode: s.filterMode,
-    filterStrength: s.filterStrength,
+    filterStrength,
     filterScale: s.filterScale,
     filterMotionSpeed: s.filterMotionSpeed,
   };

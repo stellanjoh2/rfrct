@@ -74,12 +74,23 @@ export function audioCaptureErrorMessage(
     : micStartErrorMessage(err);
 }
 
+export type MicTickResult = {
+  /** Smoothed RMS-derived 0–1 (same as before for refraction). */
+  envelope: number;
+  /**
+   * Loudness 0–1 from RMS → dBFS, mapped roughly −55…0 dB to 0…1 (smoothed).
+   * Use for VJ / venue automation.
+   */
+  dbNorm: number;
+};
+
 export class MicAnalyzer {
   private ctx: AudioContext | null = null;
   private stream: MediaStream | null = null;
   private analyser: AnalyserNode | null = null;
   private data: Float32Array | null = null;
   private smooth = 0;
+  private dbNormSmooth = 0;
 
   async start(mode: AudioInputMode = "mic"): Promise<void> {
     this.stop();
@@ -167,16 +178,17 @@ export class MicAnalyzer {
     this.analyser = null;
     this.data = null;
     this.smooth = 0;
+    this.dbNormSmooth = 0;
   }
 
   /**
-   * Call once per frame while active. Returns smoothed envelope in [0, 1].
+   * Call once per frame while active. RMS → envelope + dB-scaled loudness for VJ.
    */
-  tick(): number {
+  tick(): MicTickResult {
     const analyser = this.analyser;
     const data = this.data;
     if (!analyser || !data) {
-      return 0;
+      return { envelope: 0, dbNorm: 0 };
     }
     analyser.getFloatTimeDomainData(data);
     let sum = 0;
@@ -187,6 +199,12 @@ export class MicAnalyzer {
     const rms = Math.sqrt(sum / data.length);
     const raw = Math.min(1, rms * 14);
     this.smooth = this.smooth * 0.8 + raw * 0.2;
-    return this.smooth;
+
+    const db = 20 * Math.log10(rms + 1e-10);
+    const dbFloor = -55;
+    const dbNormRaw = Math.min(1, Math.max(0, (db - dbFloor) / -dbFloor));
+    this.dbNormSmooth = this.dbNormSmooth * 0.82 + dbNormRaw * 0.18;
+
+    return { envelope: this.smooth, dbNorm: this.dbNormSmooth };
   }
 }

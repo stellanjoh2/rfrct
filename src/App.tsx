@@ -18,6 +18,7 @@ import {
   type AudioInputMode,
   audioCaptureErrorMessage,
 } from "./audio/micAnalyzer";
+import { applyVjDrive } from "./refract/vjDrive";
 import {
   DEFAULT_PNG_EXPORT_PARAMS,
   mergePngExportParams,
@@ -91,6 +92,7 @@ export function App() {
   const [audioInputMode, setAudioInputMode] =
     useState<AudioInputMode>("mic");
   const [micRefractBoost, setMicRefractBoost] = useState(0.65);
+  const [vjMode, setVjMode] = useState(false);
   const [micError, setMicError] = useState<string | null>(null);
   const micAnalyzerRef = useRef<MicAnalyzer | null>(null);
   const micEnvelopeRef = useRef(0);
@@ -322,6 +324,9 @@ export function App() {
   useEffect(() => {
     const r = rendererRef.current;
     if (!r) return;
+    if (micDrivingRefraction) {
+      return;
+    }
     applyRendererState(
       r,
       buildRendererSyncParams({
@@ -351,7 +356,7 @@ export function App() {
         svgTintHex,
         micDrivingRefraction,
         micRefractBoost,
-        micEnvelope: micDrivingRefraction ? micEnvelopeRef.current : 0,
+        micEnvelope: 0,
       }),
     );
   }, [
@@ -389,19 +394,29 @@ export function App() {
     let id = 0;
     const loop = () => {
       const a = micAnalyzerRef.current;
-      if (a) {
-        micEnvelopeRef.current = a.tick();
-      }
+      const tick = a ? a.tick() : { envelope: 0, dbNorm: 0 };
+      micEnvelopeRef.current = tick.envelope;
       const r = rendererRef.current;
-      const src = latestSyncRef.current;
-      if (r && src) {
+      const raw = latestSyncRef.current;
+      if (r && raw) {
+        const timeSec = performance.now() * 0.001;
+        const driven =
+          vjMode && micDrivingRefraction
+            ? applyVjDrive(raw, timeSec)
+            : raw;
+        if (vjMode && micDrivingRefraction) {
+          blobCenterRef.current = {
+            x: driven.blobCenterX,
+            y: driven.blobCenterY,
+          };
+        }
         applyRendererState(
           r,
           buildRendererSyncParams({
-            ...src,
+            ...driven,
             micDrivingRefraction: true,
             micRefractBoost,
-            micEnvelope: micEnvelopeRef.current,
+            micEnvelope: tick.envelope,
           }),
         );
       }
@@ -409,7 +424,7 @@ export function App() {
     };
     id = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(id);
-  }, [micDrivingRefraction, micRefractBoost]);
+  }, [micDrivingRefraction, micRefractBoost, vjMode]);
 
   useEffect(() => {
     return () => {
@@ -594,6 +609,7 @@ export function App() {
       micAnalyzerRef.current?.stop();
       micAnalyzerRef.current = null;
       micEnvelopeRef.current = 0;
+      setVjMode(false);
       setMicDrivingRefraction(false);
       setMicError(null);
       return;
@@ -674,6 +690,8 @@ export function App() {
         setMicRefractBoost,
         toggleMicRefraction,
         micError,
+        vjMode,
+        setVjMode,
       },
       exportSection: {
         transparentBackground: exportTransparent,
@@ -718,6 +736,7 @@ export function App() {
       micRefractBoost,
       toggleMicRefraction,
       micError,
+      vjMode,
     ],
   );
 

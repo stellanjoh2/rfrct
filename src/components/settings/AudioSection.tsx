@@ -1,3 +1,4 @@
+import type { Dispatch, SetStateAction } from "react";
 import type { AudioInputMode } from "../../audio/micAnalyzer";
 
 export type AudioSectionProps = {
@@ -8,6 +9,8 @@ export type AudioSectionProps = {
   setMicRefractBoost: (v: number) => void;
   toggleMicRefraction: () => void | Promise<void>;
   micError: string | null;
+  vjMode: boolean;
+  setVjMode: Dispatch<SetStateAction<boolean>>;
 };
 
 export function AudioSection({
@@ -18,6 +21,8 @@ export function AudioSection({
   setMicRefractBoost,
   toggleMicRefraction,
   micError,
+  vjMode,
+  setVjMode,
 }: AudioSectionProps) {
   return (
     <>
@@ -39,7 +44,7 @@ export function AudioSection({
             <option value="display">Playback from a tab or screen</option>
           </select>
         </div>
-        <div className="field field--checkbox">
+        <div className="field field--checkbox field--audio-toggles">
           <button
             type="button"
             className={`mic-toggle ${micDrivingRefraction ? "mic-toggle--on" : ""}`}
@@ -53,12 +58,42 @@ export function AudioSection({
           >
             {micDrivingRefraction ? "Stop audio" : "Start audio"}
           </button>
+          <button
+            type="button"
+            className={`mic-toggle ${vjMode ? "mic-toggle--on" : ""}`}
+            disabled={!micDrivingRefraction}
+            onClick={() => setVjMode((v) => !v)}
+            aria-pressed={vjMode}
+            aria-label={
+              micDrivingRefraction
+                ? vjMode
+                  ? "Turn off VJ mode"
+                  : "Turn on VJ mode"
+                : "Start audio to enable VJ mode"
+            }
+            title={
+              micDrivingRefraction
+                ? "Automate lens, glass, bloom, and effects from loudness (dB)"
+                : "Start audio first"
+            }
+          >
+            VJ mode
+          </button>
         </div>
         {micError && (
           <p className="field-hint field-hint--error" role="status">
             {micError}
           </p>
         )}
+        <p className="field-hint">
+          When audio is on, glass filter strength follows loudness (0–1), scaled
+          by the Lens “Filter strength” slider as the maximum.
+        </p>
+        <p className="field-hint">
+          <strong>VJ mode</strong> (with audio running) moves the lens clockwise
+          on a smooth, squircle-like path near the edges (no sharp corners). All
+          other settings stay on your sliders.
+        </p>
         <div className="field">
           <label title="How much live audio adds on top of the Refraction slider (when audio is running)">
             Audio boost
