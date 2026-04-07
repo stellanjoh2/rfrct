@@ -12,11 +12,7 @@ import {
   type FilterMode,
   type ShapeMode,
 } from "./refract/RefractRenderer";
-import {
-  computeSvgRasterDimensions,
-  isSvgFile,
-  rasterizeToCanvas,
-} from "./refract/svgRaster";
+import { isSvgFile, rasterizeSvgForRefract } from "./refract/svgRaster";
 import {
   MicAnalyzer,
   type AudioInputMode,
@@ -29,8 +25,8 @@ import {
 
 /** Pause lens shader time while scroll-zooming; resume after last wheel event. */
 const ZOOM_ANIM_RESUME_MS = 120;
-/** Avoid re-rasterizing SVG on every wheel tick (expensive). */
-const SVG_RASTER_DEBOUNCE_MS = 200;
+/** SVG re-raster is expensive (canvas + alpha scan + optional refine); debounce while zoom stays live via syncLayout. */
+const SVG_RASTER_DEBOUNCE_MS = 320;
 
 export function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -49,6 +45,15 @@ export function App() {
   const [imageScale, setImageScale] = useState(1);
   const imageScaleRef = useRef(1);
   imageScaleRef.current = imageScale;
+  /** Target resolution for SVG texture; debounced from imageScale so wheel-zoom stays smooth. */
+  const [svgRasterScale, setSvgRasterScale] = useState(1);
+  useEffect(() => {
+    const t = window.setTimeout(() => {
+      setSvgRasterScale(imageScale);
+    }, SVG_RASTER_DEBOUNCE_MS);
+    return () => clearTimeout(t);
+  }, [imageScale]);
+
   const [imagePan, setImagePan] = useState({ x: 0, y: 0 });
   const imagePanRef = useRef(imagePan);
   imagePanRef.current = imagePan;
@@ -89,16 +94,6 @@ export function App() {
   const [micError, setMicError] = useState<string | null>(null);
   const micAnalyzerRef = useRef<MicAnalyzer | null>(null);
   const micEnvelopeRef = useRef(0);
-
-  /** Debounced scale for SVG texture resolution; layout uses live `imageScale` via syncLayout. */
-  const [svgRasterScale, setSvgRasterScale] = useState(1);
-  useEffect(() => {
-    const t = window.setTimeout(
-      () => setSvgRasterScale(imageScale),
-      SVG_RASTER_DEBOUNCE_MS,
-    );
-    return () => clearTimeout(t);
-  }, [imageScale]);
 
   const latestSyncRef = useRef<RendererSyncSource | null>(null);
 
@@ -441,13 +436,14 @@ export function App() {
       if (!r || !canvas) return;
       const bw = Math.max(1, canvas.width);
       const bh = Math.max(1, canvas.height);
-      const { w, h } = computeSvgRasterDimensions(
+      const raster = rasterizeSvgForRefract(
         img,
         bw,
         bh,
-        svgRasterScale,
+        imageScaleRef.current,
       );
-      const raster = rasterizeToCanvas(img, w, h);
+      const w = raster.width;
+      const h = raster.height;
       setImgDims({ w, h });
       const base = computeImageRect(
         bw,
