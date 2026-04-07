@@ -23,6 +23,9 @@ import {
   DEFAULT_PNG_EXPORT_PARAMS,
   mergePngExportParams,
 } from "./export/pngExportSettings";
+import type { CanvasBackdropBlendMode } from "./videoBackdrop";
+import { postYoutubeMute } from "./youtube/forceMuteIframe";
+import { buildYoutubeEmbedSrc, parseYoutubeVideoId } from "./youtube/embedUrl";
 
 /** Pause lens shader time while scroll-zooming; resume after last wheel event. */
 const ZOOM_ANIM_RESUME_MS = 120;
@@ -87,6 +90,44 @@ export function App() {
 
   const [exportTransparent, setExportTransparent] = useState(false);
   const [exportRegion, setExportRegion] = useState<"full" | "image">("full");
+
+  const [youtubeVideoId, setYoutubeVideoId] = useState<string | null>(null);
+  const [youtubeUrlDraft, setYoutubeUrlDraft] = useState("");
+  const [youtubeError, setYoutubeError] = useState<string | null>(null);
+  const [canvasBackdropBlend, setCanvasBackdropBlend] =
+    useState<CanvasBackdropBlendMode>("normal");
+  const youtubeEmbedActive = youtubeVideoId !== null;
+  const youtubeEmbedSrc = useMemo(
+    () =>
+      youtubeVideoId
+        ? buildYoutubeEmbedSrc(youtubeVideoId, {
+            pageOrigin:
+              typeof window !== "undefined" ? window.location.origin : undefined,
+          })
+        : "",
+    [youtubeVideoId],
+  );
+
+  const youtubeIframeRef = useRef<HTMLIFrameElement>(null);
+
+  /** Embed is mute=1; re-send mute on load and on an interval so audio never stays on. */
+  useEffect(() => {
+    if (!youtubeVideoId) return;
+    const iframe = youtubeIframeRef.current;
+    if (!iframe) return;
+
+    const tick = () => postYoutubeMute(iframe);
+
+    tick();
+    const onLoad = () => tick();
+    iframe.addEventListener("load", onLoad);
+    const interval = window.setInterval(tick, 1500);
+
+    return () => {
+      iframe.removeEventListener("load", onLoad);
+      window.clearInterval(interval);
+    };
+  }, [youtubeVideoId, youtubeEmbedSrc]);
 
   const [micDrivingRefraction, setMicDrivingRefraction] = useState(false);
   const [audioInputMode, setAudioInputMode] =
@@ -156,6 +197,21 @@ export function App() {
     setImagePan(t.pan);
     setImageScale(t.scale);
   }, [imgDims]);
+
+  const onYoutubeApply = useCallback(() => {
+    const id = parseYoutubeVideoId(youtubeUrlDraft);
+    if (!id) {
+      setYoutubeError("Could not read a video ID from that URL.");
+      return;
+    }
+    setYoutubeError(null);
+    setYoutubeVideoId(id);
+  }, [youtubeUrlDraft]);
+
+  const onYoutubeClear = useCallback(() => {
+    setYoutubeVideoId(null);
+    setYoutubeError(null);
+  }, []);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -372,6 +428,7 @@ export function App() {
         vjDupHorizStep,
         vjDupScrollSpeed,
         vjPathScale,
+        youtubeEmbedActive,
       }),
     );
   }, [
@@ -405,6 +462,7 @@ export function App() {
     vjDupHorizStep,
     vjDupScrollSpeed,
     vjPathScale,
+    youtubeEmbedActive,
   ]);
 
   useEffect(() => {
@@ -665,6 +723,17 @@ export function App() {
         setSvgTintMode,
         svgTintHex,
         setSvgTintHex,
+        youtubeActive: youtubeEmbedActive,
+      },
+      videoBackdrop: {
+        youtubeUrlDraft,
+        setYoutubeUrlDraft,
+        onYoutubeApply,
+        onYoutubeClear,
+        youtubeActive: youtubeEmbedActive,
+        youtubeError,
+        canvasBackdropBlend,
+        setCanvasBackdropBlend,
       },
       lens: {
         shapeMode,
@@ -778,6 +847,12 @@ export function App() {
       vjDupHorizStep,
       vjDupScrollSpeed,
       vjPathScale,
+      youtubeUrlDraft,
+      onYoutubeApply,
+      onYoutubeClear,
+      youtubeEmbedActive,
+      youtubeError,
+      canvasBackdropBlend,
     ],
   );
 
@@ -815,6 +890,7 @@ export function App() {
     vjDupHorizStep,
     vjDupScrollSpeed,
     vjPathScale,
+    youtubeEmbedActive,
   };
 
   return (
@@ -825,7 +901,26 @@ export function App() {
         </div>
       )}
       <div className="main">
-        <div className="viewport" ref={wrapRef} style={{ background: bgHex }}>
+        <div
+          className="viewport"
+          ref={wrapRef}
+          style={{
+            background: youtubeEmbedActive ? "transparent" : bgHex,
+            isolation: "isolate",
+          }}
+        >
+          {youtubeVideoId && (
+            <div className="viewport__youtube-wrap">
+              <iframe
+                ref={youtubeIframeRef}
+                className="viewport__youtube"
+                src={youtubeEmbedSrc}
+                title="YouTube background"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; web-share"
+                allowFullScreen
+              />
+            </div>
+          )}
           <canvas
             ref={canvasRef}
             tabIndex={-1}
@@ -836,6 +931,9 @@ export function App() {
                   : pointerDrag === "fx"
                     ? "move"
                     : "grab",
+              ...(canvasBackdropBlend !== "normal" && {
+                mixBlendMode: canvasBackdropBlend,
+              }),
             }}
             onPointerDown={onPointerDown}
             onPointerUp={onPointerUp}
@@ -853,6 +951,7 @@ export function App() {
           bloom={sidebar.bloom}
           effects={sidebar.effects}
           audio={sidebar.audio}
+          videoBackdrop={sidebar.videoBackdrop}
           exportSection={sidebar.exportSection}
         />
       </div>

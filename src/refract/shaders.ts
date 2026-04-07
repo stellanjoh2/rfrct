@@ -14,6 +14,8 @@ uniform vec4 u_bgColor;
 uniform vec4 u_imageRect;
 uniform sampler2D u_image;
 uniform float u_hasImage;
+/** 1 = scene composites over a transparent canvas (e.g. YouTube behind); enables RGBA output. */
+uniform float u_transparentSceneBg;
 /** VJ: tile & scroll logo texture vertically in image UV (0/1). */
 uniform float u_vjDupVertical;
 /** Uploaded texture width ÷ height (non-dup / fallback). */
@@ -277,6 +279,93 @@ vec3 sampleScene(vec2 uv) {
   return mix(u_bgColor.rgb, t.rgb, t.a);
 }
 
+vec4 sampleSceneRGBA(vec2 uv) {
+  if (u_hasImage < 0.5) {
+    return u_bgColor;
+  }
+  vec4 t = sampleSceneTex(uv);
+  if (u_transparentSceneBg > 0.5) {
+    return vec4(t.rgb, t.a);
+  }
+  vec3 rgb = mix(u_bgColor.rgb, t.rgb, t.a);
+  float a = mix(u_bgColor.a, 1.0, t.a);
+  return vec4(rgb, a);
+}
+
+vec4 premulScene(vec4 c) {
+  return vec4(c.rgb * c.a, c.a);
+}
+
+vec4 unpremulScene(vec4 p) {
+  return p.a > 1e-5 ? vec4(p.rgb / p.a, p.a) : vec4(0.0);
+}
+
+vec4 blurBinomial3x3_rgba(vec2 uv, vec2 s) {
+  vec4 acc = premulScene(sampleSceneRGBA(uv)) * (4.0 / 16.0);
+  acc += premulScene(sampleSceneRGBA(uv + vec2(s.x, 0.0))) * (2.0 / 16.0);
+  acc += premulScene(sampleSceneRGBA(uv - vec2(s.x, 0.0))) * (2.0 / 16.0);
+  acc += premulScene(sampleSceneRGBA(uv + vec2(0.0, s.y))) * (2.0 / 16.0);
+  acc += premulScene(sampleSceneRGBA(uv - vec2(0.0, s.y))) * (2.0 / 16.0);
+  acc += premulScene(sampleSceneRGBA(uv + vec2(s.x, s.y))) * (1.0 / 16.0);
+  acc += premulScene(sampleSceneRGBA(uv + vec2(-s.x, s.y))) * (1.0 / 16.0);
+  acc += premulScene(sampleSceneRGBA(uv + vec2(s.x, -s.y))) * (1.0 / 16.0);
+  acc += premulScene(sampleSceneRGBA(uv + vec2(-s.x, -s.y))) * (1.0 / 16.0);
+  return unpremulScene(acc);
+}
+
+vec4 blurBinomial5x5_rgba(vec2 uv, vec2 s) {
+  vec4 acc = vec4(0.0);
+  for (int j = 0; j < 5; j++) {
+    for (int i = 0; i < 5; i++) {
+      vec2 o = vec2(float(i - 2), float(j - 2)) * s;
+      acc += premulScene(sampleSceneRGBA(uv + o)) * BLUR_W5[i] * BLUR_W5[j];
+    }
+  }
+  return unpremulScene(acc);
+}
+
+vec4 blurBinomial7x7_rgba(vec2 uv, vec2 s) {
+  vec4 acc = vec4(0.0);
+  for (int j = 0; j < 7; j++) {
+    for (int i = 0; i < 7; i++) {
+      vec2 o = vec2(float(i - 3), float(j - 3)) * s;
+      acc += premulScene(sampleSceneRGBA(uv + o)) * BLUR_W7[i] * BLUR_W7[j];
+    }
+  }
+  return unpremulScene(acc);
+}
+
+vec4 sampleSceneBlurredRGBA(vec2 uv, float blurPx) {
+  vec4 sharp = sampleSceneRGBA(uv);
+  if (blurPx < 0.001) {
+    return sharp;
+  }
+  vec2 s = blurPx * 1.1 / u_resolution;
+  vec4 blurred;
+  if (u_blurQuality < 1.5) {
+    blurred = blurBinomial3x3_rgba(uv, s);
+  } else if (u_blurQuality < 2.5) {
+    blurred = blurBinomial5x5_rgba(uv, s);
+  } else {
+    blurred = blurBinomial7x7_rgba(uv, s);
+  }
+  float t = smoothstep(0.0, 1.25, blurPx);
+  return mix(sharp, blurred, t);
+}
+
+vec4 sampleSceneChromaRGBA(vec2 uv, float spread, float frostPx) {
+  if (u_chroma <= 0.0001) {
+    return sampleSceneBlurredRGBA(uv, frostPx);
+  }
+  float a = u_resolution.x / max(u_resolution.y, 1.0);
+  vec2 off = vec2(spread / u_resolution.x, spread / u_resolution.y) * a;
+  float r = sampleSceneBlurredRGBA(uv + vec2(off.x, 0.0), frostPx).r;
+  float g = sampleSceneBlurredRGBA(uv, frostPx).g;
+  float b = sampleSceneBlurredRGBA(uv - vec2(off.x, 0.0), frostPx).b;
+  float alpha = sampleSceneBlurredRGBA(uv, frostPx).a;
+  return vec4(r, g, b, alpha);
+}
+
 vec3 blurBinomial3x3(vec2 uv, vec2 s) {
   vec3 acc = sampleScene(uv) * (4.0 / 16.0);
   acc += sampleScene(uv + vec2(s.x, 0.0)) * (2.0 / 16.0);
@@ -457,7 +546,11 @@ void main() {
   float frostBlend = smoothstep(frostOuter, -edgeW, sdf);
   float frostPx = u_frostBlur * frostBlend;
   float chromaSpread = u_chroma * falloff * 48.0;
-  vec3 col = sampleSceneChroma(uvR, chromaSpread, frostPx);
-  fragColor = vec4(col, 1.0);
+  if (u_transparentSceneBg > 0.5) {
+    fragColor = sampleSceneChromaRGBA(uvR, chromaSpread, frostPx);
+  } else {
+    vec3 col = sampleSceneChroma(uvR, chromaSpread, frostPx);
+    fragColor = vec4(col, 1.0);
+  }
 }
 `;

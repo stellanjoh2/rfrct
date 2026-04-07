@@ -80,7 +80,36 @@ body {
   overflow: hidden;
 }
 
+/**
+ * Letterboxed 16:9 embeds get “cover” sizing: iframe is larger than the viewport on
+ * 16:10 (e.g. MacBook Air), centered and clipped — no black bars top/bottom.
+ * --yt-cover-zoom nudges past YouTube’s inner padding (~6–8%).
+ */
+.viewport__youtube-wrap {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  --yt-cover-zoom: 1.08;
+}
+
+.viewport__youtube {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  border: 0;
+  /* 16:9 box that covers the viewport, then optional zoom into the player */
+  width: calc(max(100vw, calc(100vh * 16 / 9)) * var(--yt-cover-zoom));
+  aspect-ratio: 16 / 9;
+  height: auto;
+  max-width: none;
+}
+
 .viewport canvas {
+  position: relative;
+  z-index: 1;
   display: block;
   width: 100%;
   height: 100%;
@@ -271,6 +300,40 @@ label.file-btn input[type="file"] {
 
 .field-hint--error {
   color: #ff9a9a;
+}
+
+.field-hint-code {
+  font-size: 0.95em;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.field .youtube-url-input {
+  width: 100%;
+  box-sizing: border-box;
+  font-family: inherit;
+  font-size: 12px;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.22);
+  color: var(--glass-text);
+}
+
+.field .youtube-url-input:focus {
+  outline: none;
+  border-color: rgba(var(--brand-rgb), 0.35);
+  box-shadow: 0 0 0 1px rgba(var(--brand-rgb), 0.22);
+}
+
+.field .row--youtube-actions {
+  flex-wrap: wrap;
+}
+
+.field .row--youtube-actions .mic-toggle {
+  width: auto;
+  flex: 1 1 120px;
+  min-width: 0;
 }
 
 .shortcut-hint {

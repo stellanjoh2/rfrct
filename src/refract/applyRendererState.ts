@@ -15,6 +15,8 @@ const MIC_REFRACT_GAIN = 0.48;
 
 export type RendererSyncParams = {
   bgColor: [number, number, number, number];
+  /** When true, WebGL composites with alpha (YouTube / external layer behind canvas). */
+  transparentSceneBg: boolean;
   blob: BlobParams;
   bloom: BloomParams;
   svgTint: SvgTintParams;
@@ -31,6 +33,7 @@ export type RendererSyncParams = {
 /** Mutable renderer fields the app syncs each frame (avoids importing `RefractRenderer` here). */
 export type RendererStateTarget = {
   bgColor: [number, number, number, number];
+  transparentSceneBg: boolean;
   blob: BlobParams;
   bloom: BloomParams;
   svgTint: SvgTintParams;
@@ -45,6 +48,7 @@ export function applyRendererState(
   p: RendererSyncParams,
 ): void {
   r.bgColor = p.bgColor;
+  r.transparentSceneBg = p.transparentSceneBg;
   Object.assign(r.blob, p.blob);
   r.bloom = { ...p.bloom };
   r.svgTint = {
@@ -96,12 +100,17 @@ export type RendererSyncSource = {
   vjDupScrollSpeed: number;
   /** VJ orbit / lens path scale (1 = default squircle radius; &gt;1 pushes motion toward the edges). */
   vjPathScale: number;
+  /** Fullscreen YouTube embed behind the canvas (transparent WebGL pass-through). */
+  youtubeEmbedActive: boolean;
 };
 
 export function buildRendererSyncParams(
   s: RendererSyncSource,
 ): RendererSyncParams {
-  const bg = parseHexColor(s.bgHex);
+  const transparentSceneBg = s.youtubeEmbedActive;
+  const bg = transparentSceneBg
+    ? ([0, 0, 0, 0] as [number, number, number, number])
+    : parseHexColor(s.bgHex);
 
   const svgTint: SvgTintParams = !s.svgSourceUrl
     ? { mode: 0, rgb: [1, 1, 1] }
@@ -161,6 +170,7 @@ export function buildRendererSyncParams(
 
   return {
     bgColor: [bg[0], bg[1], bg[2], bg[3]],
+    transparentSceneBg,
     blob,
     bloom,
     svgTint,

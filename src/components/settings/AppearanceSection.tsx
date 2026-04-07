@@ -8,6 +8,7 @@ export type AppearanceSectionProps = {
   setSvgTintMode: (v: "original" | "multiply" | "replace") => void;
   svgTintHex: string;
   setSvgTintHex: (v: string) => void;
+  youtubeActive: boolean;
 };
 
 export function AppearanceSection({
@@ -20,6 +21,7 @@ export function AppearanceSection({
   setSvgTintMode,
   svgTintHex,
   setSvgTintHex,
+  youtubeActive,
 }: AppearanceSectionProps) {
   return (
     <>
@@ -30,18 +32,26 @@ export function AppearanceSection({
             Background
             <span className="val">{bgHex}</span>
           </label>
+          {youtubeActive ? (
+            <p className="field-hint">
+              Hidden while Video backdrop / YouTube is active (canvas is
+              transparent outside the logo).
+            </p>
+          ) : null}
           <div className="row">
             <input
               type="color"
               value={bgHex}
               onChange={(e) => setBgHex(e.target.value)}
               aria-label="Background color"
+              disabled={youtubeActive}
             />
             <input
               type="text"
               value={bgHex}
               onChange={(e) => setBgHex(e.target.value)}
               spellCheck={false}
+              disabled={youtubeActive}
             />
           </div>
         </div>

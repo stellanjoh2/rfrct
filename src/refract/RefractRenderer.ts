@@ -108,6 +108,12 @@ export class RefractRenderer {
   /** Texture width ÷ height (GPU bitmap); used for aspect-correct VJ stack. */
   texAspect = 1;
 
+  /**
+   * When true, scene is composited with alpha (transparent outside logo / lens).
+   * Used with a YouTube iframe layer behind the canvas; bloom composite preserves alpha.
+   */
+  transparentSceneBg = false;
+
     constructor(canvas: HTMLCanvasElement) {
     const gl = canvas.getContext(
       "webgl2",
@@ -137,6 +143,7 @@ export class RefractRenderer {
       "u_imageRect",
       "u_image",
       "u_hasImage",
+      "u_transparentSceneBg",
       "u_blobCenter",
       "u_blobRadius",
       "u_waveFreq",
@@ -240,6 +247,10 @@ export class RefractRenderer {
     gl.uniform4f(this.locs.u_bgColor, ...this.bgColor);
     gl.uniform4f(this.locs.u_imageRect, rect.x, rect.y, rect.w, rect.h);
     gl.uniform1f(this.locs.u_hasImage, hasImage);
+    gl.uniform1f(
+      this.locs.u_transparentSceneBg,
+      this.transparentSceneBg ? 1 : 0,
+    );
     gl.uniform1f(this.locs.u_vjDupVertical, this.vjDupVertical);
     gl.uniform1f(this.locs.u_texAspect, this.texAspect);
     gl.uniform1f(this.locs.u_vjDupGap, this.vjDupGap);
@@ -301,6 +312,13 @@ export class RefractRenderer {
 
     const clear: [number, number, number, number] = this.bgColor;
 
+    if (this.transparentSceneBg) {
+      gl.enable(gl.BLEND);
+      gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    } else {
+      gl.disable(gl.BLEND);
+    }
+
     if (!bloomOn) {
       gl.bindFramebuffer(gl.FRAMEBUFFER, null);
       gl.viewport(0, 0, w, h);
@@ -317,7 +335,9 @@ export class RefractRenderer {
     gl.clear(gl.COLOR_BUFFER_BIT);
     this.drawScenePass(w, h);
 
-    this.bloomPipeline.finalizeToCanvas(this.bloom, this.vao, w, h);
+    this.bloomPipeline.finalizeToCanvas(this.bloom, this.vao, w, h, {
+      transparentCanvas: this.transparentSceneBg,
+    });
   };
 
   startLoop() {
@@ -450,6 +470,7 @@ export class RefractRenderer {
       document.removeEventListener("visibilitychange", this.onVisibilityChange);
       this.onVisibilityChange = null;
     }
+    this.gl.disable(this.gl.BLEND);
     this.bloomPipeline.dispose();
     this.gl.deleteTexture(this.texture);
     this.gl.deleteVertexArray(this.vao);

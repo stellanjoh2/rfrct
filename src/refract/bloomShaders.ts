@@ -21,7 +21,9 @@ uniform float u_softKnee;
 out vec4 fragColor;
 void main() {
   vec2 uv = gl_FragCoord.xy / u_resolution;
-  vec3 c = texture(u_scene, uv).rgb;
+  vec4 s = texture(u_scene, uv);
+  /** Premultiply so transparent pixels do not leak bloom. */
+  vec3 c = s.rgb * s.a;
   float lum = dot(c, vec3(0.2126, 0.7152, 0.0722));
   float L = lum * 2.05;
   float thresh = max(0.001, u_threshold);
@@ -63,11 +65,15 @@ uniform sampler2D u_scene;
 uniform sampler2D u_bloom;
 uniform vec2 u_resolution;
 uniform float u_strength;
+/** 1 = opaque canvas output; 0 = preserve scene alpha (YouTube / transparent backdrop). */
+uniform float u_opaqueOutput;
 out vec4 fragColor;
 void main() {
   vec2 uv = gl_FragCoord.xy / u_resolution;
-  vec3 scene = texture(u_scene, uv).rgb;
+  vec4 sc = texture(u_scene, uv);
   vec3 bloom = texture(u_bloom, uv).rgb;
-  fragColor = vec4(scene + bloom * u_strength, 1.0);
+  vec3 rgb = sc.rgb + bloom * u_strength;
+  float a = u_opaqueOutput > 0.5 ? 1.0 : sc.a;
+  fragColor = vec4(rgb, a);
 }
 `;

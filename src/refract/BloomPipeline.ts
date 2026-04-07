@@ -56,7 +56,13 @@ export class BloomPipeline {
     for (const n of ["u_tex", "u_resolution", "u_offsetPx"] as const) {
       this.kawaseLocs[n] = gl.getUniformLocation(this.progKawase, n);
     }
-    for (const n of ["u_scene", "u_bloom", "u_resolution", "u_strength"] as const) {
+    for (const n of [
+      "u_scene",
+      "u_bloom",
+      "u_resolution",
+      "u_strength",
+      "u_opaqueOutput",
+    ] as const) {
       this.compositeLocs[n] = gl.getUniformLocation(this.progComposite, n);
     }
     gl.useProgram(this.progComposite);
@@ -175,6 +181,7 @@ export class BloomPipeline {
     vao: WebGLVertexArrayObject,
     canvasW: number,
     canvasH: number,
+    options?: { transparentCanvas?: boolean },
   ): void {
     const gl = this.gl;
     const bw = this.bloomW;
@@ -219,14 +226,24 @@ export class BloomPipeline {
       writeFbo = f;
     }
 
+    const transparentCanvas = Boolean(options?.transparentCanvas);
+
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     gl.viewport(0, 0, canvasW, canvasH);
-    gl.clearColor(0, 0, 0, 1);
+    if (transparentCanvas) {
+      gl.clearColor(0, 0, 0, 0);
+    } else {
+      gl.clearColor(0, 0, 0, 1);
+    }
     gl.clear(gl.COLOR_BUFFER_BIT);
 
     gl.useProgram(this.progComposite);
     gl.uniform2f(this.compositeLocs.u_resolution!, canvasW, canvasH);
     gl.uniform1f(this.compositeLocs.u_strength!, bloom.strength);
+    gl.uniform1f(
+      this.compositeLocs.u_opaqueOutput!,
+      transparentCanvas ? 0 : 1,
+    );
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, sceneTex);
     gl.activeTexture(gl.TEXTURE1);
