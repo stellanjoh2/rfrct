@@ -22,6 +22,10 @@ import {
   type AudioInputMode,
   audioCaptureErrorMessage,
 } from "./audio/micAnalyzer";
+import {
+  DEFAULT_PNG_EXPORT_PARAMS,
+  mergePngExportParams,
+} from "./export/pngExportSettings";
 
 /** Pause lens shader time while scroll-zooming; resume after last wheel event. */
 const ZOOM_ANIM_RESUME_MS = 120;
@@ -122,11 +126,11 @@ export function App() {
       const r = rendererRef.current;
       if (!r) return;
       r.exportPng(
-        {
+        mergePngExportParams(DEFAULT_PNG_EXPORT_PARAMS, {
           scale,
           transparentBackground: exportTransparent,
           region: imgDims && exportRegion === "image" ? "image" : "full",
-        },
+        }),
         "refrct",
         () => {
           syncLayout();
@@ -422,6 +426,10 @@ export function App() {
   useEffect(() => {
     syncLayout();
   }, [syncLayout, viewportPx]);
+
+  useEffect(() => {
+    rendererRef.current?.reuploadTextureIfNeeded();
+  }, [viewportPx]);
 
   useEffect(() => {
     if (!svgSourceUrl) return;

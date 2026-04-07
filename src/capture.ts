@@ -1,7 +1,148 @@
 const EPS = 1e-5;
 
+const CHROMA_EDGE = 0.13;
+const ALPHA_MIN_VISIBLE = 0.015;
+const ALPHA_EDGE_LO = 0.02;
+const ALPHA_EDGE_HI = 0.998;
+
 function lum(r: number, g: number, b: number): number {
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+function chromaMixFromRgb(r: number, g: number, b: number): number {
+  const mx = Math.max(r, g, b);
+  const mn = Math.min(r, g, b);
+  const chroma = mx < 1e-6 ? 0 : (mx - mn) / mx;
+  return Math.min(1, chroma / CHROMA_EDGE);
+}
+
+function blendLumAndMaxAlpha(
+  aLum: number,
+  aMax: number,
+  chromaMix: number,
+): number {
+  const alpha = aLum * (1 - chromaMix) + aMax * chromaMix;
+  return Math.min(1, Math.max(0, alpha));
+}
+
+function edgeHardenAlpha(alpha: number, gamma: number): number {
+  if (alpha > ALPHA_EDGE_LO && alpha < ALPHA_EDGE_HI) {
+    alpha = 1 - (1 - alpha) ** gamma;
+  }
+  return Math.min(1, Math.max(0, alpha));
+}
+
+/** Dark foreground on light background (e.g. black on white). */
+function alphaLightFgOnLightBg(
+  r: number,
+  g: number,
+  b: number,
+  Br: number,
+  Bg: number,
+  Bb: number,
+  bgLum: number,
+): { aLum: number; aMax: number } {
+  const aR = 1 - r / Math.max(Br, EPS);
+  const aG = 1 - g / Math.max(Bg, EPS);
+  const aB = 1 - b / Math.max(Bb, EPS);
+  const aMax = Math.min(1, Math.max(0, Math.max(aR, aG, aB)));
+  const Lv = lum(r, g, b);
+  const Lb = bgLum;
+  const aLum =
+    Lb > EPS ? Math.min(1, Math.max(0, 1 - Lv / Lb)) : aMax;
+  return { aLum, aMax };
+}
+
+/** Light foreground on dark background (e.g. white on black). */
+function alphaLightFgOnDarkBg(
+  r: number,
+  g: number,
+  b: number,
+  Br: number,
+  Bg: number,
+  Bb: number,
+  bgLum: number,
+): { aLum: number; aMax: number } {
+  const Lv = lum(r, g, b);
+  const Lb = bgLum;
+  const aR = (r - Br) / Math.max(1 - Br, EPS);
+  const aG = (g - Bg) / Math.max(1 - Bg, EPS);
+  const aB = (b - Bb) / Math.max(1 - Bb, EPS);
+  const aMax = Math.min(1, Math.max(0, Math.max(aR, aG, aB)));
+  const aLum =
+    Lb < 1 - EPS
+      ? Math.min(1, Math.max(0, (Lv - Lb) / (1 - Lb)))
+      : aMax;
+  return { aLum, aMax };
+}
+
+function recoverForeground(
+  r: number,
+  g: number,
+  b: number,
+  alpha: number,
+  Br: number,
+  Bg: number,
+  Bb: number,
+): [number, number, number] {
+  const invA = 1 / alpha;
+  let fr = (r - (1 - alpha) * Br) * invA;
+  let fg = (g - (1 - alpha) * Bg) * invA;
+  let fb = (b - (1 - alpha) * Bb) * invA;
+  fr = Math.min(1, Math.max(0, fr));
+  fg = Math.min(1, Math.max(0, fg));
+  fb = Math.min(1, Math.max(0, fb));
+  return [fr, fg, fb];
+}
+
+function defringeDarkOnLightBg(
+  fr: number,
+  fg: number,
+  fb: number,
+  alpha: number,
+  Br: number,
+  Bg: number,
+  Bb: number,
+  lightBg: boolean,
+): [number, number, number] {
+  if (!lightBg || alpha <= 0.04) {
+    return [fr, fg, fb];
+  }
+  const fgMax = Math.max(fr, fg, fb);
+  const bgMax = Math.max(Br, Bg, Bb);
+  if (fgMax >= bgMax * 0.9) {
+    return [fr, fg, fb];
+  }
+  const bleed = 0.24 * (1 - alpha);
+  fr -= bleed * Br;
+  fg -= bleed * Bg;
+  fb -= bleed * Bb;
+  return [
+    Math.min(1, Math.max(0, fr)),
+    Math.min(1, Math.max(0, fg)),
+    Math.min(1, Math.max(0, fb)),
+  ];
+}
+
+function setPixelRgba(
+  d: Uint8ClampedArray,
+  i: number,
+  fr: number,
+  fg: number,
+  fb: number,
+  alpha: number,
+): void {
+  d[i] = Math.round(fr * 255);
+  d[i + 1] = Math.round(fg * 255);
+  d[i + 2] = Math.round(fb * 255);
+  d[i + 3] = Math.round(alpha * 255);
+}
+
+function setTransparent(d: Uint8ClampedArray, i: number): void {
+  d[i] = 0;
+  d[i + 1] = 0;
+  d[i + 2] = 0;
+  d[i + 3] = 0;
 }
 
 /**
@@ -73,7 +214,7 @@ export function removeSolidBackgroundForPng(
 
   const tol = tolerance * 255;
 
-  /** Slightly harden edge α to shrink semi-transparent halos (re-F is computed after). */
+  /** Slightly harden edge α to shrink semi-transparent halos (foreground recovered after). */
   const EDGE_ALPHA_GAMMA = 1.09;
 
   for (let i = 0; i < d.length; i += 4) {
@@ -82,108 +223,37 @@ export function removeSolidBackgroundForPng(
     const b = d[i + 2] / 255;
 
     if (useDematte && lightBackground) {
-      const aR = 1 - r / Math.max(Br, EPS);
-      const aG = 1 - g / Math.max(Bg, EPS);
-      const aB = 1 - b / Math.max(Bb, EPS);
-      const aMax = Math.min(1, Math.max(0, Math.max(aR, aG, aB)));
-
-      const Lv = lum(r, g, b);
-      const Lb = bgLum;
-      const aLum =
-        Lb > EPS ? Math.min(1, Math.max(0, 1 - Lv / Lb)) : aMax;
-
-      const mx = Math.max(r, g, b);
-      const mn = Math.min(r, g, b);
-      const chroma = mx < 1e-6 ? 0 : (mx - mn) / mx;
-      const chromaMix = Math.min(1, chroma / 0.13);
-
-      let alpha = aLum * (1 - chromaMix) + aMax * chromaMix;
-      alpha = Math.min(1, Math.max(0, alpha));
-
-      if (alpha > 0.02 && alpha < 0.998) {
-        alpha = 1 - (1 - alpha) ** EDGE_ALPHA_GAMMA;
-      }
-      alpha = Math.min(1, Math.max(0, alpha));
-
-      if (alpha < 0.015) {
-        d[i] = 0;
-        d[i + 1] = 0;
-        d[i + 2] = 0;
-        d[i + 3] = 0;
+      const { aLum, aMax } = alphaLightFgOnLightBg(r, g, b, Br, Bg, Bb, bgLum);
+      const cm = chromaMixFromRgb(r, g, b);
+      let alpha = blendLumAndMaxAlpha(aLum, aMax, cm);
+      alpha = edgeHardenAlpha(alpha, EDGE_ALPHA_GAMMA);
+      if (alpha < ALPHA_MIN_VISIBLE) {
+        setTransparent(d, i);
         continue;
       }
-
-      const invA = 1 / alpha;
-      let fr = (r - (1 - alpha) * Br) * invA;
-      let fg = (g - (1 - alpha) * Bg) * invA;
-      let fb = (b - (1 - alpha) * Bb) * invA;
-      fr = Math.min(1, Math.max(0, fr));
-      fg = Math.min(1, Math.max(0, fg));
-      fb = Math.min(1, Math.max(0, fb));
-
-      if (lightBg && alpha > 0.04) {
-        const fgMax = Math.max(fr, fg, fb);
-        const bgMax = Math.max(Br, Bg, Bb);
-        if (fgMax < bgMax * 0.9) {
-          const bleed = 0.24 * (1 - alpha);
-          fr -= bleed * Br;
-          fg -= bleed * Bg;
-          fb -= bleed * Bb;
-          fr = Math.min(1, Math.max(0, fr));
-          fg = Math.min(1, Math.max(0, fg));
-          fb = Math.min(1, Math.max(0, fb));
-        }
-      }
-
-      d[i] = Math.round(fr * 255);
-      d[i + 1] = Math.round(fg * 255);
-      d[i + 2] = Math.round(fb * 255);
-      d[i + 3] = Math.round(alpha * 255);
+      let [fr, fg, fb] = recoverForeground(r, g, b, alpha, Br, Bg, Bb);
+      [fr, fg, fb] = defringeDarkOnLightBg(
+        fr,
+        fg,
+        fb,
+        alpha,
+        Br,
+        Bg,
+        Bb,
+        lightBg,
+      );
+      setPixelRgba(d, i, fr, fg, fb, alpha);
     } else if (useDematte) {
-      const Lb = bgLum;
-      const Lv = lum(r, g, b);
-      const aR = (r - Br) / Math.max(1 - Br, EPS);
-      const aG = (g - Bg) / Math.max(1 - Bg, EPS);
-      const aB = (b - Bb) / Math.max(1 - Bb, EPS);
-      const aMax = Math.min(1, Math.max(0, Math.max(aR, aG, aB)));
-      const aLum =
-        Lb < 1 - EPS
-          ? Math.min(1, Math.max(0, (Lv - Lb) / (1 - Lb)))
-          : aMax;
-
-      const mx = Math.max(r, g, b);
-      const mn = Math.min(r, g, b);
-      const chroma = mx < 1e-6 ? 0 : (mx - mn) / mx;
-      const chromaMix = Math.min(1, chroma / 0.13);
-
-      let alpha = aLum * (1 - chromaMix) + aMax * chromaMix;
-      alpha = Math.min(1, Math.max(0, alpha));
-
-      if (alpha > 0.02 && alpha < 0.998) {
-        alpha = 1 - (1 - alpha) ** EDGE_ALPHA_GAMMA;
-      }
-      alpha = Math.min(1, Math.max(0, alpha));
-
-      if (alpha < 0.015) {
-        d[i] = 0;
-        d[i + 1] = 0;
-        d[i + 2] = 0;
-        d[i + 3] = 0;
+      const { aLum, aMax } = alphaLightFgOnDarkBg(r, g, b, Br, Bg, Bb, bgLum);
+      const cm = chromaMixFromRgb(r, g, b);
+      let alpha = blendLumAndMaxAlpha(aLum, aMax, cm);
+      alpha = edgeHardenAlpha(alpha, EDGE_ALPHA_GAMMA);
+      if (alpha < ALPHA_MIN_VISIBLE) {
+        setTransparent(d, i);
         continue;
       }
-
-      const invA = 1 / alpha;
-      let fr = (r - (1 - alpha) * Br) * invA;
-      let fg = (g - (1 - alpha) * Bg) * invA;
-      let fb = (b - (1 - alpha) * Bb) * invA;
-      fr = Math.min(1, Math.max(0, fr));
-      fg = Math.min(1, Math.max(0, fg));
-      fb = Math.min(1, Math.max(0, fb));
-
-      d[i] = Math.round(fr * 255);
-      d[i + 1] = Math.round(fg * 255);
-      d[i + 2] = Math.round(fb * 255);
-      d[i + 3] = Math.round(alpha * 255);
+      const [fr, fg, fb] = recoverForeground(r, g, b, alpha, Br, Bg, Bb);
+      setPixelRgba(d, i, fr, fg, fb, alpha);
     } else {
       const br = Br * 255;
       const bgv = Bg * 255;

@@ -1,6 +1,6 @@
 /**
  * Central definition for PNG export from the Refrct canvas.
- * Used by the sidebar UI and `RefractRenderer.exportPng`.
+ * `DEFAULT_PNG_EXPORT_PARAMS` is merged in `App` (`runPngExport`) with scale / transparency / region.
  */
 
 /** Pixel scale relative to the current backing-store size (DPR already applied). */

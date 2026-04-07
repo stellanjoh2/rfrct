@@ -60,6 +60,9 @@ export class RefractRenderer {
   /** Last uploaded bitmap for re-texImage2D after canvas resize (export can invalidate GPU texture). */
   private texImageSource: TexImageSource | null = null;
 
+  /** Prevents overlapping exports from fighting over canvas dimensions / suppressAnimationDraw. */
+  private exportInProgress = false;
+
   imageLayout: ImageLayout | null = null;
   bgColor: [number, number, number, number] = [1, 1, 1, 1];
   blob: BlobParams = {
@@ -301,7 +304,8 @@ export class RefractRenderer {
   }
 
   /**
-   * Re-uploads the image texture from the last source (needed after export resizes the canvas).
+   * Re-uploads the image texture from the last source (needed after export or viewport resize
+   * changes backing-store size — some drivers clear GPU texture data).
    */
   private reuploadImageTexture(): void {
     if (!this.texImageSource || !this.imageLayout) {
@@ -310,11 +314,24 @@ export class RefractRenderer {
     this.setImageFromSource(this.texImageSource, this.imageLayout);
   }
 
+  /** Public hook after layout sync when the canvas backing size changes (not on every pan). */
+  reuploadTextureIfNeeded(): void {
+    this.reuploadImageTexture();
+  }
+
   /**
    * Renders at `params.scale`× backing-store resolution, optionally straight-alpha and/or
    * cropped to the fitted image rect, downloads PNG, then restores size and redraws.
+   *
+   * Opaque PNGs run the same de-matte as transparent, then composite onto the scene background;
+   * edge pixels may differ slightly from a raw framebuffer read (intentional for cleaner edges).
    */
   exportPng(params: PngExportParams, basename = "refrct", onComplete?: () => void): void {
+    if (this.exportInProgress) {
+      return;
+    }
+    this.exportInProgress = true;
+
     const gl = this.gl;
     const canvas = gl.canvas as HTMLCanvasElement;
     const w0 = canvas.width;
@@ -335,38 +352,54 @@ export class RefractRenderer {
     this.suppressAnimationDraw = true;
 
     requestAnimationFrame(() => {
-      this.gl.finish();
+      try {
+        this.gl.finish();
 
-      const rect = this.imageLayout?.rect;
-      const useCrop =
-        params.region === "image" &&
-        rect &&
-        (this.imageLayout?.naturalWidth ?? 0) > 0;
+        const rect = this.imageLayout?.rect;
+        const useCrop =
+          params.region === "image" &&
+          rect &&
+          (this.imageLayout?.naturalWidth ?? 0) > 0;
 
-      const bgRgb: [number, number, number] = [
-        this.bgColor[0],
-        this.bgColor[1],
-        this.bgColor[2],
-      ];
-      const dematted = removeSolidBackgroundForPng(canvas, bgRgb);
-      let target: HTMLCanvasElement = params.transparentBackground
-        ? dematted
-        : compositeStraightAlphaOverBackground(dematted, bgRgb);
-      if (useCrop) {
-        target = cropCanvasToImageRect(target, rect);
-      }
+        const bgRgb: [number, number, number] = [
+          this.bgColor[0],
+          this.bgColor[1],
+          this.bgColor[2],
+        ];
+        const dematted = removeSolidBackgroundForPng(canvas, bgRgb);
+        let target: HTMLCanvasElement = params.transparentBackground
+          ? dematted
+          : compositeStraightAlphaOverBackground(dematted, bgRgb);
+        if (useCrop) {
+          target = cropCanvasToImageRect(target, rect);
+        }
 
-      downloadCanvasAsPng(target, basename, () => {
+        downloadCanvasAsPng(target, basename, () => {
+          try {
+            this.suppressAnimationDraw = false;
+            canvas.width = w0;
+            canvas.height = h0;
+            gl.viewport(0, 0, w0, h0);
+            this.bloomPipeline.releaseFramebuffers();
+            onComplete?.();
+            this.reuploadImageTexture();
+            this.drawFrame();
+            canvas.focus({ preventScroll: true });
+          } finally {
+            this.exportInProgress = false;
+          }
+        });
+      } catch (e) {
+        this.exportInProgress = false;
         this.suppressAnimationDraw = false;
         canvas.width = w0;
         canvas.height = h0;
         gl.viewport(0, 0, w0, h0);
         this.bloomPipeline.releaseFramebuffers();
-        onComplete?.();
         this.reuploadImageTexture();
         this.drawFrame();
-        canvas.focus({ preventScroll: true });
-      });
+        console.error(e);
+      }
     });
   }
 

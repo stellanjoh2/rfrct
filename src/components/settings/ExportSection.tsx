@@ -50,15 +50,8 @@ export function ExportSection({
           <div
             className="export-toggle"
             role="group"
-            aria-label="Export full canvas or image crop"
+            aria-label="Export crop or full frame"
           >
-            <button
-              type="button"
-              className={`export-toggle__btn${region === "full" ? " export-toggle__btn--on" : ""}`}
-              onClick={() => setRegion("full")}
-            >
-              Canvas
-            </button>
             <button
               type="button"
               disabled={!hasImage}
@@ -70,7 +63,15 @@ export function ExportSection({
               className={`export-toggle__btn${region === "image" ? " export-toggle__btn--on" : ""}`}
               onClick={() => hasImage && setRegion("image")}
             >
-              Image
+              Crop
+            </button>
+            <button
+              type="button"
+              className={`export-toggle__btn${region === "full" ? " export-toggle__btn--on" : ""}`}
+              onClick={() => setRegion("full")}
+              title="Entire lens canvas"
+            >
+              Full
             </button>
           </div>
         </div>
