@@ -96,6 +96,18 @@ export class RefractRenderer {
     rgb: [1, 1, 1],
   };
 
+  /** VJ texture tiling (0/1); applied in fragment shader when image exists. */
+  vjDupVertical = 0;
+  /** Extra vertical gap between dup rows (normalized viewport height). */
+  vjDupGap = 0;
+  /** Horizontal stair step per mod(row, 8) (normalized viewport width). */
+  vjDupHorizStep = 0.03;
+  /** UV y units per second for dup scroll (independent of blob.speed). */
+  vjDupScrollSpeed = 0.11;
+  private vjDupScrollTime = 0;
+  /** Texture width ÷ height (GPU bitmap); used for aspect-correct VJ stack. */
+  texAspect = 1;
+
     constructor(canvas: HTMLCanvasElement) {
     const gl = canvas.getContext(
       "webgl2",
@@ -142,6 +154,15 @@ export class RefractRenderer {
       "u_filterMotionSpeed",
       "u_svgTintMode",
       "u_svgTintRgb",
+      "u_vjDupVertical",
+      "u_texAspect",
+      "u_vjDupGap",
+      "u_vjDupHorizStep",
+      "u_vjDupScrollTime",
+      "u_vjSpanH",
+      "u_vjSpanW",
+      "u_vjCenterX",
+      "u_vjAnchorY",
     ] as const;
     for (const n of names) {
       this.locs[n] = gl.getUniformLocation(this.program, n);
@@ -179,6 +200,7 @@ export class RefractRenderer {
     gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, source);
     const { w, h } = textureDimensions(source);
+    this.texAspect = w / Math.max(1, h);
     if (isPowerOfTwo(w) && isPowerOfTwo(h)) {
       gl.generateMipmap(gl.TEXTURE_2D);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
@@ -191,6 +213,7 @@ export class RefractRenderer {
   clearImage() {
     this.texImageSource = null;
     this.imageLayout = null;
+    this.texAspect = 1;
   }
 
   resize(width: number, height: number) {
@@ -217,6 +240,15 @@ export class RefractRenderer {
     gl.uniform4f(this.locs.u_bgColor, ...this.bgColor);
     gl.uniform4f(this.locs.u_imageRect, rect.x, rect.y, rect.w, rect.h);
     gl.uniform1f(this.locs.u_hasImage, hasImage);
+    gl.uniform1f(this.locs.u_vjDupVertical, this.vjDupVertical);
+    gl.uniform1f(this.locs.u_texAspect, this.texAspect);
+    gl.uniform1f(this.locs.u_vjDupGap, this.vjDupGap);
+    gl.uniform1f(this.locs.u_vjDupHorizStep, this.vjDupHorizStep);
+    gl.uniform1f(this.locs.u_vjDupScrollTime, this.vjDupScrollTime);
+    gl.uniform1f(this.locs.u_vjSpanH, rect.h);
+    gl.uniform1f(this.locs.u_vjSpanW, rect.w);
+    gl.uniform1f(this.locs.u_vjCenterX, rect.x + rect.w * 0.5);
+    gl.uniform1f(this.locs.u_vjAnchorY, rect.y);
 
     const r = this.blob.radius;
     gl.uniform2f(this.locs.u_blobCenter, this.blob.centerX, this.blob.centerY);
@@ -263,6 +295,7 @@ export class RefractRenderer {
     }
     const speed = Math.max(0, this.blob.speed);
     this.animationTime += dt * speed;
+    this.vjDupScrollTime += dt * Math.max(0, this.vjDupScrollSpeed);
 
     const bloomOn = this.bloom.strength > 1e-4;
 

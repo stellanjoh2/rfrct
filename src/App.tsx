@@ -93,6 +93,15 @@ export function App() {
     useState<AudioInputMode>("mic");
   const [micRefractBoost, setMicRefractBoost] = useState(0.65);
   const [vjMode, setVjMode] = useState(false);
+  const [vjDupVertical, setVjDupVertical] = useState(false);
+  /** Extra vertical space between dup rows (fraction of viewport height, 0 = touching). */
+  const [vjDupGap, setVjDupGap] = useState(0);
+  /** Horizontal stair step per row phase (cycles every 8 rows). */
+  const [vjDupHorizStep, setVjDupHorizStep] = useState(0.03);
+  /** Dup stack vertical scroll (UV y / sec); independent of blob animation speed. */
+  const [vjDupScrollSpeed, setVjDupScrollSpeed] = useState(0.11);
+  /** VJ mode: squircle orbit radius multiplier (larger = lens travels closer to frame edges). */
+  const [vjPathScale, setVjPathScale] = useState(1);
   const [micError, setMicError] = useState<string | null>(null);
   const micAnalyzerRef = useRef<MicAnalyzer | null>(null);
   const micEnvelopeRef = useRef(0);
@@ -255,7 +264,7 @@ export function App() {
 
       const zoomIntensity = 0.00115;
       const factor = Math.exp(-e.deltaY * zoomIntensity);
-      setImageScale((s) => Math.min(3, Math.max(0.25, s * factor)));
+      setImageScale((s) => Math.min(20, Math.max(0.25, s * factor)));
     };
 
     el.addEventListener("wheel", onWheel, { passive: false });
@@ -357,6 +366,12 @@ export function App() {
         micDrivingRefraction,
         micRefractBoost,
         micEnvelope: 0,
+        vjMode,
+        vjDupVertical,
+        vjDupGap,
+        vjDupHorizStep,
+        vjDupScrollSpeed,
+        vjPathScale,
       }),
     );
   }, [
@@ -384,6 +399,12 @@ export function App() {
     svgTintHex,
     micDrivingRefraction,
     micRefractBoost,
+    vjMode,
+    vjDupVertical,
+    vjDupGap,
+    vjDupHorizStep,
+    vjDupScrollSpeed,
+    vjPathScale,
   ]);
 
   useEffect(() => {
@@ -610,6 +631,11 @@ export function App() {
       micAnalyzerRef.current = null;
       micEnvelopeRef.current = 0;
       setVjMode(false);
+      setVjDupVertical(false);
+      setVjDupGap(0);
+      setVjDupHorizStep(0.03);
+      setVjDupScrollSpeed(0.11);
+      setVjPathScale(1);
       setMicDrivingRefraction(false);
       setMicError(null);
       return;
@@ -692,6 +718,16 @@ export function App() {
         micError,
         vjMode,
         setVjMode,
+        vjDupVertical,
+        setVjDupVertical,
+        vjDupGap,
+        setVjDupGap,
+        vjDupHorizStep,
+        setVjDupHorizStep,
+        vjDupScrollSpeed,
+        setVjDupScrollSpeed,
+        vjPathScale,
+        setVjPathScale,
       },
       exportSection: {
         transparentBackground: exportTransparent,
@@ -737,6 +773,11 @@ export function App() {
       toggleMicRefraction,
       micError,
       vjMode,
+      vjDupVertical,
+      vjDupGap,
+      vjDupHorizStep,
+      vjDupScrollSpeed,
+      vjPathScale,
     ],
   );
 
@@ -768,6 +809,12 @@ export function App() {
     micDrivingRefraction,
     micRefractBoost,
     micEnvelope: micDrivingRefraction ? micEnvelopeRef.current : 0,
+    vjMode,
+    vjDupVertical,
+    vjDupGap,
+    vjDupHorizStep,
+    vjDupScrollSpeed,
+    vjPathScale,
   };
 
   return (

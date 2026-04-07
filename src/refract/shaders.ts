@@ -14,6 +14,22 @@ uniform vec4 u_bgColor;
 uniform vec4 u_imageRect;
 uniform sampler2D u_image;
 uniform float u_hasImage;
+/** VJ: tile & scroll logo texture vertically in image UV (0/1). */
+uniform float u_vjDupVertical;
+/** Uploaded texture width ÷ height (non-dup / fallback). */
+uniform float u_texAspect;
+/** Extra vertical gap between rows (normalized viewport height, 0 = edge-to-edge). */
+uniform float u_vjDupGap;
+/** Horizontal offset per stair step (normalized viewport width); applied to mod(row, 8). */
+uniform float u_vjDupHorizStep;
+/** Independent scroll phase for dup stack (not tied to lens/blob time). */
+uniform float u_vjDupScrollTime;
+/** One logo’s contain-fit size in normalized viewport UV (from image rect). */
+uniform float u_vjSpanH;
+uniform float u_vjSpanW;
+uniform float u_vjCenterX;
+/** Bottom edge of the reference logo row (normalized), for tiling origin. */
+uniform float u_vjAnchorY;
 
 uniform vec2 u_blobCenter;
 uniform float u_blobRadius;
@@ -209,11 +225,34 @@ vec4 sampleSceneTex(vec2 uv) {
   if (u_hasImage < 0.5) {
     return vec4(0.0);
   }
-  vec2 local = (uv - u_imageRect.xy) / u_imageRect.zw;
-  if (local.x < 0.0 || local.x > 1.0 || local.y < 0.0 || local.y > 1.0) {
-    return vec4(0.0);
+  vec2 uvTex;
+  if (u_vjDupVertical > 0.5) {
+    /** Full-viewport tiling: each logo matches contain-fit size (u_vjSpan*); repeats fill the canvas. */
+    /** Stair pattern repeats every this many rows so logos don’t drift off-screen. */
+    const float VJ_STAIR_CYCLE = 8.0;
+    float strideY = u_vjSpanH + u_vjDupGap;
+    float y = uv.y - u_vjAnchorY + u_vjDupScrollTime;
+    float row = floor(y / max(strideY, 1e-6));
+    float yInStride = y - row * strideY;
+    if (yInStride < 0.0 || yInStride > u_vjSpanH) {
+      return vec4(0.0);
+    }
+    float vTex = yInStride / max(u_vjSpanH, 1e-6);
+    float rowPhase = mod(row, VJ_STAIR_CYCLE);
+    float centerX = u_vjCenterX + u_vjDupHorizStep * rowPhase;
+    float uTex = (uv.x - centerX + u_vjSpanW * 0.5) / max(u_vjSpanW, 1e-6);
+    if (uTex < 0.0 || uTex > 1.0) {
+      return vec4(0.0);
+    }
+    uvTex = vec2(uTex, vTex);
+  } else {
+    vec2 local = (uv - u_imageRect.xy) / u_imageRect.zw;
+    if (local.x < 0.0 || local.x > 1.0 || local.y < 0.0 || local.y > 1.0) {
+      return vec4(0.0);
+    }
+    uvTex = local;
   }
-  vec4 tex = texture(u_image, local);
+  vec4 tex = texture(u_image, uvTex);
   vec3 rgb = tex.rgb;
   if (u_svgTintMode > 0.5) {
     if (u_svgTintMode < 1.5) {

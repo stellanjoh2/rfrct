@@ -53,7 +53,7 @@ export function AppearanceSection({
           <input
             type="range"
             min={0.25}
-            max={3}
+            max={20}
             step={0.01}
             value={imageScale}
             onChange={(e) => setImageScale(Number(e.target.value))}

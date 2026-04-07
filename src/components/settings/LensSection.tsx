@@ -82,7 +82,7 @@ export function LensSection({
           <input
             type="range"
             min={0.08}
-            max={1}
+            max={2}
             step={0.005}
             value={blobSize}
             onChange={(e) => setBlobSize(Number(e.target.value))}
@@ -169,7 +169,7 @@ export function LensSection({
           <input
             type="range"
             min={0.004}
-            max={0.08}
+            max={0.16}
             step={0.001}
             value={edgeSoft}
             onChange={(e) => setEdgeSoft(Number(e.target.value))}

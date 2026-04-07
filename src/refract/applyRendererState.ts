@@ -18,6 +18,14 @@ export type RendererSyncParams = {
   blob: BlobParams;
   bloom: BloomParams;
   svgTint: SvgTintParams;
+  /** 0/1 — tile & scroll texture vertically in image space (VJ duplicate). */
+  vjDupVertical: number;
+  /** Normalized viewport height: extra gap between dup rows (0 = edge-to-edge). */
+  vjDupGap: number;
+  /** Horizontal stair step per row (viewport width); offset uses mod(row, 8). */
+  vjDupHorizStep: number;
+  /** Dup scroll rate (UV y units per second); drives internal scroll time, not blob speed. */
+  vjDupScrollSpeed: number;
 };
 
 /** Mutable renderer fields the app syncs each frame (avoids importing `RefractRenderer` here). */
@@ -26,6 +34,10 @@ export type RendererStateTarget = {
   blob: BlobParams;
   bloom: BloomParams;
   svgTint: SvgTintParams;
+  vjDupVertical: number;
+  vjDupGap: number;
+  vjDupHorizStep: number;
+  vjDupScrollSpeed: number;
 };
 
 export function applyRendererState(
@@ -39,6 +51,10 @@ export function applyRendererState(
     mode: p.svgTint.mode,
     rgb: [p.svgTint.rgb[0], p.svgTint.rgb[1], p.svgTint.rgb[2]],
   };
+  r.vjDupVertical = p.vjDupVertical;
+  r.vjDupGap = p.vjDupGap;
+  r.vjDupHorizStep = p.vjDupHorizStep;
+  r.vjDupScrollSpeed = p.vjDupScrollSpeed;
 }
 
 export type RendererSyncSource = {
@@ -70,6 +86,16 @@ export type RendererSyncSource = {
   micDrivingRefraction: boolean;
   micRefractBoost: number;
   micEnvelope: number;
+  vjMode: boolean;
+  vjDupVertical: boolean;
+  /** 0–1 UI scale; gap in normalized viewport height between dup rows. */
+  vjDupGap: number;
+  /** Horizontal stair step (normalized viewport width per row phase). */
+  vjDupHorizStep: number;
+  /** Dup vertical scroll speed (UV units per second). */
+  vjDupScrollSpeed: number;
+  /** VJ orbit / lens path scale (1 = default squircle radius; &gt;1 pushes motion toward the edges). */
+  vjPathScale: number;
 };
 
 export function buildRendererSyncParams(
@@ -130,10 +156,20 @@ export function buildRendererSyncParams(
     filterMotionSpeed: s.filterMotionSpeed,
   };
 
+  const vjTex =
+    Boolean(s.svgSourceUrl) && s.vjMode;
+
   return {
     bgColor: [bg[0], bg[1], bg[2], bg[3]],
     blob,
     bloom,
     svgTint,
+    vjDupVertical: vjTex && s.vjDupVertical ? 1 : 0,
+    vjDupGap:
+      vjTex && s.vjDupVertical ? Math.max(0, s.vjDupGap) : 0,
+    vjDupHorizStep:
+      vjTex && s.vjDupVertical ? Math.max(0, s.vjDupHorizStep) : 0,
+    vjDupScrollSpeed:
+      vjTex && s.vjDupVertical ? Math.max(0, s.vjDupScrollSpeed) : 0,
   };
 }
