@@ -21,6 +21,14 @@ export type AudioSectionProps = {
   setVjDupScrollSpeed: (v: number) => void;
   vjPathScale: number;
   setVjPathScale: (v: number) => void;
+  vjGlassGradeMode: "off" | "tint" | "duotone";
+  setVjGlassGradeMode: (v: "off" | "tint" | "duotone") => void;
+  vjGlassNeonAHex: string;
+  setVjGlassNeonAHex: (v: string) => void;
+  vjGlassNeonBHex: string;
+  setVjGlassNeonBHex: (v: string) => void;
+  vjGlassGradeIntensity: number;
+  setVjGlassGradeIntensity: (v: number) => void;
 };
 
 export function AudioSection({
@@ -43,6 +51,14 @@ export function AudioSection({
   setVjDupScrollSpeed,
   vjPathScale,
   setVjPathScale,
+  vjGlassGradeMode,
+  setVjGlassGradeMode,
+  vjGlassNeonAHex,
+  setVjGlassNeonAHex,
+  vjGlassNeonBHex,
+  setVjGlassNeonBHex,
+  vjGlassGradeIntensity,
+  setVjGlassGradeIntensity,
 }: AudioSectionProps) {
   const vjControlsEnabled = micDrivingRefraction && vjMode;
   return (
@@ -184,6 +200,97 @@ export function AudioSection({
             aria-label="VJ mode lens orbit radius scale"
           />
         </div>
+        <div className="field">
+          <label htmlFor="vj-glass-grade-mode">Glass neon (VJ)</label>
+          <p className="field-hint">
+            Hard neon colour grade <strong>inside the lens only</strong>, separate from
+            SVG tint. Louder audio pushes the effect when audio is on. Duotone maps
+            shadows → highlights between the two colours.
+          </p>
+          <select
+            id="vj-glass-grade-mode"
+            className="field-select"
+            value={vjGlassGradeMode}
+            onChange={(e) =>
+              setVjGlassGradeMode(
+                e.target.value as "off" | "tint" | "duotone",
+              )
+            }
+            disabled={!vjControlsEnabled}
+            aria-label="VJ glass neon mode"
+          >
+            <option value="off">Off</option>
+            <option value="tint">Neon tint (screen)</option>
+            <option value="duotone">Duotone</option>
+          </select>
+        </div>
+        {vjGlassGradeMode !== "off" && (
+          <>
+            <div className="field">
+              <label>
+                Neon A (bright)
+                <span className="val">{vjGlassNeonAHex}</span>
+              </label>
+              <div className="row">
+                <input
+                  type="color"
+                  value={vjGlassNeonAHex}
+                  onChange={(e) => setVjGlassNeonAHex(e.target.value)}
+                  disabled={!vjControlsEnabled}
+                  aria-label="Neon bright colour"
+                />
+                <input
+                  type="text"
+                  value={vjGlassNeonAHex}
+                  onChange={(e) => setVjGlassNeonAHex(e.target.value)}
+                  spellCheck={false}
+                  disabled={!vjControlsEnabled}
+                />
+              </div>
+            </div>
+            <div className="field">
+              <label>
+                Neon B (shadows — duotone)
+                <span className="val">{vjGlassNeonBHex}</span>
+              </label>
+              <div className="row">
+                <input
+                  type="color"
+                  value={vjGlassNeonBHex}
+                  onChange={(e) => setVjGlassNeonBHex(e.target.value)}
+                  disabled={!vjControlsEnabled}
+                  aria-label="Neon shadow colour"
+                />
+                <input
+                  type="text"
+                  value={vjGlassNeonBHex}
+                  onChange={(e) => setVjGlassNeonBHex(e.target.value)}
+                  spellCheck={false}
+                  disabled={!vjControlsEnabled}
+                />
+              </div>
+            </div>
+            <div className="field">
+              <label htmlFor="vj-glass-neon-int">
+                Neon intensity
+                <span className="val">{vjGlassGradeIntensity.toFixed(2)}</span>
+              </label>
+              <input
+                id="vj-glass-neon-int"
+                type="range"
+                min={0}
+                max={2}
+                step={0.02}
+                value={vjGlassGradeIntensity}
+                onChange={(e) =>
+                  setVjGlassGradeIntensity(Number(e.target.value))
+                }
+                disabled={!vjControlsEnabled}
+                aria-label="VJ glass neon intensity"
+              />
+            </div>
+          </>
+        )}
         <div className="field">
           <label
             title="Vertical gap between stacked logos (fraction of viewport height)"

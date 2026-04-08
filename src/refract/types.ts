@@ -55,3 +55,16 @@ export type SvgTintParams = {
   /** sRGB 0–1 channels (same as CSS hex). */
   rgb: [number, number, number];
 };
+
+/** 0 = off, 1 = neon tint (screen-ish), 2 = duotone (shadows → highlights). Lens only; independent of SVG tint. */
+export type GlassGradeMode = 0 | 1 | 2;
+
+export type GlassGradeParams = {
+  mode: GlassGradeMode;
+  /** Bright / highlight neon (sRGB). */
+  rgbA: [number, number, number];
+  /** Dark / shadow neon (sRGB); duotone only. */
+  rgbB: [number, number, number];
+  /** Effective strength 0–2 after audio; applied only inside lens when VJ mode. */
+  strength: number;
+};

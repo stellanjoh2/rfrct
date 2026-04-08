@@ -23,7 +23,7 @@ import {
   DEFAULT_PNG_EXPORT_PARAMS,
   mergePngExportParams,
 } from "./export/pngExportSettings";
-import type { CanvasBackdropBlendMode } from "./videoBackdrop";
+import type { BackdropBlendMode } from "./videoBackdrop";
 import { postYoutubeMute } from "./youtube/forceMuteIframe";
 import { buildYoutubeEmbedSrc, parseYoutubeVideoId } from "./youtube/embedUrl";
 
@@ -95,7 +95,14 @@ export function App() {
   const [youtubeUrlDraft, setYoutubeUrlDraft] = useState("");
   const [youtubeError, setYoutubeError] = useState<string | null>(null);
   const [canvasBackdropBlend, setCanvasBackdropBlend] =
-    useState<CanvasBackdropBlendMode>("normal");
+    useState<BackdropBlendMode>("normal");
+  const [solidOverlayHex, setSolidOverlayHex] = useState("#000000");
+  const [solidOverlayOpacity, setSolidOverlayOpacity] = useState(0);
+  const [solidOverlayBlend, setSolidOverlayBlend] =
+    useState<BackdropBlendMode>("normal");
+  const [solidOverlayVjHueShift, setSolidOverlayVjHueShift] = useState(false);
+  const [solidOverlayHueAudio, setSolidOverlayHueAudio] = useState(true);
+  const solidOverlayRef = useRef<HTMLDivElement>(null);
   const youtubeEmbedActive = youtubeVideoId !== null;
   const youtubeEmbedSrc = useMemo(
     () =>
@@ -143,9 +150,56 @@ export function App() {
   const [vjDupScrollSpeed, setVjDupScrollSpeed] = useState(0.11);
   /** VJ mode: squircle orbit radius multiplier (larger = lens travels closer to frame edges). */
   const [vjPathScale, setVjPathScale] = useState(1);
+  const [vjGlassGradeMode, setVjGlassGradeMode] = useState<
+    "off" | "tint" | "duotone"
+  >("off");
+  const [vjGlassNeonAHex, setVjGlassNeonAHex] = useState("#ff00ee");
+  const [vjGlassNeonBHex, setVjGlassNeonBHex] = useState("#1a0055");
+  const [vjGlassGradeIntensity, setVjGlassGradeIntensity] = useState(0);
   const [micError, setMicError] = useState<string | null>(null);
   const micAnalyzerRef = useRef<MicAnalyzer | null>(null);
   const micEnvelopeRef = useRef(0);
+
+  /** VJ: CSS hue-rotate on solid overlay — slow drift + optional mic envelope. */
+  useEffect(() => {
+    const el = solidOverlayRef.current;
+    if (!el) return;
+    const run =
+      solidOverlayOpacity > 0.02 &&
+      solidOverlayVjHueShift &&
+      vjMode;
+    if (!run) {
+      el.style.filter = "";
+      el.style.removeProperty("will-change");
+      return;
+    }
+    let id = 0;
+    const degPerSec = 7.5;
+    const envDeg = 130;
+    const loop = () => {
+      const t = performance.now() * 0.001;
+      let deg = (t * degPerSec) % 360;
+      if (solidOverlayHueAudio && micDrivingRefraction) {
+        deg += micEnvelopeRef.current * envDeg;
+      }
+      deg = ((deg % 360) + 360) % 360;
+      el.style.filter = `hue-rotate(${deg}deg)`;
+      el.style.willChange = "filter";
+      id = requestAnimationFrame(loop);
+    };
+    id = requestAnimationFrame(loop);
+    return () => {
+      cancelAnimationFrame(id);
+      el.style.filter = "";
+      el.style.removeProperty("will-change");
+    };
+  }, [
+    solidOverlayOpacity,
+    solidOverlayVjHueShift,
+    solidOverlayHueAudio,
+    vjMode,
+    micDrivingRefraction,
+  ]);
 
   const latestSyncRef = useRef<RendererSyncSource | null>(null);
 
@@ -429,6 +483,10 @@ export function App() {
         vjDupScrollSpeed,
         vjPathScale,
         youtubeEmbedActive,
+        vjGlassGradeMode,
+        vjGlassNeonAHex,
+        vjGlassNeonBHex,
+        vjGlassGradeIntensity,
       }),
     );
   }, [
@@ -463,6 +521,10 @@ export function App() {
     vjDupScrollSpeed,
     vjPathScale,
     youtubeEmbedActive,
+    vjGlassGradeMode,
+    vjGlassNeonAHex,
+    vjGlassNeonBHex,
+    vjGlassGradeIntensity,
   ]);
 
   useEffect(() => {
@@ -734,6 +796,17 @@ export function App() {
         youtubeError,
         canvasBackdropBlend,
         setCanvasBackdropBlend,
+        solidOverlayHex,
+        setSolidOverlayHex,
+        solidOverlayOpacity,
+        setSolidOverlayOpacity,
+        solidOverlayBlend,
+        setSolidOverlayBlend,
+        vjMode,
+        solidOverlayVjHueShift,
+        setSolidOverlayVjHueShift,
+        solidOverlayHueAudio,
+        setSolidOverlayHueAudio,
       },
       lens: {
         shapeMode,
@@ -797,6 +870,14 @@ export function App() {
         setVjDupScrollSpeed,
         vjPathScale,
         setVjPathScale,
+        vjGlassGradeMode,
+        setVjGlassGradeMode,
+        vjGlassNeonAHex,
+        setVjGlassNeonAHex,
+        vjGlassNeonBHex,
+        setVjGlassNeonBHex,
+        vjGlassGradeIntensity,
+        setVjGlassGradeIntensity,
       },
       exportSection: {
         transparentBackground: exportTransparent,
@@ -847,12 +928,22 @@ export function App() {
       vjDupHorizStep,
       vjDupScrollSpeed,
       vjPathScale,
+      vjGlassGradeMode,
+      vjGlassNeonAHex,
+      vjGlassNeonBHex,
+      vjGlassGradeIntensity,
       youtubeUrlDraft,
       onYoutubeApply,
       onYoutubeClear,
       youtubeEmbedActive,
       youtubeError,
       canvasBackdropBlend,
+      solidOverlayHex,
+      solidOverlayOpacity,
+      solidOverlayBlend,
+      vjMode,
+      solidOverlayVjHueShift,
+      solidOverlayHueAudio,
     ],
   );
 
@@ -891,6 +982,10 @@ export function App() {
     vjDupScrollSpeed,
     vjPathScale,
     youtubeEmbedActive,
+    vjGlassGradeMode,
+    vjGlassNeonAHex,
+    vjGlassNeonBHex,
+    vjGlassGradeIntensity,
   };
 
   return (
@@ -920,6 +1015,20 @@ export function App() {
                 allowFullScreen
               />
             </div>
+          )}
+          {solidOverlayOpacity > 0 && (
+            <div
+              ref={solidOverlayRef}
+              className="viewport__solid-overlay"
+              style={{
+                backgroundColor: solidOverlayHex,
+                opacity: solidOverlayOpacity,
+                ...(solidOverlayBlend !== "normal" && {
+                  mixBlendMode: solidOverlayBlend,
+                }),
+              }}
+              aria-hidden
+            />
           )}
           <canvas
             ref={canvasRef}

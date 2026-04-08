@@ -3,6 +3,7 @@ import type {
   BlobParams,
   BloomParams,
   FilterMode,
+  GlassGradeParams,
   ShapeMode,
   SvgTintParams,
 } from "./types";
@@ -28,6 +29,8 @@ export type RendererSyncParams = {
   vjDupHorizStep: number;
   /** Dup scroll rate (UV y units per second); drives internal scroll time, not blob speed. */
   vjDupScrollSpeed: number;
+  /** VJ-only neon colour grade inside the lens (independent of SVG tint). */
+  glassGrade: GlassGradeParams;
 };
 
 /** Mutable renderer fields the app syncs each frame (avoids importing `RefractRenderer` here). */
@@ -41,6 +44,7 @@ export type RendererStateTarget = {
   vjDupGap: number;
   vjDupHorizStep: number;
   vjDupScrollSpeed: number;
+  glassGrade: GlassGradeParams;
 };
 
 export function applyRendererState(
@@ -59,6 +63,12 @@ export function applyRendererState(
   r.vjDupGap = p.vjDupGap;
   r.vjDupHorizStep = p.vjDupHorizStep;
   r.vjDupScrollSpeed = p.vjDupScrollSpeed;
+  r.glassGrade = {
+    mode: p.glassGrade.mode,
+    rgbA: [p.glassGrade.rgbA[0], p.glassGrade.rgbA[1], p.glassGrade.rgbA[2]],
+    rgbB: [p.glassGrade.rgbB[0], p.glassGrade.rgbB[1], p.glassGrade.rgbB[2]],
+    strength: p.glassGrade.strength,
+  };
 }
 
 export type RendererSyncSource = {
@@ -102,6 +112,12 @@ export type RendererSyncSource = {
   vjPathScale: number;
   /** Fullscreen YouTube embed behind the canvas (transparent WebGL pass-through). */
   youtubeEmbedActive: boolean;
+  /** VJ glass neon: off | tint | duotone */
+  vjGlassGradeMode: "off" | "tint" | "duotone";
+  vjGlassNeonAHex: string;
+  vjGlassNeonBHex: string;
+  /** 0–2 — intensity before audio envelope. */
+  vjGlassGradeIntensity: number;
 };
 
 export function buildRendererSyncParams(
@@ -168,6 +184,35 @@ export function buildRendererSyncParams(
   const vjTex =
     Boolean(s.svgSourceUrl) && s.vjMode;
 
+  const glassGrade: GlassGradeParams = (() => {
+    const off: GlassGradeParams = {
+      mode: 0,
+      rgbA: [1, 1, 1],
+      rgbB: [0, 0, 0],
+      strength: 0,
+    };
+    if (
+      !s.vjMode ||
+      s.vjGlassGradeIntensity < 1e-4 ||
+      s.vjGlassGradeMode === "off"
+    ) {
+      return off;
+    }
+    const ca = parseHexColor(s.vjGlassNeonAHex);
+    const cb = parseHexColor(s.vjGlassNeonBHex);
+    const envMod =
+      s.micDrivingRefraction && s.vjMode
+        ? 0.1 + 0.9 * s.micEnvelope
+        : 1.0;
+    const strength = Math.min(2, s.vjGlassGradeIntensity * envMod);
+    return {
+      mode: s.vjGlassGradeMode === "tint" ? 1 : 2,
+      rgbA: [ca[0], ca[1], ca[2]] as [number, number, number],
+      rgbB: [cb[0], cb[1], cb[2]] as [number, number, number],
+      strength,
+    };
+  })();
+
   return {
     bgColor: [bg[0], bg[1], bg[2], bg[3]],
     transparentSceneBg,
@@ -181,5 +226,6 @@ export function buildRendererSyncParams(
       vjTex && s.vjDupVertical ? Math.max(0, s.vjDupHorizStep) : 0,
     vjDupScrollSpeed:
       vjTex && s.vjDupVertical ? Math.max(0, s.vjDupScrollSpeed) : 0,
+    glassGrade,
   };
 }

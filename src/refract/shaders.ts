@@ -58,6 +58,12 @@ uniform float u_filterMotionSpeed;
 uniform float u_svgTintMode;
 uniform vec3 u_svgTintRgb;
 
+/** 0 = off, 1 = hard neon tint on glass, 2 = duotone (rgbB → rgbA by luma). */
+uniform int u_glassGradeMode;
+uniform vec3 u_glassNeonA;
+uniform vec3 u_glassNeonB;
+uniform float u_glassGradeStrength;
+
 out vec4 fragColor;
 
 const float BLUR_W5[5] = float[](
@@ -546,10 +552,38 @@ void main() {
   float frostBlend = smoothstep(frostOuter, -edgeW, sdf);
   float frostPx = u_frostBlur * frostBlend;
   float chromaSpread = u_chroma * falloff * 48.0;
+  vec3 col;
+  float outA;
   if (u_transparentSceneBg > 0.5) {
-    fragColor = sampleSceneChromaRGBA(uvR, chromaSpread, frostPx);
+    vec4 rgba = sampleSceneChromaRGBA(uvR, chromaSpread, frostPx);
+    col = rgba.rgb;
+    outA = rgba.a;
   } else {
-    vec3 col = sampleSceneChroma(uvR, chromaSpread, frostPx);
+    col = sampleSceneChroma(uvR, chromaSpread, frostPx);
+    outA = 1.0;
+  }
+
+  /** VJ glass neon: mask with lens silhouette (inside the glass). */
+  float gradeMask = lens * clamp(u_glassGradeStrength, 0.0, 2.0);
+  if (u_glassGradeMode > 0 && gradeMask > 1e-4) {
+    float m = gradeMask;
+    if (u_glassGradeMode == 1) {
+      vec3 g = clamp(u_glassNeonA * 1.65, 0.0, 2.4);
+      vec3 screened = 1.0 - (1.0 - col) * (1.0 - g * 0.85);
+      vec3 pumped = mix(col, screened, m);
+      vec3 mult = col * mix(vec3(1.0), u_glassNeonA * 2.2, m);
+      col = mix(pumped, mult, 0.35);
+    } else {
+      float y = dot(col, vec3(0.2126, 0.7152, 0.0722));
+      y = pow(clamp(y, 0.0, 1.0), 0.48);
+      vec3 duo = mix(u_glassNeonB * 1.1, u_glassNeonA * 1.25, y);
+      col = mix(col, duo, m);
+    }
+  }
+
+  if (u_transparentSceneBg > 0.5) {
+    fragColor = vec4(col, outA);
+  } else {
     fragColor = vec4(col, 1.0);
   }
 }

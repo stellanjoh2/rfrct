@@ -1,7 +1,7 @@
 import type { Dispatch, SetStateAction } from "react";
 import {
-  CANVAS_BACKDROP_BLEND_OPTIONS,
-  type CanvasBackdropBlendMode,
+  BACKDROP_BLEND_OPTIONS,
+  type BackdropBlendMode,
 } from "../../videoBackdrop";
 
 export type VideoBackdropSectionProps = {
@@ -11,8 +11,19 @@ export type VideoBackdropSectionProps = {
   onYoutubeClear: () => void;
   youtubeActive: boolean;
   youtubeError: string | null;
-  canvasBackdropBlend: CanvasBackdropBlendMode;
-  setCanvasBackdropBlend: Dispatch<SetStateAction<CanvasBackdropBlendMode>>;
+  canvasBackdropBlend: BackdropBlendMode;
+  setCanvasBackdropBlend: Dispatch<SetStateAction<BackdropBlendMode>>;
+  solidOverlayHex: string;
+  setSolidOverlayHex: (v: string) => void;
+  solidOverlayOpacity: number;
+  setSolidOverlayOpacity: (v: number) => void;
+  solidOverlayBlend: BackdropBlendMode;
+  setSolidOverlayBlend: Dispatch<SetStateAction<BackdropBlendMode>>;
+  vjMode: boolean;
+  solidOverlayVjHueShift: boolean;
+  setSolidOverlayVjHueShift: Dispatch<SetStateAction<boolean>>;
+  solidOverlayHueAudio: boolean;
+  setSolidOverlayHueAudio: Dispatch<SetStateAction<boolean>>;
 };
 
 export function VideoBackdropSection({
@@ -24,6 +35,17 @@ export function VideoBackdropSection({
   youtubeError,
   canvasBackdropBlend,
   setCanvasBackdropBlend,
+  solidOverlayHex,
+  setSolidOverlayHex,
+  solidOverlayOpacity,
+  setSolidOverlayOpacity,
+  solidOverlayBlend,
+  setSolidOverlayBlend,
+  vjMode,
+  solidOverlayVjHueShift,
+  setSolidOverlayVjHueShift,
+  solidOverlayHueAudio,
+  setSolidOverlayHueAudio,
 }: VideoBackdropSectionProps) {
   return (
     <>
@@ -73,19 +95,123 @@ export function VideoBackdropSection({
             className="field-select"
             value={canvasBackdropBlend}
             onChange={(e) =>
-              setCanvasBackdropBlend(
-                e.target.value as CanvasBackdropBlendMode,
-              )
+              setCanvasBackdropBlend(e.target.value as BackdropBlendMode)
             }
             aria-label="Canvas blend mode over video backdrop"
           >
-            {CANVAS_BACKDROP_BLEND_OPTIONS.map((o) => (
+            {BACKDROP_BLEND_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>
                 {o.label}
               </option>
             ))}
           </select>
         </div>
+        <div className="field">
+          <label>Solid overlay (above video, below lens)</label>
+          <p className="field-hint">
+            Full-screen colour between the YouTube layer and the SVG / distortion
+            canvas. Use opacity + blend to grade the picture (e.g. overlay, screen).
+          </p>
+          <div className="row">
+            <input
+              type="color"
+              value={solidOverlayHex}
+              onChange={(e) => setSolidOverlayHex(e.target.value)}
+              aria-label="Solid overlay colour"
+            />
+            <input
+              type="text"
+              value={solidOverlayHex}
+              onChange={(e) => setSolidOverlayHex(e.target.value)}
+              spellCheck={false}
+              aria-label="Solid overlay hex"
+            />
+          </div>
+        </div>
+        <div className="field">
+          <label htmlFor="solid-overlay-opacity">
+            Overlay opacity
+            <span className="val">{(solidOverlayOpacity * 100).toFixed(0)}%</span>
+          </label>
+          <input
+            id="solid-overlay-opacity"
+            type="range"
+            min={0}
+            max={1}
+            step={0.02}
+            value={solidOverlayOpacity}
+            onChange={(e) => setSolidOverlayOpacity(Number(e.target.value))}
+            aria-label="Solid overlay opacity"
+          />
+        </div>
+        <div className="field">
+          <label htmlFor="solid-overlay-blend">Overlay blend</label>
+          <p className="field-hint">
+            How the solid colour mixes with the video (or the page background if
+            there is no video).
+          </p>
+          <select
+            id="solid-overlay-blend"
+            className="field-select"
+            value={solidOverlayBlend}
+            onChange={(e) =>
+              setSolidOverlayBlend(e.target.value as BackdropBlendMode)
+            }
+            aria-label="Solid overlay blend mode"
+          >
+            {BACKDROP_BLEND_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="field field--checkbox field--audio-toggles">
+          <button
+            type="button"
+            className={`mic-toggle ${solidOverlayVjHueShift ? "mic-toggle--on" : ""}`}
+            disabled={!vjMode || solidOverlayOpacity < 0.02}
+            onClick={() => setSolidOverlayVjHueShift((v) => !v)}
+            aria-pressed={solidOverlayVjHueShift}
+            title={
+              !vjMode
+                ? "Turn on VJ mode to animate overlay hue"
+                : solidOverlayOpacity < 0.02
+                  ? "Raise overlay opacity first"
+                  : solidOverlayVjHueShift
+                    ? "Use static overlay colour"
+                    : "Slowly rotate hue on the solid overlay"
+            }
+          >
+            VJ hue shift
+          </button>
+          <button
+            type="button"
+            className={`mic-toggle ${solidOverlayHueAudio ? "mic-toggle--on" : ""}`}
+            disabled={
+              !vjMode || !solidOverlayVjHueShift || solidOverlayOpacity < 0.02
+            }
+            onClick={() => setSolidOverlayHueAudio((v) => !v)}
+            aria-pressed={solidOverlayHueAudio}
+            title={
+              solidOverlayVjHueShift && vjMode
+                ? solidOverlayHueAudio
+                  ? "Hue uses time only"
+                  : "Add loudness to hue (needs audio on)"
+                : "Enable VJ hue shift first"
+            }
+          >
+            Hue + audio
+          </button>
+        </div>
+        {solidOverlayVjHueShift && vjMode && (
+          <p className="field-hint">
+            Base colour still sets the family;{" "}
+            <strong>VJ hue shift</strong> spins the hue slowly.{" "}
+            <strong>Hue + audio</strong> adds envelope when audio is running (more
+            dynamic when loud).
+          </p>
+        )}
       </section>
     </>
   );

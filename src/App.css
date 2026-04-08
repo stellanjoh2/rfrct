@@ -107,6 +107,13 @@ body {
   max-width: none;
 }
 
+/** Solid colour between YouTube (or page bg) and WebGL canvas (z-index stacking via DOM). */
+.viewport__solid-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
 .viewport canvas {
   position: relative;
   z-index: 1;

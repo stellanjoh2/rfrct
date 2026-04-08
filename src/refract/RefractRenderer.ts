@@ -7,13 +7,20 @@ import {
 import type { PngExportParams } from "../export/pngExportSettings";
 import { BloomPipeline } from "./BloomPipeline";
 import { FRAG, VERT } from "./shaders";
-import type { BlobParams, BloomParams, ImageLayout, SvgTintParams } from "./types";
+import type {
+  BlobParams,
+  BloomParams,
+  GlassGradeParams,
+  ImageLayout,
+  SvgTintParams,
+} from "./types";
 import { compileShader, linkProgram } from "./webgl";
 
 export type {
   BlobParams,
   BloomParams,
   FilterMode,
+  GlassGradeParams,
   ImageLayout,
   ShapeMode,
   SvgTintMode,
@@ -96,6 +103,14 @@ export class RefractRenderer {
     rgb: [1, 1, 1],
   };
 
+  /** VJ neon grade on the glass (lens interior); independent of SVG tint. */
+  glassGrade: GlassGradeParams = {
+    mode: 0,
+    rgbA: [1, 1, 1],
+    rgbB: [0, 0, 0],
+    strength: 0,
+  };
+
   /** VJ texture tiling (0/1); applied in fragment shader when image exists. */
   vjDupVertical = 0;
   /** Extra vertical gap between dup rows (normalized viewport height). */
@@ -161,6 +176,10 @@ export class RefractRenderer {
       "u_filterMotionSpeed",
       "u_svgTintMode",
       "u_svgTintRgb",
+      "u_glassGradeMode",
+      "u_glassNeonA",
+      "u_glassNeonB",
+      "u_glassGradeStrength",
       "u_vjDupVertical",
       "u_texAspect",
       "u_vjDupGap",
@@ -283,6 +302,24 @@ export class RefractRenderer {
       this.svgTint.rgb[0],
       this.svgTint.rgb[1],
       this.svgTint.rgb[2],
+    );
+
+    gl.uniform1i(this.locs.u_glassGradeMode, this.glassGrade.mode);
+    gl.uniform3f(
+      this.locs.u_glassNeonA,
+      this.glassGrade.rgbA[0],
+      this.glassGrade.rgbA[1],
+      this.glassGrade.rgbA[2],
+    );
+    gl.uniform3f(
+      this.locs.u_glassNeonB,
+      this.glassGrade.rgbB[0],
+      this.glassGrade.rgbB[1],
+      this.glassGrade.rgbB[2],
+    );
+    gl.uniform1f(
+      this.locs.u_glassGradeStrength,
+      this.glassGrade.strength,
     );
 
     gl.drawArrays(gl.TRIANGLES, 0, 3);
