@@ -1,16 +1,14 @@
-# Copies production build into docs/ and commits. Use when GitHub Pages Source is
-# "Deploy from a branch" → folder "/docs" on main (NOT root — root still has Vite's
-# dev index.html with /src/main.tsx).
+# Copies refract-editor dist into docs/ and commits to main — for the *legacy* Pages mode
+# "Deploy from a branch" → /docs (not for Actions-based Blod deploy).
 #
-# Pushes that only change docs/ do not re-run this workflow (paths-ignore), avoiding loops.
+# Not run on every push: direct pushes to protected main often fail with 403 from
+# github-actions[bot]. Run manually when you need docs/ updated, or add the bot to
+# branch bypass rules / use a PAT in secrets.
 
 name: Sync docs for GitHub Pages
 
 on:
-  push:
-    branches: [main]
-    paths-ignore:
-      - "docs/**"
+  workflow_dispatch:
 
 permissions:
   contents: write
