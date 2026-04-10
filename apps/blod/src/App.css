@@ -13,26 +13,74 @@ body {
   min-height: 100vh;
   background: #070303;
   color: #e8d6d6;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: "Bageshron", Georgia, "Times New Roman", serif;
+  /* Fluid base: comfortable on mobile, caps near previous desktop size */
+  font-size: clamp(1.125rem, 2.8vw + 0.65rem, 36pt);
+  line-height: 1.55;
 }
 
 .blod-page {
   position: relative;
 }
 
-.blod-hero {
-  position: relative;
-  min-height: 100vh;
-  min-height: 100dvh;
-  display: grid;
-  place-items: center;
+/* Full-screen GIF: multiply vs brand red, then screen over the page (pointer-events pass through). */
+.blod-site-blend-gif {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  mix-blend-mode: screen;
+}
+
+.blod-site-blend-gif__stack {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  isolation: isolate;
+}
+
+.blod-site-blend-gif__red {
+  position: absolute;
+  inset: 0;
+  background: #8a0000;
+}
+
+.blod-site-blend-gif__stack img {
+  display: block;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  mix-blend-mode: multiply;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .blod-site-blend-gif {
+    display: none;
+  }
+}
+
+/* Full-viewport refraction layer; page content scrolls over it. */
+.blod-hero-fixed {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
   overflow: hidden;
+  pointer-events: none;
 }
 
 .blod-hero__gl {
   position: absolute;
   inset: 0;
   z-index: 0;
+  pointer-events: auto;
+  /* If WebGL fails to init or the canvas is cleared transparent, avoid a white flash */
+  background: #070303;
 }
 
 .blod-hero__canvas {
@@ -41,97 +89,415 @@ body {
   height: 100%;
 }
 
-.blod-hero__overlay {
+/* Let pointer events reach the fixed hero canvas below. Spacer-only `pointer-events: none`
+   is not enough — the scroll container itself still captured hits. */
+.blod-scroll {
   position: relative;
   z-index: 1;
-  text-align: center;
-  padding: 2rem 1.5rem 4rem;
   pointer-events: none;
 }
 
-.blod-hero__overlay .blod-hero__cta {
+.blod-hero-spacer {
+  min-height: 100vh;
+  min-height: 100dvh;
+  pointer-events: none;
+}
+
+/* Viewport-fixed bg. Can stutter next to the fixed WebGL hero — tune later if needed. */
+.blod-page-shell {
+  width: 100%;
+  max-width: none;
+  margin-inline: 0;
+  padding-inline: 0;
+  box-sizing: border-box;
   pointer-events: auto;
-}
-
-.blod-hero__kicker {
-  margin: 0 0 0.5rem;
-  font-size: 0.75rem;
-  letter-spacing: 0.35em;
-  text-transform: uppercase;
-  color: #8b2940;
-}
-
-.blod-hero__title {
-  margin: 0;
-  font-size: clamp(2.8rem, 10vw, 5rem);
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  color: #c41e32;
-  text-shadow: 0 0 40px rgba(180, 30, 50, 0.35);
-}
-
-.blod-hero__tagline {
-  margin: 1rem 0 2rem;
-  font-size: 1.05rem;
-  color: #b8a0a4;
-  max-width: 28rem;
-  margin-left: auto;
-  margin-right: auto;
-}
-
-.blod-hero__cta {
-  display: inline-block;
-  padding: 0.65rem 1.75rem;
-  border: 1px solid #6b2030;
-  color: #e0b8c0;
-  text-decoration: none;
-  letter-spacing: 0.12em;
-  font-size: 0.85rem;
-  transition: background 0.2s ease, color 0.2s ease;
-}
-
-.blod-hero__cta:hover {
-  background: rgba(120, 30, 45, 0.35);
-  color: #fff;
+  background-color: #070303;
+  background-image: var(--blod-shell-bg-image, none);
+  background-size: cover;
+  background-position: center top;
+  background-attachment: fixed;
+  background-repeat: no-repeat;
 }
 
 .blod-section {
-  padding: 4rem 1.5rem;
-  max-width: 44rem;
-  margin: 0 auto;
+  --blod-section-pad-y: clamp(3rem, 6vw, 5rem);
+  padding-block: var(--blod-section-pad-y);
+  padding-inline: 0;
+  background: transparent;
+}
+
+/* Extra top inset: one full section rhythm (same token as padding-block) below the black edge */
+.blod-section--intro {
+  padding-top: calc(var(--blod-section-pad-y) * 2);
+}
+
+/* Single main column: intro, gallery, team share the same max-width */
+.blod-section-inner--prose {
+  max-width: 1280px;
+  margin-inline: auto;
+  width: 100%;
+  min-width: 0;
+  padding-inline: clamp(1.5rem, 5vw + 0.75rem, 2.75rem);
 }
 
 .blod-section h2 {
-  margin: 0 0 1rem;
-  font-size: 1.35rem;
-  color: #c41e32;
-  letter-spacing: 0.06em;
+  margin: 0 0 1.25rem;
+  font-family: "Bageshron", Georgia, "Times New Roman", serif;
+  font-size: clamp(2rem, 5vw + 1rem, 64pt);
+  font-weight: 400;
+  line-height: 1.12;
+  color: #8a0000;
+  letter-spacing: 0.04em;
 }
 
 .blod-section p {
-  line-height: 1.6;
-  color: #c4b0b4;
+  margin: 0 0 1.25rem;
+  font-family: "Bageshron", Georgia, "Times New Roman", serif;
+  line-height: 1.55;
+  color: #8a0000;
+  font-size: clamp(1.125rem, 2.8vw + 0.65rem, 36pt);
+  width: 100%;
+  min-width: 0;
+  /* SplitType: reduces glyph shift; natural word wrap on narrow screens */
+  font-kerning: none;
+  font-variant-ligatures: none;
+  overflow-wrap: break-word;
+  word-break: normal;
+  hyphens: none;
+}
+
+.blod-section p:last-child {
+  margin-bottom: 0;
+}
+
+.blod-section--intro .blod-section-inner--prose {
+  text-align: center;
+}
+
+.blod-section--intro p {
+  font-size: clamp(1.5rem, 3.5vw + 1.25rem, 72pt);
+  line-height: 1.18;
+  letter-spacing: 0.02em;
+}
+
+.blod-section code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.85em;
+  color: #e8d6d6;
 }
 
 .blod-gallery-grid {
   display: grid;
-  gap: 1rem;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: clamp(1.15rem, 2.2vw, 1.5rem);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (max-width: 52rem) {
+  .blod-gallery-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .blod-gallery-card {
+  margin: 0;
   aspect-ratio: 16 / 10;
-  border-radius: 4px;
-  background: linear-gradient(145deg, #1a0c10, #0d0608);
+  border-radius: 8px;
+  overflow: hidden;
   border: 1px solid #2a1518;
+  background: #120a0c;
+}
+
+.blod-gallery-card__link {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  line-height: 0;
+  color: inherit;
+  text-decoration: none;
+}
+
+.blod-gallery-card__link:focus-visible {
+  outline: 2px solid #c44a4a;
+  outline-offset: 3px;
+}
+
+.blod-gallery-card__link img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Red multiply veil — fades on hover/focus (gallery + staff). */
+.blod-img-hover-tint::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: #8a0000;
+  mix-blend-mode: multiply;
+  opacity: 0.5;
+  transition: opacity 0.45s ease;
+  pointer-events: none;
+}
+
+.blod-img-hover-tint:hover::after,
+.blod-img-hover-tint:focus-visible::after {
+  opacity: 0;
+}
+
+@media (hover: none) {
+  .blod-img-hover-tint::after {
+    opacity: 0;
+  }
+}
+
+.blod-staff-grid {
+  display: grid;
+  gap: clamp(1.25rem, 2.5vw, 1.75rem);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (max-width: 52rem) {
+  .blod-staff-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (min-width: 52.01rem) and (max-width: 64rem) {
+  .blod-staff-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.blod-staff-card {
+  margin: 0;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #2a1518;
+  background: #120a0c;
+}
+
+.blod-staff-card__media {
+  position: relative;
+  display: block;
+  line-height: 0;
+  color: inherit;
+  text-decoration: none;
+}
+
+.blod-staff-card__media:focus-visible {
+  outline: 2px solid #c44a4a;
+  outline-offset: 3px;
+}
+
+.blod-staff-card__media img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  vertical-align: middle;
+}
+
+.blod-staff-card__meta {
+  padding: 1rem 0.75rem 0.85rem;
+  text-align: center;
+}
+
+.blod-staff-card__name {
+  display: block;
+  font-family: "Bageshron", Georgia, "Times New Roman", serif;
+  font-size: clamp(1.35rem, 2.8vw + 0.55rem, 1.85rem);
+  color: #8a0000;
+  letter-spacing: 0.03em;
+  line-height: 1.2;
+}
+
+.blod-staff-card__role {
+  display: block;
+  margin-top: 0.35rem;
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  font-size: clamp(0.6875rem, 0.85vw + 0.35rem, 12pt);
+  font-weight: 500;
+  line-height: 1.35;
+  color: #8a0000;
+}
+
+.blod-staff-card__bio {
+  margin: 0;
+  margin-top: calc(0.65rem + 0.725em);
+  margin-top: calc(0.65rem + 0.5lh);
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  font-size: clamp(0.6875rem, 0.85vw + 0.35rem, 12pt);
+  font-weight: 400;
+  line-height: 1.45;
+  color: #c9b8b8;
+  overflow-wrap: break-word;
+}
+
+/* FAQ — accordion rows, line separators, Bageshron questions / Inter answers */
+.blod-section--faq {
+  text-align: left;
+}
+
+.blod-section--faq .blod-section-inner--prose {
+  max-width: 52rem;
+}
+
+.blod-section--faq h2 {
+  margin-bottom: clamp(2rem, 4vw, 3rem);
+}
+
+.blod-faq-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid #2a1518;
+}
+
+.blod-faq-list__item {
+  margin: 0;
+  border-bottom: 1px solid #2a1518;
+}
+
+.blod-faq-item {
+  padding: 0;
+}
+
+.blod-faq__question {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-block: clamp(1.15rem, 2.2vw, 1.55rem);
+  padding-inline: 0;
+  cursor: pointer;
+  list-style: none;
+  font-family: "Bageshron", Georgia, "Times New Roman", serif;
+  font-size: clamp(1.35rem, 2.65vw + 0.72rem, 1.95rem);
+  font-weight: 500;
+  line-height: 1.25;
+  letter-spacing: 0.02em;
+  color: #8a0000;
+}
+
+.blod-faq__question::-webkit-details-marker {
+  display: none;
+}
+
+.blod-faq__question::after {
+  content: "";
+  flex-shrink: 0;
+  width: 0.55em;
+  height: 0.55em;
+  margin-top: 0.12em;
+  border-style: solid;
+  border-width: 0 0.1em 0.1em 0;
+  border-color: currentColor;
+  transform: rotate(45deg);
+  transition: transform 0.2s ease;
+}
+
+.blod-faq-item[open] .blod-faq__question::after {
+  transform: rotate(-135deg);
+}
+
+/* Smooth height: grid 0fr → 1fr (inner clips while row animates) */
+.blod-faq__answer-clip {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.blod-faq-item[open] .blod-faq__answer-clip {
+  grid-template-rows: 1fr;
+}
+
+.blod-faq__answer {
+  overflow: hidden;
+  min-height: 0;
+  padding-bottom: clamp(0.85rem, 2vw, 1.25rem);
+  padding-inline: 0;
+  opacity: 0;
+  transform: translateY(-0.35rem);
+  transition:
+    opacity 0.35s ease 0.05s,
+    transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.blod-faq-item[open] .blod-faq__answer {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .blod-faq__answer-clip {
+    transition: none;
+  }
+
+  .blod-faq__answer {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
+
+.blod-section--faq .blod-faq__answer p {
+  margin: 0 0 1rem;
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  font-size: clamp(0.8125rem, 1.05vw + 0.42rem, 0.98rem);
+  font-weight: 400;
+  line-height: 1.65;
+  color: #c9b8b8;
+  font-kerning: normal;
+  font-variant-ligatures: normal;
+}
+
+.blod-section--faq .blod-faq__answer p:last-child {
+  margin-bottom: 0;
+}
+
+.blod-faq__link {
+  color: #8ab4f8;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+  transition: color 0.15s ease;
+}
+
+.blod-faq__link:hover {
+  color: #b8d0ff;
+}
+
+.blod-faq__link:focus-visible {
+  outline: 2px solid #c44a4a;
+  outline-offset: 3px;
 }
 
 .blod-footer {
-  padding: 3rem 1.5rem;
+  padding-block: clamp(2.5rem, 5vw, 3.5rem);
+  padding-inline: 0;
   text-align: center;
-  font-size: 0.85rem;
-  color: #5a4a4e;
+  font-family: "Bageshron", Georgia, "Times New Roman", serif;
+  font-size: clamp(1.125rem, 2.8vw + 0.65rem, 36pt);
+  color: #8a0000;
+  background: transparent;
 }
+
+.blod-footer p {
+  margin: 0;
+  width: 100%;
+  min-width: 0;
+  font-kerning: none;
+  font-variant-ligatures: none;
+  overflow-wrap: break-word;
+  word-break: normal;
+  hyphens: none;
+}
+
+/* Scroll reveal start states are set in BlodScrollReveal (gsap.set), not CSS —
+   CSS-only opacity:0 left content invisible forever if ScrollTrigger/GSAP failed. */
 
 /* Dev panel */
 .blod-dev-panel {
@@ -139,7 +505,7 @@ body {
   top: 0.75rem;
   right: 0.75rem;
   z-index: 50;
-  width: min(320px, calc(100vw - 1.5rem));
+  width: min(360px, calc(100vw - 1.5rem));
   max-height: calc(100vh - 1.5rem);
   overflow: auto;
   padding: 0.75rem 1rem 1rem;
@@ -150,6 +516,97 @@ body {
   font-size: 0.78rem;
   color: #e0d0d4;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+}
+
+.blod-dev-panel--hidden {
+  display: none;
+}
+
+.blod-dev-panel__kbd {
+  margin-left: auto;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 0.12rem 0.35rem;
+  border-radius: 4px;
+  border: 1px solid #4a3538;
+  color: #b8a8ac;
+}
+
+.blod-dev-svg-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+  margin-top: 0.35rem;
+}
+
+.blod-dev-svg-actions input[type="file"] {
+  max-width: 100%;
+  font-size: 0.7rem;
+}
+
+.blod-dev-btn {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.7rem;
+  font-family: inherit;
+  border-radius: 4px;
+  border: 1px solid #4a3538;
+  background: #1a1214;
+  color: #dcc8cc;
+  cursor: pointer;
+}
+
+.blod-dev-btn:hover {
+  background: #251a1d;
+}
+
+.blod-dev-btn--primary {
+  border-color: #6b2030;
+  background: #3a1820;
+  color: #f0e0e4;
+}
+
+.blod-dev-btn--primary:hover {
+  background: #4a2028;
+}
+
+.blod-dev-save {
+  margin: 0.75rem 0 0;
+  padding-top: 0.65rem;
+  border-top: 1px solid #2a2024;
+}
+
+.blod-dev-save__note {
+  margin: 0.5rem 0 0.35rem;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  color: #8a7a7e;
+}
+
+.blod-dev-save__note code {
+  font-size: 0.68rem;
+  color: #c49aa8;
+}
+
+.blod-dev-save__actions {
+  margin-bottom: 0.4rem;
+}
+
+.blod-dev-export {
+  width: 100%;
+  min-height: 12rem;
+  max-height: 40vh;
+  resize: vertical;
+  padding: 0.45rem 0.5rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.65rem;
+  line-height: 1.35;
+  border-radius: 6px;
+  border: 1px solid #3a2528;
+  background: #0a0608;
+  color: #c8b8bc;
+  box-sizing: border-box;
 }
 
 .blod-dev-panel__head {
@@ -196,4 +653,47 @@ body {
 .blod-dev-hint code {
   font-size: 0.68rem;
   color: #c49aa8;
+}
+
+.blod-dev-details {
+  margin: 0 0 0.5rem;
+  border: 1px solid #2a2024;
+  border-radius: 6px;
+  padding: 0.35rem 0.5rem 0.15rem;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.blod-dev-details summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: #c9b8bc;
+  padding: 0.2rem 0;
+  list-style: none;
+}
+
+.blod-dev-details summary::-webkit-details-marker {
+  display: none;
+}
+
+.blod-dev-details[open] summary {
+  margin-bottom: 0.35rem;
+  border-bottom: 1px solid #2a2024;
+}
+
+.blod-dev-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.blod-dev-row input[type="text"] {
+  flex: 1;
+  min-width: 6rem;
+  padding: 0.2rem 0.35rem;
+  font-size: 0.72rem;
+  border-radius: 4px;
+  border: 1px solid #3a2528;
+  background: #120c0e;
+  color: #e8d8dc;
 }
