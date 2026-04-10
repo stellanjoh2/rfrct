@@ -1,0 +1,32 @@
+# Builds refract-editor and uploads dist/ as a downloadable Actions artifact.
+# Does NOT publish to GitHub Pages — only "Deploy Blod to GitHub Pages" should use
+# upload-pages-artifact for this repo (one live URL: https://<user>.github.io/<repo>/).
+
+name: Build refract-editor (artifact)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: npm run build:editor
+      - name: Verify production bundle (not dev index)
+        run: |
+          test -f apps/refract-editor/dist/index.html
+          grep -q 'assets/index-.*\.js' apps/refract-editor/dist/index.html || (echo "dist/index.html missing hashed JS bundle — check vite build"; exit 1)
+          ! grep -q '/src/main.tsx' apps/refract-editor/dist/index.html || (echo "dev index leaked into dist"; exit 1)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: refract-editor-dist
+          path: apps/refract-editor/dist
