@@ -68,3 +68,18 @@ export type GlassGradeParams = {
   /** Effective strength 0–2 after audio; applied only inside lens when VJ mode. */
   strength: number;
 };
+
+/** High-frequency UV warp from a tangent-space normal map (lens interior only). */
+export type DetailDistortionParams = {
+  enabled: boolean;
+  /** 0–1 UI; mapped to displacement amplitude in the renderer. */
+  strength: number;
+  /** Screen-UV repeats of the map; higher = smaller / busier detail. */
+  scale: number;
+  /**
+   * 0–1 stain from the same map: tilt/cavity proxy (1−Nz) × multiply tint — “dirt” in recesses.
+   */
+  dirtStrength: number;
+  /** sRGB 0–1 multiply colour for dirt (typically warm / grey-brown). */
+  dirtRgb: [number, number, number];
+};

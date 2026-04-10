@@ -8,7 +8,7 @@ const SUPERELLIPSE_N = 3.35;
 /** Max extent in UV from center (0.5) toward each side — nearly edge to edge at scale 1. */
 const SEMI_AXIS = 0.47;
 /** Full laps per second (≈18 s per loop at 0.056). */
-const LOOPS_PER_SEC = 0.056;
+export const DEFAULT_VJ_PATH_SPEED = 0.056;
 
 /**
  * Smooth closed curve (superellipse / Lamé curve): circular motion that bulges toward
@@ -46,7 +46,11 @@ export function applyVjDrive(
     Math.min(2.5, base.vjPathScale ?? 1),
   );
   const semiAxis = SEMI_AXIS * pathScale;
-  const turns = timeSec * LOOPS_PER_SEC;
+  const loopsPerSec = Math.max(
+    0,
+    Math.min(0.45, base.vjPathSpeed ?? DEFAULT_VJ_PATH_SPEED),
+  );
+  const turns = timeSec * loopsPerSec;
   /** Positive angle traverses the squircle opposite to the old negative-angle path (clockwise on screen). */
   const angle = turns * Math.PI * 2;
   const { x: cx, y: cy } = pointOnSquircleLoop(angle, semiAxis);

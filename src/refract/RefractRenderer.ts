@@ -10,6 +10,7 @@ import { FRAG, VERT } from "./shaders";
 import type {
   BlobParams,
   BloomParams,
+  DetailDistortionParams,
   GlassGradeParams,
   ImageLayout,
   SvgTintParams,
@@ -19,6 +20,7 @@ import { compileShader, linkProgram } from "./webgl";
 export type {
   BlobParams,
   BloomParams,
+  DetailDistortionParams,
   FilterMode,
   GlassGradeParams,
   ImageLayout,
@@ -111,6 +113,19 @@ export class RefractRenderer {
     strength: 0,
   };
 
+  /** Normal-map micro-displacement inside the lens (see `public/Dist/14487-normal.jpg`). */
+  detailDistortion: DetailDistortionParams = {
+    enabled: false,
+    strength: 0.55,
+    scale: 3.2,
+    dirtStrength: 0.4,
+    dirtRgb: [0.42, 0.36, 0.3],
+  };
+
+  private readonly detailNormalTex: WebGLTexture;
+  /** True after `14487-normal` (or fallback) is uploaded to GPU. */
+  private detailNormalReady = false;
+
   /** VJ texture tiling (0/1); applied in fragment shader when image exists. */
   vjDupVertical = 0;
   /** Extra vertical gap between dup rows (normalized viewport height). */
@@ -189,6 +204,11 @@ export class RefractRenderer {
       "u_vjSpanW",
       "u_vjCenterX",
       "u_vjAnchorY",
+      "u_detailNormal",
+      "u_detailDistortAmp",
+      "u_detailDistortScale",
+      "u_detailDirtStrength",
+      "u_detailDirtRgb",
     ] as const;
     for (const n of names) {
       this.locs[n] = gl.getUniformLocation(this.program, n);
@@ -204,8 +224,28 @@ export class RefractRenderer {
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 
+    this.detailNormalTex = gl.createTexture()!;
+    gl.bindTexture(gl.TEXTURE_2D, this.detailNormalTex);
+    const neutralNormal = new Uint8Array([128, 128, 255, 255]);
+    gl.texImage2D(
+      gl.TEXTURE_2D,
+      0,
+      gl.RGBA,
+      1,
+      1,
+      0,
+      gl.RGBA,
+      gl.UNSIGNED_BYTE,
+      neutralNormal,
+    );
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+
     gl.useProgram(this.program);
     gl.uniform1i(this.locs.u_image, 0);
+    gl.uniform1i(this.locs.u_detailNormal, 1);
 
     this.onVisibilityChange = () => {
       if (!document.hidden) {
@@ -213,6 +253,41 @@ export class RefractRenderer {
       }
     };
     document.addEventListener("visibilitychange", this.onVisibilityChange);
+
+    this.loadDetailNormalMap();
+  }
+
+  private loadDetailNormalMap(): void {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      const gl = this.gl;
+      const w = img.naturalWidth;
+      const h = img.naturalHeight;
+      gl.bindTexture(gl.TEXTURE_2D, this.detailNormalTex);
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+      if (isPowerOfTwo(w) && isPowerOfTwo(h)) {
+        gl.generateMipmap(gl.TEXTURE_2D);
+        gl.texParameteri(
+          gl.TEXTURE_2D,
+          gl.TEXTURE_MIN_FILTER,
+          gl.LINEAR_MIPMAP_LINEAR,
+        );
+      } else {
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      }
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+      this.detailNormalReady = true;
+    };
+    img.onerror = () => {
+      console.warn(
+        "[refrct] Detail normal map missing or blocked — add public/Dist/14487-normal.jpg",
+      );
+    };
+    img.src = `${import.meta.env.BASE_URL}Dist/14487-normal.jpg`;
   }
 
   setImageFromSource(
@@ -256,6 +331,8 @@ export class RefractRenderer {
     const gl = this.gl;
     gl.useProgram(this.program);
     gl.bindVertexArray(this.vao);
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, this.detailNormalTex);
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, this.texture);
 
@@ -320,6 +397,33 @@ export class RefractRenderer {
     gl.uniform1f(
       this.locs.u_glassGradeStrength,
       this.glassGrade.strength,
+    );
+
+    const dd = this.detailDistortion;
+    const detailAmp =
+      this.detailNormalReady &&
+      dd.enabled &&
+      hasImage > 0.5
+        ? Math.max(0, Math.min(1, dd.strength)) * 0.045
+        : 0;
+    gl.uniform1f(this.locs.u_detailDistortAmp, detailAmp);
+    gl.uniform1f(
+      this.locs.u_detailDistortScale,
+      Math.max(0.08, Math.min(14, dd.scale)),
+    );
+
+    const dirtStr =
+      this.detailNormalReady &&
+      dd.enabled &&
+      hasImage > 0.5
+        ? Math.max(0, Math.min(1, dd.dirtStrength))
+        : 0;
+    gl.uniform1f(this.locs.u_detailDirtStrength, dirtStr);
+    gl.uniform3f(
+      this.locs.u_detailDirtRgb,
+      dd.dirtRgb[0],
+      dd.dirtRgb[1],
+      dd.dirtRgb[2],
     );
 
     gl.drawArrays(gl.TRIANGLES, 0, 3);
@@ -509,6 +613,7 @@ export class RefractRenderer {
     }
     this.gl.disable(this.gl.BLEND);
     this.bloomPipeline.dispose();
+    this.gl.deleteTexture(this.detailNormalTex);
     this.gl.deleteTexture(this.texture);
     this.gl.deleteVertexArray(this.vao);
     this.gl.deleteProgram(this.program);

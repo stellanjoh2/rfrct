@@ -309,6 +309,54 @@ label.file-btn input[type="file"] {
   color: #ff9a9a;
 }
 
+.field-hint--feature-nudge {
+  margin: 0 0 14px;
+  padding: 9px 11px;
+  border-radius: 10px;
+  font-size: 11px;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.88);
+  background: rgba(var(--brand-rgb), 0.1);
+  border: 1px solid rgba(var(--brand-rgb), 0.32);
+}
+
+.click-block-hint {
+  position: relative;
+  display: inline-block;
+  vertical-align: top;
+  max-width: 100%;
+}
+
+.field--audio-toggles > .click-block-hint {
+  flex: 1 1 120px;
+  min-width: 0;
+  border-radius: 12px;
+}
+
+.click-block-hint--field {
+  display: block;
+  width: 100%;
+}
+
+.click-block-hint .mic-toggle {
+  width: 100%;
+}
+
+.click-block-hint-shield {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  cursor: help;
+  appearance: none;
+  font: inherit;
+  color: transparent;
+}
+
 .field-hint-code {
   font-size: 0.95em;
   color: rgba(255, 255, 255, 0.45);

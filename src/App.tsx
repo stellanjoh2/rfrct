@@ -18,7 +18,10 @@ import {
   type AudioInputMode,
   audioCaptureErrorMessage,
 } from "./audio/micAnalyzer";
-import { applyVjDrive } from "./refract/vjDrive";
+import {
+  applyVjDrive,
+  DEFAULT_VJ_PATH_SPEED,
+} from "./refract/vjDrive";
 import {
   DEFAULT_PNG_EXPORT_PARAMS,
   mergePngExportParams,
@@ -79,6 +82,13 @@ export function App() {
   const [filterStrength, setFilterStrength] = useState(0);
   const [filterScale, setFilterScale] = useState(0.5);
   const [filterMotionSpeed, setFilterMotionSpeed] = useState(1);
+  const [detailDistortionEnabled, setDetailDistortionEnabled] =
+    useState(false);
+  const [detailDistortionStrength, setDetailDistortionStrength] =
+    useState(0.55);
+  const [detailDistortionScale, setDetailDistortionScale] = useState(3.2);
+  const [detailDirtStrength, setDetailDirtStrength] = useState(0.4);
+  const [detailDirtHex, setDetailDirtHex] = useState("#665648");
 
   const blobCenterRef = useRef({ x: 0.5, y: 0.5 });
   const dragModeRef = useRef<"none" | "pan" | "fx">("none");
@@ -150,6 +160,7 @@ export function App() {
   const [vjDupScrollSpeed, setVjDupScrollSpeed] = useState(0.11);
   /** VJ mode: squircle orbit radius multiplier (larger = lens travels closer to frame edges). */
   const [vjPathScale, setVjPathScale] = useState(1);
+  const [vjPathSpeed, setVjPathSpeed] = useState(DEFAULT_VJ_PATH_SPEED);
   const [vjGlassGradeMode, setVjGlassGradeMode] = useState<
     "off" | "tint" | "duotone"
   >("off");
@@ -157,6 +168,7 @@ export function App() {
   const [vjGlassNeonBHex, setVjGlassNeonBHex] = useState("#1a0055");
   const [vjGlassGradeIntensity, setVjGlassGradeIntensity] = useState(0);
   const [micError, setMicError] = useState<string | null>(null);
+  const [featureHint, setFeatureHint] = useState<string | null>(null);
   const micAnalyzerRef = useRef<MicAnalyzer | null>(null);
   const micEnvelopeRef = useRef(0);
 
@@ -200,6 +212,16 @@ export function App() {
     vjMode,
     micDrivingRefraction,
   ]);
+
+  const showFeatureHint = useCallback((message: string) => {
+    setFeatureHint(message);
+  }, []);
+
+  useEffect(() => {
+    if (!featureHint) return;
+    const id = window.setTimeout(() => setFeatureHint(null), 4200);
+    return () => window.clearTimeout(id);
+  }, [featureHint]);
 
   const latestSyncRef = useRef<RendererSyncSource | null>(null);
 
@@ -482,11 +504,17 @@ export function App() {
         vjDupHorizStep,
         vjDupScrollSpeed,
         vjPathScale,
+        vjPathSpeed,
         youtubeEmbedActive,
         vjGlassGradeMode,
         vjGlassNeonAHex,
         vjGlassNeonBHex,
         vjGlassGradeIntensity,
+        detailDistortionEnabled,
+        detailDistortionStrength,
+        detailDistortionScale,
+        detailDirtStrength,
+        detailDirtHex,
       }),
     );
   }, [
@@ -520,11 +548,17 @@ export function App() {
     vjDupHorizStep,
     vjDupScrollSpeed,
     vjPathScale,
+    vjPathSpeed,
     youtubeEmbedActive,
     vjGlassGradeMode,
     vjGlassNeonAHex,
     vjGlassNeonBHex,
     vjGlassGradeIntensity,
+    detailDistortionEnabled,
+    detailDistortionStrength,
+    detailDistortionScale,
+    detailDirtStrength,
+    detailDirtHex,
   ]);
 
   useEffect(() => {
@@ -756,6 +790,7 @@ export function App() {
       setVjDupHorizStep(0.03);
       setVjDupScrollSpeed(0.11);
       setVjPathScale(1);
+      setVjPathSpeed(DEFAULT_VJ_PATH_SPEED);
       setMicDrivingRefraction(false);
       setMicError(null);
       return;
@@ -807,6 +842,7 @@ export function App() {
         setSolidOverlayVjHueShift,
         solidOverlayHueAudio,
         setSolidOverlayHueAudio,
+        onFeatureBlockedHint: showFeatureHint,
       },
       lens: {
         shapeMode,
@@ -833,6 +869,16 @@ export function App() {
         setFilterScale,
         filterMotionSpeed,
         setFilterMotionSpeed,
+        detailDistortionEnabled,
+        setDetailDistortionEnabled,
+        detailDistortionStrength,
+        setDetailDistortionStrength,
+        detailDistortionScale,
+        setDetailDistortionScale,
+        detailDirtStrength,
+        setDetailDirtStrength,
+        detailDirtHex,
+        setDetailDirtHex,
       },
       bloom: {
         bloomStrength,
@@ -870,6 +916,8 @@ export function App() {
         setVjDupScrollSpeed,
         vjPathScale,
         setVjPathScale,
+        vjPathSpeed,
+        setVjPathSpeed,
         vjGlassGradeMode,
         setVjGlassGradeMode,
         vjGlassNeonAHex,
@@ -878,6 +926,7 @@ export function App() {
         setVjGlassNeonBHex,
         vjGlassGradeIntensity,
         setVjGlassGradeIntensity,
+        onFeatureBlockedHint: showFeatureHint,
       },
       exportSection: {
         transparentBackground: exportTransparent,
@@ -907,6 +956,11 @@ export function App() {
       filterStrength,
       filterScale,
       filterMotionSpeed,
+      detailDistortionEnabled,
+      detailDistortionStrength,
+      detailDistortionScale,
+      detailDirtStrength,
+      detailDirtHex,
       bloomStrength,
       bloomRadius,
       bloomThreshold,
@@ -928,6 +982,7 @@ export function App() {
       vjDupHorizStep,
       vjDupScrollSpeed,
       vjPathScale,
+      vjPathSpeed,
       vjGlassGradeMode,
       vjGlassNeonAHex,
       vjGlassNeonBHex,
@@ -944,6 +999,7 @@ export function App() {
       vjMode,
       solidOverlayVjHueShift,
       solidOverlayHueAudio,
+      showFeatureHint,
     ],
   );
 
@@ -981,11 +1037,17 @@ export function App() {
     vjDupHorizStep,
     vjDupScrollSpeed,
     vjPathScale,
+    vjPathSpeed,
     youtubeEmbedActive,
     vjGlassGradeMode,
     vjGlassNeonAHex,
     vjGlassNeonBHex,
     vjGlassGradeIntensity,
+    detailDistortionEnabled,
+    detailDistortionStrength,
+    detailDistortionScale,
+    detailDirtStrength,
+    detailDirtHex,
   };
 
   return (
@@ -1054,6 +1116,7 @@ export function App() {
 
         <SettingsSidebar
           uiVisible={uiVisible}
+          featureHint={featureHint}
           onFile={onFile}
           appearance={sidebar.appearance}
           lens={sidebar.lens}

@@ -1,5 +1,12 @@
 import type { Dispatch, SetStateAction } from "react";
 import type { AudioInputMode } from "../../audio/micAnalyzer";
+import { ClickBlockedHint } from "../ClickBlockedHint";
+
+/** Shown when a VJ-only control is clicked while audio is off. */
+const HINT_START_AUDIO_VJ = "Start audio first to enable VJ mode.";
+/** Shown when a sub-control needs the VJ chain (mic + VJ toggle). */
+const HINT_NEED_VJ_CHAIN = "Turn on VJ mode while audio is running to use this.";
+const HINT_DUP_STACK_FIRST = "Turn on Dup stack first.";
 
 export type AudioSectionProps = {
   micDrivingRefraction: boolean;
@@ -21,6 +28,8 @@ export type AudioSectionProps = {
   setVjDupScrollSpeed: (v: number) => void;
   vjPathScale: number;
   setVjPathScale: (v: number) => void;
+  vjPathSpeed: number;
+  setVjPathSpeed: (v: number) => void;
   vjGlassGradeMode: "off" | "tint" | "duotone";
   setVjGlassGradeMode: (v: "off" | "tint" | "duotone") => void;
   vjGlassNeonAHex: string;
@@ -29,6 +38,7 @@ export type AudioSectionProps = {
   setVjGlassNeonBHex: (v: string) => void;
   vjGlassGradeIntensity: number;
   setVjGlassGradeIntensity: (v: number) => void;
+  onFeatureBlockedHint: (message: string) => void;
 };
 
 export function AudioSection({
@@ -51,6 +61,8 @@ export function AudioSection({
   setVjDupScrollSpeed,
   vjPathScale,
   setVjPathScale,
+  vjPathSpeed,
+  setVjPathSpeed,
   vjGlassGradeMode,
   setVjGlassGradeMode,
   vjGlassNeonAHex,
@@ -59,8 +71,11 @@ export function AudioSection({
   setVjGlassNeonBHex,
   vjGlassGradeIntensity,
   setVjGlassGradeIntensity,
+  onFeatureBlockedHint,
 }: AudioSectionProps) {
   const vjControlsEnabled = micDrivingRefraction && vjMode;
+  const dupSlidersNeedVj = !vjControlsEnabled;
+  const dupSlidersNeedDup = vjControlsEnabled && !vjDupVertical;
   return (
     <>
       <h2>Audio</h2>
@@ -137,48 +152,60 @@ export function AudioSection({
       <h2>VJ</h2>
       <section>
         <div className="field field--checkbox field--audio-toggles">
-          <button
-            type="button"
-            className={`mic-toggle ${vjMode ? "mic-toggle--on" : ""}`}
-            disabled={!micDrivingRefraction}
-            onClick={() => setVjMode((v) => !v)}
-            aria-pressed={vjMode}
-            aria-label={
-              micDrivingRefraction
-                ? vjMode
-                  ? "Turn off VJ mode"
-                  : "Turn on VJ mode"
-                : "Start audio to enable VJ mode"
-            }
-            title={
-              micDrivingRefraction
-                ? "Automate lens, glass, bloom, and effects from loudness (dB)"
-                : "Start audio first"
-            }
+          <ClickBlockedHint
+            blocked={!micDrivingRefraction}
+            hint={HINT_START_AUDIO_VJ}
+            onBlockedClick={onFeatureBlockedHint}
           >
-            VJ mode
-          </button>
-          <button
-            type="button"
-            className={`mic-toggle ${vjDupVertical ? "mic-toggle--on" : ""}`}
-            disabled={!vjControlsEnabled}
-            onClick={() => setVjDupVertical((v) => !v)}
-            aria-pressed={vjDupVertical}
-            aria-label={
-              vjControlsEnabled
-                ? vjDupVertical
-                  ? "Turn off stacked logo scroll"
-                  : "Turn on stacked logo scroll"
-                : "Enable VJ mode to use stacked logos"
-            }
-            title={
-              vjControlsEnabled
-                ? "Repeat the SVG in a vertical scroll; rows are tight to the artwork with a slight horizontal stagger"
-                : "Start audio and VJ mode first"
-            }
+            <button
+              type="button"
+              className={`mic-toggle ${vjMode ? "mic-toggle--on" : ""}`}
+              disabled={!micDrivingRefraction}
+              onClick={() => setVjMode((v) => !v)}
+              aria-pressed={vjMode}
+              aria-label={
+                micDrivingRefraction
+                  ? vjMode
+                    ? "Turn off VJ mode"
+                    : "Turn on VJ mode"
+                  : "Start audio to enable VJ mode"
+              }
+              title={
+                micDrivingRefraction
+                  ? "Automate lens, glass, bloom, and effects from loudness (dB)"
+                  : "Start audio first"
+              }
+            >
+              VJ mode
+            </button>
+          </ClickBlockedHint>
+          <ClickBlockedHint
+            blocked={!vjControlsEnabled}
+            hint={HINT_NEED_VJ_CHAIN}
+            onBlockedClick={onFeatureBlockedHint}
           >
-            Dup stack
-          </button>
+            <button
+              type="button"
+              className={`mic-toggle ${vjDupVertical ? "mic-toggle--on" : ""}`}
+              disabled={!vjControlsEnabled}
+              onClick={() => setVjDupVertical((v) => !v)}
+              aria-pressed={vjDupVertical}
+              aria-label={
+                vjControlsEnabled
+                  ? vjDupVertical
+                    ? "Turn off stacked logo scroll"
+                    : "Turn on stacked logo scroll"
+                  : "Enable VJ mode to use stacked logos"
+              }
+              title={
+                vjControlsEnabled
+                  ? "Repeat the SVG in a vertical scroll; rows are tight to the artwork with a slight horizontal stagger"
+                  : "Start audio and VJ mode first"
+              }
+            >
+              Dup stack
+            </button>
+          </ClickBlockedHint>
         </div>
         <div className="field">
           <label
@@ -188,17 +215,55 @@ export function AudioSection({
             VJ path scale
             <span className="val">{vjPathScale.toFixed(2)}×</span>
           </label>
-          <input
-            id="vj-path-scale"
-            type="range"
-            min={0.5}
-            max={2.5}
-            step={0.05}
-            value={vjPathScale}
-            onChange={(e) => setVjPathScale(Number(e.target.value))}
-            disabled={!vjControlsEnabled}
-            aria-label="VJ mode lens orbit radius scale"
-          />
+          <ClickBlockedHint
+            blocked={!vjControlsEnabled}
+            hint={HINT_NEED_VJ_CHAIN}
+            onBlockedClick={onFeatureBlockedHint}
+            fullWidth
+          >
+            <input
+              id="vj-path-scale"
+              type="range"
+              min={0.5}
+              max={2.5}
+              step={0.05}
+              value={vjPathScale}
+              onChange={(e) => setVjPathScale(Number(e.target.value))}
+              disabled={!vjControlsEnabled}
+              aria-label="VJ mode lens orbit radius scale"
+            />
+          </ClickBlockedHint>
+        </div>
+        <div className="field">
+          <label
+            title="How fast the lens travels the squircle path (full loops per second). 0 = hold start position. Separate from Lens “Animation speed” (blob ripple)."
+            htmlFor="vj-path-speed"
+          >
+            VJ path speed
+            <span className="val">
+              {vjPathSpeed < 1e-4
+                ? "paused"
+                : `${vjPathSpeed.toFixed(3)} lap/s · ~${(1 / vjPathSpeed).toFixed(1)}s/loop`}
+            </span>
+          </label>
+          <ClickBlockedHint
+            blocked={!vjControlsEnabled}
+            hint={HINT_NEED_VJ_CHAIN}
+            onBlockedClick={onFeatureBlockedHint}
+            fullWidth
+          >
+            <input
+              id="vj-path-speed"
+              type="range"
+              min={0}
+              max={0.45}
+              step={0.002}
+              value={vjPathSpeed}
+              onChange={(e) => setVjPathSpeed(Number(e.target.value))}
+              disabled={!vjControlsEnabled}
+              aria-label="VJ squircle path speed in laps per second"
+            />
+          </ClickBlockedHint>
         </div>
         <div className="field">
           <label htmlFor="vj-glass-grade-mode">Glass neon (VJ)</label>
@@ -207,22 +272,29 @@ export function AudioSection({
             SVG tint. Louder audio pushes the effect when audio is on. Duotone maps
             shadows → highlights between the two colours.
           </p>
-          <select
-            id="vj-glass-grade-mode"
-            className="field-select"
-            value={vjGlassGradeMode}
-            onChange={(e) =>
-              setVjGlassGradeMode(
-                e.target.value as "off" | "tint" | "duotone",
-              )
-            }
-            disabled={!vjControlsEnabled}
-            aria-label="VJ glass neon mode"
+          <ClickBlockedHint
+            blocked={!vjControlsEnabled}
+            hint={HINT_NEED_VJ_CHAIN}
+            onBlockedClick={onFeatureBlockedHint}
+            fullWidth
           >
-            <option value="off">Off</option>
-            <option value="tint">Neon tint (screen)</option>
-            <option value="duotone">Duotone</option>
-          </select>
+            <select
+              id="vj-glass-grade-mode"
+              className="field-select"
+              value={vjGlassGradeMode}
+              onChange={(e) =>
+                setVjGlassGradeMode(
+                  e.target.value as "off" | "tint" | "duotone",
+                )
+              }
+              disabled={!vjControlsEnabled}
+              aria-label="VJ glass neon mode"
+            >
+              <option value="off">Off</option>
+              <option value="tint">Neon tint (screen)</option>
+              <option value="duotone">Duotone</option>
+            </select>
+          </ClickBlockedHint>
         </div>
         {vjGlassGradeMode !== "off" && (
           <>
@@ -231,63 +303,84 @@ export function AudioSection({
                 Neon A (bright)
                 <span className="val">{vjGlassNeonAHex}</span>
               </label>
-              <div className="row">
-                <input
-                  type="color"
-                  value={vjGlassNeonAHex}
-                  onChange={(e) => setVjGlassNeonAHex(e.target.value)}
-                  disabled={!vjControlsEnabled}
-                  aria-label="Neon bright colour"
-                />
-                <input
-                  type="text"
-                  value={vjGlassNeonAHex}
-                  onChange={(e) => setVjGlassNeonAHex(e.target.value)}
-                  spellCheck={false}
-                  disabled={!vjControlsEnabled}
-                />
-              </div>
+              <ClickBlockedHint
+                blocked={!vjControlsEnabled}
+                hint={HINT_NEED_VJ_CHAIN}
+                onBlockedClick={onFeatureBlockedHint}
+                fullWidth
+              >
+                <div className="row">
+                  <input
+                    type="color"
+                    value={vjGlassNeonAHex}
+                    onChange={(e) => setVjGlassNeonAHex(e.target.value)}
+                    disabled={!vjControlsEnabled}
+                    aria-label="Neon bright colour"
+                  />
+                  <input
+                    type="text"
+                    value={vjGlassNeonAHex}
+                    onChange={(e) => setVjGlassNeonAHex(e.target.value)}
+                    spellCheck={false}
+                    disabled={!vjControlsEnabled}
+                  />
+                </div>
+              </ClickBlockedHint>
             </div>
             <div className="field">
               <label>
                 Neon B (shadows — duotone)
                 <span className="val">{vjGlassNeonBHex}</span>
               </label>
-              <div className="row">
-                <input
-                  type="color"
-                  value={vjGlassNeonBHex}
-                  onChange={(e) => setVjGlassNeonBHex(e.target.value)}
-                  disabled={!vjControlsEnabled}
-                  aria-label="Neon shadow colour"
-                />
-                <input
-                  type="text"
-                  value={vjGlassNeonBHex}
-                  onChange={(e) => setVjGlassNeonBHex(e.target.value)}
-                  spellCheck={false}
-                  disabled={!vjControlsEnabled}
-                />
-              </div>
+              <ClickBlockedHint
+                blocked={!vjControlsEnabled}
+                hint={HINT_NEED_VJ_CHAIN}
+                onBlockedClick={onFeatureBlockedHint}
+                fullWidth
+              >
+                <div className="row">
+                  <input
+                    type="color"
+                    value={vjGlassNeonBHex}
+                    onChange={(e) => setVjGlassNeonBHex(e.target.value)}
+                    disabled={!vjControlsEnabled}
+                    aria-label="Neon shadow colour"
+                  />
+                  <input
+                    type="text"
+                    value={vjGlassNeonBHex}
+                    onChange={(e) => setVjGlassNeonBHex(e.target.value)}
+                    spellCheck={false}
+                    disabled={!vjControlsEnabled}
+                  />
+                </div>
+              </ClickBlockedHint>
             </div>
             <div className="field">
               <label htmlFor="vj-glass-neon-int">
                 Neon intensity
                 <span className="val">{vjGlassGradeIntensity.toFixed(2)}</span>
               </label>
-              <input
-                id="vj-glass-neon-int"
-                type="range"
-                min={0}
-                max={2}
-                step={0.02}
-                value={vjGlassGradeIntensity}
-                onChange={(e) =>
-                  setVjGlassGradeIntensity(Number(e.target.value))
-                }
-                disabled={!vjControlsEnabled}
-                aria-label="VJ glass neon intensity"
-              />
+              <ClickBlockedHint
+                blocked={!vjControlsEnabled}
+                hint={HINT_NEED_VJ_CHAIN}
+                onBlockedClick={onFeatureBlockedHint}
+                fullWidth
+              >
+                <input
+                  id="vj-glass-neon-int"
+                  type="range"
+                  min={0}
+                  max={2}
+                  step={0.02}
+                  value={vjGlassGradeIntensity}
+                  onChange={(e) =>
+                    setVjGlassGradeIntensity(Number(e.target.value))
+                  }
+                  disabled={!vjControlsEnabled}
+                  aria-label="VJ glass neon intensity"
+                />
+              </ClickBlockedHint>
             </div>
           </>
         )}
@@ -299,17 +392,24 @@ export function AudioSection({
             Dup spacing (vertical)
             <span className="val">{(vjDupGap * 100).toFixed(1)}%</span>
           </label>
-          <input
-            id="vj-dup-gap"
-            type="range"
-            min={0}
-            max={0.35}
-            step={0.005}
-            value={vjDupGap}
-            onChange={(e) => setVjDupGap(Number(e.target.value))}
-            disabled={!vjControlsEnabled || !vjDupVertical}
-            aria-label="Dup stack vertical spacing"
-          />
+          <ClickBlockedHint
+            blocked={dupSlidersNeedVj || dupSlidersNeedDup}
+            hint={dupSlidersNeedVj ? HINT_NEED_VJ_CHAIN : HINT_DUP_STACK_FIRST}
+            onBlockedClick={onFeatureBlockedHint}
+            fullWidth
+          >
+            <input
+              id="vj-dup-gap"
+              type="range"
+              min={0}
+              max={0.35}
+              step={0.005}
+              value={vjDupGap}
+              onChange={(e) => setVjDupGap(Number(e.target.value))}
+              disabled={!vjControlsEnabled || !vjDupVertical}
+              aria-label="Dup stack vertical spacing"
+            />
+          </ClickBlockedHint>
         </div>
         <div className="field">
           <label
@@ -319,17 +419,24 @@ export function AudioSection({
             Dup spacing (horizontal)
             <span className="val">{(vjDupHorizStep * 100).toFixed(1)}%</span>
           </label>
-          <input
-            id="vj-dup-horiz"
-            type="range"
-            min={0}
-            max={0.18}
-            step={0.002}
-            value={vjDupHorizStep}
-            onChange={(e) => setVjDupHorizStep(Number(e.target.value))}
-            disabled={!vjControlsEnabled || !vjDupVertical}
-            aria-label="Dup stack horizontal stair step"
-          />
+          <ClickBlockedHint
+            blocked={dupSlidersNeedVj || dupSlidersNeedDup}
+            hint={dupSlidersNeedVj ? HINT_NEED_VJ_CHAIN : HINT_DUP_STACK_FIRST}
+            onBlockedClick={onFeatureBlockedHint}
+            fullWidth
+          >
+            <input
+              id="vj-dup-horiz"
+              type="range"
+              min={0}
+              max={0.18}
+              step={0.002}
+              value={vjDupHorizStep}
+              onChange={(e) => setVjDupHorizStep(Number(e.target.value))}
+              disabled={!vjControlsEnabled || !vjDupVertical}
+              aria-label="Dup stack horizontal stair step"
+            />
+          </ClickBlockedHint>
         </div>
         <div className="field">
           <label
@@ -339,23 +446,31 @@ export function AudioSection({
             Dup scroll speed
             <span className="val">{vjDupScrollSpeed.toFixed(3)}</span>
           </label>
-          <input
-            id="vj-dup-scroll"
-            type="range"
-            min={0}
-            max={0.4}
-            step={0.005}
-            value={vjDupScrollSpeed}
-            onChange={(e) => setVjDupScrollSpeed(Number(e.target.value))}
-            disabled={!vjControlsEnabled || !vjDupVertical}
-            aria-label="Dup stack vertical scroll speed"
-          />
+          <ClickBlockedHint
+            blocked={dupSlidersNeedVj || dupSlidersNeedDup}
+            hint={dupSlidersNeedVj ? HINT_NEED_VJ_CHAIN : HINT_DUP_STACK_FIRST}
+            onBlockedClick={onFeatureBlockedHint}
+            fullWidth
+          >
+            <input
+              id="vj-dup-scroll"
+              type="range"
+              min={0}
+              max={0.4}
+              step={0.005}
+              value={vjDupScrollSpeed}
+              onChange={(e) => setVjDupScrollSpeed(Number(e.target.value))}
+              disabled={!vjControlsEnabled || !vjDupVertical}
+              aria-label="Dup stack vertical scroll speed"
+            />
+          </ClickBlockedHint>
         </div>
         <p className="field-hint">
           <strong>VJ mode</strong> moves the lens clockwise on a squircle path.{" "}
-          <strong>VJ path scale</strong> changes the orbit radius (same smooth
-          loop, not the speed). At high scales the lens may sit partly or fully
-          outside the canvas — it does not slide along the edges.
+          <strong>VJ path scale</strong> is the orbit radius;{" "}
+          <strong>VJ path speed</strong> is how fast it runs that loop (not the
+          Lens blob ripple — that stays on “Animation speed”). At high scales the
+          lens may sit partly or fully off-canvas; it does not slide along edges.
         </p>
         <p className="field-hint">
           <strong>Dup stack</strong> repeats your SVG at the same size as the fitted

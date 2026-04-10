@@ -1,5 +1,10 @@
 /** Parse `#rrggbb` to sRGB channels in 0–1 — same encoding as CSS / `<input type="color">`. */
-export function parseHexColor(hex: string): [number, number, number, number] {
+export function parseHexColor(
+  hex: string | undefined | null,
+): [number, number, number, number] {
+  if (hex == null || typeof hex !== "string") {
+    return [1, 1, 1, 1];
+  }
   const h = hex.replace(/^#/, "");
   if (h.length === 6) {
     const r = parseInt(h.slice(0, 2), 16) / 255;

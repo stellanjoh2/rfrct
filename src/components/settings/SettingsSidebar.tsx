@@ -17,6 +17,7 @@ import type { VideoBackdropSectionProps } from "./VideoBackdropSection";
 
 export type SettingsSidebarProps = {
   uiVisible: boolean;
+  featureHint: string | null;
   onFile: (e: React.ChangeEvent<HTMLInputElement>) => void;
   appearance: AppearanceSectionProps;
   lens: LensSectionProps;
@@ -29,6 +30,7 @@ export type SettingsSidebarProps = {
 
 export function SettingsSidebar({
   uiVisible,
+  featureHint,
   onFile,
   appearance,
   lens,
@@ -66,6 +68,15 @@ export function SettingsSidebar({
       }}
     >
       <p className="sidebar-brand">Refrct</p>
+      {featureHint && (
+        <p
+          className="field-hint field-hint--feature-nudge"
+          role="status"
+          aria-live="polite"
+        >
+          {featureHint}
+        </p>
+      )}
       <UploadBlock onFile={onFile} />
       <AppearanceSection {...appearance} />
       <LensSection {...lens} />

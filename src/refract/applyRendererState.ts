@@ -2,6 +2,7 @@ import { parseHexColor } from "../color";
 import type {
   BlobParams,
   BloomParams,
+  DetailDistortionParams,
   FilterMode,
   GlassGradeParams,
   ShapeMode,
@@ -31,6 +32,8 @@ export type RendererSyncParams = {
   vjDupScrollSpeed: number;
   /** VJ-only neon colour grade inside the lens (independent of SVG tint). */
   glassGrade: GlassGradeParams;
+  /** Normal-map micro-refraction layered on the main lens displacement. */
+  detailDistortion: DetailDistortionParams;
 };
 
 /** Mutable renderer fields the app syncs each frame (avoids importing `RefractRenderer` here). */
@@ -45,6 +48,7 @@ export type RendererStateTarget = {
   vjDupHorizStep: number;
   vjDupScrollSpeed: number;
   glassGrade: GlassGradeParams;
+  detailDistortion: DetailDistortionParams;
 };
 
 export function applyRendererState(
@@ -68,6 +72,17 @@ export function applyRendererState(
     rgbA: [p.glassGrade.rgbA[0], p.glassGrade.rgbA[1], p.glassGrade.rgbA[2]],
     rgbB: [p.glassGrade.rgbB[0], p.glassGrade.rgbB[1], p.glassGrade.rgbB[2]],
     strength: p.glassGrade.strength,
+  };
+  r.detailDistortion = {
+    enabled: p.detailDistortion.enabled,
+    strength: p.detailDistortion.strength,
+    scale: p.detailDistortion.scale,
+    dirtStrength: p.detailDistortion.dirtStrength,
+    dirtRgb: [
+      p.detailDistortion.dirtRgb[0],
+      p.detailDistortion.dirtRgb[1],
+      p.detailDistortion.dirtRgb[2],
+    ],
   };
 }
 
@@ -110,6 +125,8 @@ export type RendererSyncSource = {
   vjDupScrollSpeed: number;
   /** VJ orbit / lens path scale (1 = default squircle radius; &gt;1 pushes motion toward the edges). */
   vjPathScale: number;
+  /** VJ squircle orbit rate in full laps per second (0 = hold start angle). */
+  vjPathSpeed: number;
   /** Fullscreen YouTube embed behind the canvas (transparent WebGL pass-through). */
   youtubeEmbedActive: boolean;
   /** VJ glass neon: off | tint | duotone */
@@ -118,6 +135,15 @@ export type RendererSyncSource = {
   vjGlassNeonBHex: string;
   /** 0–2 — intensity before audio envelope. */
   vjGlassGradeIntensity: number;
+  detailDistortionEnabled: boolean;
+  /** 0–1 — amplitude of normal-map micro-displacement. */
+  detailDistortionStrength: number;
+  /** Screen-space tiling of the normal texture. */
+  detailDistortionScale: number;
+  /** 0–1 — dirt / stain from normal-derived height proxy (same texture as detail). */
+  detailDirtStrength?: number;
+  /** Multiply tint for dirt (hex). */
+  detailDirtHex?: string;
 };
 
 export function buildRendererSyncParams(
@@ -227,5 +253,23 @@ export function buildRendererSyncParams(
     vjDupScrollSpeed:
       vjTex && s.vjDupVertical ? Math.max(0, s.vjDupScrollSpeed) : 0,
     glassGrade,
+    detailDistortion: {
+      enabled: Boolean(s.detailDistortionEnabled),
+      strength: Math.max(
+        0,
+        Math.min(1, s.detailDistortionStrength ?? 0),
+      ),
+      scale: Math.max(
+        0.25,
+        Math.min(14, s.detailDistortionScale ?? 3.2),
+      ),
+      dirtStrength: s.detailDistortionEnabled
+        ? Math.max(0, Math.min(1, s.detailDirtStrength ?? 0))
+        : 0,
+      dirtRgb: (() => {
+        const c = parseHexColor(s.detailDirtHex ?? "#665648");
+        return [c[0], c[1], c[2]] as [number, number, number];
+      })(),
+    },
   };
 }

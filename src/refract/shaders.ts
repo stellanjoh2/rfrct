@@ -64,6 +64,16 @@ uniform vec3 u_glassNeonA;
 uniform vec3 u_glassNeonB;
 uniform float u_glassGradeStrength;
 
+/** Normal map (tangent-space RGB); XY perturbs UV for high-frequency lens distortion. */
+uniform sampler2D u_detailNormal;
+/** 0 = off; otherwise scales XY displacement (combined with lens mask in shader). */
+uniform float u_detailDistortAmp;
+/** Screen-UV tiling of the normal map (higher = smaller features). */
+uniform float u_detailDistortScale;
+/** 0–1: multiply stain in recesses (derived from same normal sample). */
+uniform float u_detailDirtStrength;
+uniform vec3 u_detailDirtRgb;
+
 out vec4 fragColor;
 
 const float BLUR_W5[5] = float[](
@@ -544,7 +554,33 @@ void main() {
   float falloff = lens * (0.35 + 0.65 * smoothstep(-u_blobRadius * 0.35, 0.0, sdf));
   vec2 distort = refr * u_refractStrength * falloff;
 
-  vec2 uvR = uv + distort + filterGlass(uv);
+  vec2 detailOff = vec2(0.0);
+  /**
+   * Dirt / stain mask from the same normal sample. Most tangent-space maps keep Z near 1, so
+   * (1 - Nz) stays tiny; XY slant matches where displacement is strong (visible grime variation).
+   */
+  float detailHeight = 0.0;
+  bool useDetailTex =
+    u_hasImage > 0.5 &&
+    (u_detailDistortAmp > 1e-6 || u_detailDirtStrength > 1e-6);
+  if (useDetailTex) {
+    float sc = max(u_detailDistortScale, 0.08);
+    vec2 nuv = uv * sc + u_time * vec2(0.00035, 0.00026);
+    vec3 Nt = texture(u_detailNormal, nuv).rgb * 2.0 - 1.0;
+    vec3 Nn = normalize(Nt);
+    float mask = falloff * lens;
+    if (u_detailDistortAmp > 1e-6) {
+      vec2 dir = vec2(Nn.x, -Nn.y);
+      detailOff = dir * (u_detailDistortAmp * mask);
+      detailOff.x /= aspect.x;
+    }
+    float slant = clamp(length(Nn.xy), 0.0, 1.0);
+    float cavity = clamp(1.0 - Nn.z, 0.0, 1.0);
+    float raw = max(slant * 1.85, cavity * 0.95);
+    detailHeight = pow(clamp(raw, 0.0, 1.0), 0.82);
+  }
+
+  vec2 uvR = uv + distort + filterGlass(uv) + detailOff;
 
   // Frost: same edgeW as silhouette, but outer ramp extends when frost is high so blur
   // feathers the transition (no second hard ring). No extra “glow” — only blurred samples.
@@ -561,6 +597,14 @@ void main() {
   } else {
     col = sampleSceneChroma(uvR, chromaSpread, frostPx);
     outA = 1.0;
+  }
+
+  /** Dirt / colour stain: multiply tint by detailHeight (spatially varying). */
+  if (u_detailDirtStrength > 1e-6 && detailHeight > 1e-6) {
+    float dm =
+      clamp(detailHeight * 1.08, 0.0, 1.0) * falloff * lens * u_detailDirtStrength;
+    vec3 dirtMul = mix(vec3(1.0), u_detailDirtRgb, dm);
+    col *= dirtMul;
   }
 
   /** VJ glass neon: mask with lens silhouette (inside the glass). */

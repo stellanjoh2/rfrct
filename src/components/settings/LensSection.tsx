@@ -25,6 +25,16 @@ export type LensSectionProps = {
   setRefract: (v: number) => void;
   edgeSoft: number;
   setEdgeSoft: (v: number) => void;
+  detailDistortionEnabled: boolean;
+  setDetailDistortionEnabled: (v: boolean) => void;
+  detailDistortionStrength: number;
+  setDetailDistortionStrength: (v: number) => void;
+  detailDistortionScale: number;
+  setDetailDistortionScale: (v: number) => void;
+  detailDirtStrength: number;
+  setDetailDirtStrength: (v: number) => void;
+  detailDirtHex: string;
+  setDetailDirtHex: (v: string) => void;
 };
 
 export function LensSection({
@@ -52,6 +62,16 @@ export function LensSection({
   setFilterScale,
   filterMotionSpeed,
   setFilterMotionSpeed,
+  detailDistortionEnabled,
+  setDetailDistortionEnabled,
+  detailDistortionStrength,
+  setDetailDistortionStrength,
+  detailDistortionScale,
+  setDetailDistortionScale,
+  detailDirtStrength,
+  setDetailDirtStrength,
+  detailDirtHex,
+  setDetailDirtHex,
 }: LensSectionProps) {
   return (
     <>
@@ -241,6 +261,112 @@ export function LensSection({
             onChange={(e) => setFilterMotionSpeed(Number(e.target.value))}
             disabled={filterMode === 0}
           />
+        </div>
+      </section>
+      <h2>Detailed distortion</h2>
+      <section>
+        <p className="field-hint">
+          Extra high-frequency warp from a tangent-space{" "}
+          <strong>normal map</strong> (layered on lens refraction). The same
+          sample also drives a <strong>dirt / stain</strong> mask from{" "}
+          <code className="field-hint-code">length(N.xy)</code> (slant) plus a
+          bit of <code className="field-hint-code">1 − Nz</code> — normal maps
+          are usually Z-heavy, so XY carries the visible variation. Multiply
+          dirt colour in the lens. File:{" "}
+          <code className="field-hint-code">Dist/14487-normal.jpg</code>.
+        </p>
+        <div className="field field--checkbox field--audio-toggles">
+          <button
+            type="button"
+            className={`mic-toggle ${detailDistortionEnabled ? "mic-toggle--on" : ""}`}
+            onClick={() =>
+              setDetailDistortionEnabled(!detailDistortionEnabled)
+            }
+            aria-pressed={detailDistortionEnabled}
+            aria-label={
+              detailDistortionEnabled
+                ? "Turn off detailed distortion"
+                : "Turn on detailed distortion"
+            }
+          >
+            Detailed distortion
+          </button>
+        </div>
+        <div className="field">
+          <label htmlFor="detail-distort-strength">
+            Detail strength
+            <span className="val">{detailDistortionStrength.toFixed(2)}</span>
+          </label>
+          <input
+            id="detail-distort-strength"
+            type="range"
+            min={0}
+            max={1}
+            step={0.02}
+            value={detailDistortionStrength}
+            onChange={(e) =>
+              setDetailDistortionStrength(Number(e.target.value))
+            }
+            disabled={!detailDistortionEnabled}
+            aria-label="Detailed distortion strength"
+          />
+        </div>
+        <div className="field">
+          <label
+            htmlFor="detail-distort-scale"
+            title="Higher = smaller, busier features (more repeats across the viewport)"
+          >
+            Detail map scale
+            <span className="val">{detailDistortionScale.toFixed(1)}×</span>
+          </label>
+          <input
+            id="detail-distort-scale"
+            type="range"
+            min={0.5}
+            max={10}
+            step={0.1}
+            value={detailDistortionScale}
+            onChange={(e) => setDetailDistortionScale(Number(e.target.value))}
+            disabled={!detailDistortionEnabled}
+            aria-label="Detailed distortion texture tiling"
+          />
+        </div>
+        <div className="field">
+          <label htmlFor="detail-dirt-strength">
+            Dirt / stain
+            <span className="val">{detailDirtStrength.toFixed(2)}</span>
+          </label>
+          <input
+            id="detail-dirt-strength"
+            type="range"
+            min={0}
+            max={1}
+            step={0.02}
+            value={detailDirtStrength}
+            onChange={(e) => setDetailDirtStrength(Number(e.target.value))}
+            disabled={!detailDistortionEnabled}
+            aria-label="Dirt stain strength from normal map"
+          />
+        </div>
+        <div className="field">
+          <label>Dirt colour</label>
+          <div className="row">
+            <input
+              type="color"
+              value={detailDirtHex}
+              onChange={(e) => setDetailDirtHex(e.target.value)}
+              disabled={!detailDistortionEnabled}
+              aria-label="Dirt multiply colour"
+            />
+            <input
+              type="text"
+              value={detailDirtHex}
+              onChange={(e) => setDetailDirtHex(e.target.value)}
+              spellCheck={false}
+              disabled={!detailDistortionEnabled}
+              aria-label="Dirt colour hex"
+            />
+          </div>
         </div>
       </section>
     </>
