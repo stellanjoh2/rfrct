@@ -5,6 +5,9 @@
 #   • Standalone Blod at repo root (vite + package.json) — clones @refrct/core from <owner>/refrct if missing.
 #
 # Settings → Pages → Source: GitHub Actions
+#
+# If CI cannot clone stellanjoh2/refrct (private repo): make refrct public, OR add repo secret
+# REFRCT_CLONE_PAT = fine-grained PAT with Contents: Read on that repo, OR commit packages/refract-core here.
 
 name: Deploy Blod to GitHub Pages
 
@@ -39,10 +42,20 @@ jobs:
         if: hashFiles('packages/refract-core/package.json') == ''
         env:
           OWNER: ${{ github.repository_owner }}
+          PAT: ${{ secrets.REFRCT_CLONE_PAT }}
         run: |
           set -euo pipefail
-          echo "Cloning @refrct/core from https://github.com/${OWNER}/refrct"
-          git clone --depth 1 "https://github.com/${OWNER}/refrct.git" _refrct_src
+          URL="https://github.com/${OWNER}/refrct.git"
+          if [ -n "${PAT:-}" ]; then
+            URL="https://x-access-token:${PAT}@github.com/${OWNER}/refrct.git"
+            echo "Cloning refrct using REFRCT_CLONE_PAT"
+          else
+            echo "Cloning refrct (public repo only — set secret REFRCT_CLONE_PAT if private)"
+          fi
+          if ! git clone --depth 1 "$URL" _refrct_src; then
+            echo "::error::git clone failed. Make https://github.com/${OWNER}/refrct public, or add repo secret REFRCT_CLONE_PAT (PAT with read access to refrct), or commit packages/refract-core into this repository."
+            exit 1
+          fi
           mkdir -p packages
           cp -a _refrct_src/packages/refract-core packages/refract-core
           rm -rf _refrct_src
@@ -56,7 +69,7 @@ jobs:
             exit 0
           fi
           test -f packages/refract-core/package.json || {
-            echo "::error::packages/refract-core missing. Ensure https://github.com/${OWNER}/refrct exists and is public so CI can clone it."
+            echo "::error::packages/refract-core missing. Clone step must succeed: public https://github.com/${OWNER}/refrct or secret REFRCT_CLONE_PAT, or commit packages/refract-core."
             exit 1
           }
           python3 << 'PY'
@@ -72,9 +85,8 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
           cache: npm
-          cache-dependency-path: package-lock.json
 
       - name: Install
         run: |
