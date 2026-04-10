@@ -172,6 +172,8 @@ body {
 
 .blod-section--intro .blod-section-inner--prose {
   text-align: center;
+  /* ~2 fewer words per line vs main 1280px column */
+  max-width: min(65rem, 100%);
 }
 
 .blod-section--intro p {
