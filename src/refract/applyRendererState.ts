@@ -144,6 +144,10 @@ export type RendererSyncSource = {
   detailDirtStrength?: number;
   /** Multiply tint for dirt (hex). */
   detailDirtHex?: string;
+  /** When true, lens center follows pointer with fluid delay (overrides VJ path for center). */
+  lensMouseInput: boolean;
+  /** 0–1 — heavier / slower liquid when using mouse follow. */
+  fluidDensity: number;
 };
 
 export function buildRendererSyncParams(

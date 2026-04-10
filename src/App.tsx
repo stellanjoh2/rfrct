@@ -18,6 +18,7 @@ import {
   type AudioInputMode,
   audioCaptureErrorMessage,
 } from "./audio/micAnalyzer";
+import { stepLensMouseFluid } from "./lensMouseFluid";
 import {
   applyVjDrive,
   DEFAULT_VJ_PATH_SPEED,
@@ -89,6 +90,9 @@ export function App() {
   const [detailDistortionScale, setDetailDistortionScale] = useState(3.2);
   const [detailDirtStrength, setDetailDirtStrength] = useState(0.4);
   const [detailDirtHex, setDetailDirtHex] = useState("#665648");
+  const [lensMouseInput, setLensMouseInput] = useState(false);
+  /** 0 = light / snappy follow, 1 = heavy / sluggish liquid. */
+  const [fluidDensity, setFluidDensity] = useState(0.45);
 
   const blobCenterRef = useRef({ x: 0.5, y: 0.5 });
   const dragModeRef = useRef<"none" | "pan" | "fx">("none");
@@ -171,6 +175,19 @@ export function App() {
   const [featureHint, setFeatureHint] = useState<string | null>(null);
   const micAnalyzerRef = useRef<MicAnalyzer | null>(null);
   const micEnvelopeRef = useRef(0);
+  const mouseLensTargetRef = useRef({ x: 0.5, y: 0.5 });
+  const mouseFluidPosRef = useRef({ x: 0.5, y: 0.5 });
+  const mouseFluidVelRef = useRef({ x: 0, y: 0 });
+  const micLoopPrevTRef = useRef(performance.now());
+  const mouseLoopPrevTRef = useRef(performance.now());
+
+  useEffect(() => {
+    if (!lensMouseInput) return;
+    const p = blobCenterRef.current;
+    mouseLensTargetRef.current = { ...p };
+    mouseFluidPosRef.current = { ...p };
+    mouseFluidVelRef.current = { x: 0, y: 0 };
+  }, [lensMouseInput]);
 
   /** VJ: CSS hue-rotate on solid overlay — slow drift + optional mic envelope. */
   useEffect(() => {
@@ -515,6 +532,8 @@ export function App() {
         detailDistortionScale,
         detailDirtStrength,
         detailDirtHex,
+        lensMouseInput,
+        fluidDensity,
       }),
     );
   }, [
@@ -559,6 +578,8 @@ export function App() {
     detailDistortionScale,
     detailDirtStrength,
     detailDirtHex,
+    lensMouseInput,
+    fluidDensity,
   ]);
 
   useEffect(() => {
@@ -566,6 +587,7 @@ export function App() {
       micEnvelopeRef.current = 0;
       return;
     }
+    micLoopPrevTRef.current = performance.now();
     let id = 0;
     const loop = () => {
       const a = micAnalyzerRef.current;
@@ -574,17 +596,38 @@ export function App() {
       const r = rendererRef.current;
       const raw = latestSyncRef.current;
       if (r && raw) {
-        const timeSec = performance.now() * 0.001;
-        const driven =
-          vjMode && micDrivingRefraction
-            ? applyVjDrive(raw, timeSec)
-            : raw;
-        if (vjMode && micDrivingRefraction) {
+        const now = performance.now();
+        const dt = Math.min(0.05, (now - micLoopPrevTRef.current) / 1000);
+        micLoopPrevTRef.current = now;
+        const timeSec = now * 0.001;
+
+        let driven: RendererSyncSource;
+        if (raw.lensMouseInput) {
+          const target = mouseLensTargetRef.current;
+          const pos = mouseFluidPosRef.current;
+          const vel = mouseFluidVelRef.current;
+          const step = stepLensMouseFluid(
+            dt,
+            target,
+            pos,
+            vel,
+            raw.fluidDensity,
+            timeSec,
+          );
+          mouseFluidPosRef.current = { x: step.x, y: step.y };
+          mouseFluidVelRef.current = { x: step.vx, y: step.vy };
+          blobCenterRef.current = { x: step.x, y: step.y };
+          driven = { ...raw, blobCenterX: step.x, blobCenterY: step.y };
+        } else if (vjMode && micDrivingRefraction) {
+          driven = applyVjDrive(raw, timeSec);
           blobCenterRef.current = {
             x: driven.blobCenterX,
             y: driven.blobCenterY,
           };
+        } else {
+          driven = raw;
         }
+
         applyRendererState(
           r,
           buildRendererSyncParams({
@@ -599,7 +642,43 @@ export function App() {
     };
     id = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(id);
-  }, [micDrivingRefraction, micRefractBoost, vjMode]);
+  }, [micDrivingRefraction, micRefractBoost, vjMode, lensMouseInput, fluidDensity]);
+
+  useEffect(() => {
+    if (!lensMouseInput || micDrivingRefraction) {
+      return;
+    }
+    let id = 0;
+    const loop = () => {
+      const now = performance.now();
+      const dt = Math.min(0.05, (now - mouseLoopPrevTRef.current) / 1000);
+      mouseLoopPrevTRef.current = now;
+      const timeSec = now * 0.001;
+      const r = rendererRef.current;
+      if (r) {
+        const target = mouseLensTargetRef.current;
+        const pos = mouseFluidPosRef.current;
+        const vel = mouseFluidVelRef.current;
+        const step = stepLensMouseFluid(
+          dt,
+          target,
+          pos,
+          vel,
+          fluidDensity,
+          timeSec,
+        );
+        mouseFluidPosRef.current = { x: step.x, y: step.y };
+        mouseFluidVelRef.current = { x: step.vx, y: step.vy };
+        blobCenterRef.current = { x: step.x, y: step.y };
+        r.blob.centerX = step.x;
+        r.blob.centerY = step.y;
+      }
+      id = requestAnimationFrame(loop);
+    };
+    mouseLoopPrevTRef.current = performance.now();
+    id = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(id);
+  }, [lensMouseInput, micDrivingRefraction, fluidDensity]);
 
   useEffect(() => {
     return () => {
@@ -725,6 +804,10 @@ export function App() {
       setPointerDrag("pan");
       e.currentTarget.setPointerCapture(e.pointerId);
     } else if (e.button === 2) {
+      if (lensMouseInput) {
+        e.preventDefault();
+        return;
+      }
       dragModeRef.current = "fx";
       lastPointerRef.current = { x: e.clientX, y: e.clientY };
       setPointerDrag("fx");
@@ -744,9 +827,19 @@ export function App() {
   };
 
   const onPointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (canvas && lensMouseInput) {
+      const b = canvas.getBoundingClientRect();
+      const nx = (e.clientX - b.left) / b.width;
+      const ny = 1 - (e.clientY - b.top) / b.height;
+      mouseLensTargetRef.current = {
+        x: Math.min(1, Math.max(0, nx)),
+        y: Math.min(1, Math.max(0, ny)),
+      };
+    }
+
     const mode = dragModeRef.current;
     if (mode === "none") return;
-    const canvas = canvasRef.current;
     const r = rendererRef.current;
     if (!canvas || !r) return;
     const bounds = canvas.getBoundingClientRect();
@@ -762,6 +855,7 @@ export function App() {
     }
 
     if (mode === "fx") {
+      if (lensMouseInput) return;
       // Delta drag (same basis as pan) so a new right-drag doesn’t snap the blob to the
       // cursor on the first move — only motion while held updates position.
       const dx = (e.clientX - lastPointerRef.current.x) / cw;
@@ -879,6 +973,10 @@ export function App() {
         setDetailDirtStrength,
         detailDirtHex,
         setDetailDirtHex,
+        lensMouseInput,
+        setLensMouseInput,
+        fluidDensity,
+        setFluidDensity,
       },
       bloom: {
         bloomStrength,
@@ -961,6 +1059,8 @@ export function App() {
       detailDistortionScale,
       detailDirtStrength,
       detailDirtHex,
+      lensMouseInput,
+      fluidDensity,
       bloomStrength,
       bloomRadius,
       bloomThreshold,
@@ -1048,6 +1148,8 @@ export function App() {
     detailDistortionScale,
     detailDirtStrength,
     detailDirtHex,
+    lensMouseInput,
+    fluidDensity,
   };
 
   return (

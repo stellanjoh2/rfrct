@@ -89,7 +89,8 @@ export function SettingsSidebar({
         <p className="shortcut-hint__title">Mouse (canvas)</p>
         <p className="shortcut-hint__line">
           <strong>Left-drag</strong> — pan image · <strong>Right-drag</strong> — move
-          lens · <strong>Wheel</strong> — zoom
+          lens · <strong>Wheel</strong> — zoom. Lens → <strong>Mouse input</strong>{" "}
+          follows the pointer with fluid delay (right-drag off).
         </p>
         <p className="shortcut-hint__title">Keyboard</p>
         <p className="shortcut-hint__line">
