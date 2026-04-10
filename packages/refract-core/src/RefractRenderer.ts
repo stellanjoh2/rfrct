@@ -3,8 +3,8 @@ import {
   cropCanvasToImageRect,
   downloadCanvasAsPng,
   removeSolidBackgroundForPng,
-} from "../capture";
-import type { PngExportParams } from "../export/pngExportSettings";
+} from "./capture";
+import type { PngExportParams } from "./pngExportSettings";
 import { BloomPipeline } from "./BloomPipeline";
 import { FRAG, VERT } from "./shaders";
 import type {
@@ -29,7 +29,7 @@ export type {
   SvgTintParams,
 } from "./types";
 
-export type { PngExportParams } from "../export/pngExportSettings";
+export type { PngExportParams } from "./pngExportSettings";
 
 function textureDimensions(source: TexImageSource): { w: number; h: number } {
   if (source instanceof HTMLCanvasElement) {

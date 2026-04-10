@@ -1,4 +1,4 @@
-import type { FilterMode, ShapeMode } from "../../refract/RefractRenderer";
+import type { FilterMode, ShapeMode } from "@refrct/core";
 
 export type LensSectionProps = {
   shapeMode: ShapeMode;

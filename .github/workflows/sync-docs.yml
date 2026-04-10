@@ -30,7 +30,7 @@ jobs:
         run: |
           rm -rf docs
           mkdir -p docs
-          cp -a dist/. docs/
+          cp -a apps/refract-editor/dist/. docs/
       - name: Commit and push docs
         run: |
           git config user.name "github-actions[bot]"

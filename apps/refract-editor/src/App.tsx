@@ -2,31 +2,27 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { SettingsSidebar } from "./components/settings/SettingsSidebar";
 import { Focus } from "./focus";
 import {
+  applyPanToRect,
   applyRendererState,
+  applyVjDrive,
   buildRendererSyncParams,
-  type RendererSyncSource,
-} from "./refract/applyRendererState";
-import { applyPanToRect, computeImageRect } from "./refract/layout";
-import {
+  computeImageRect,
+  DEFAULT_PNG_EXPORT_PARAMS,
+  DEFAULT_VJ_PATH_SPEED,
+  isSvgFile,
+  mergePngExportParams,
+  rasterizeSvgForRefract,
   RefractRenderer,
   type FilterMode,
+  type RendererSyncSource,
   type ShapeMode,
-} from "./refract/RefractRenderer";
-import { isSvgFile, rasterizeSvgForRefract } from "./refract/svgRaster";
+  stepLensMouseFluid,
+} from "@refrct/core";
 import {
   MicAnalyzer,
   type AudioInputMode,
   audioCaptureErrorMessage,
 } from "./audio/micAnalyzer";
-import { stepLensMouseFluid } from "./lensMouseFluid";
-import {
-  applyVjDrive,
-  DEFAULT_VJ_PATH_SPEED,
-} from "./refract/vjDrive";
-import {
-  DEFAULT_PNG_EXPORT_PARAMS,
-  mergePngExportParams,
-} from "./export/pngExportSettings";
 import type { BackdropBlendMode } from "./videoBackdrop";
 import { postYoutubeMute } from "./youtube/forceMuteIframe";
 import { buildYoutubeEmbedSrc, parseYoutubeVideoId } from "./youtube/embedUrl";

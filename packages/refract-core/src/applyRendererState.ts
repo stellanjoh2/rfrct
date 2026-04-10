@@ -1,4 +1,4 @@
-import { parseHexColor } from "../color";
+import { parseHexColor } from "./color";
 import type {
   BlobParams,
   BloomParams,
