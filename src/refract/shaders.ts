@@ -538,17 +538,32 @@ void main() {
 
   float sdf = shapeSdf(p);
   vec2 g = sdfGradient(p);
-  float core = smoothstep(0.0, u_blobRadius * 0.045 + 1e-6, length(p));
+  /** Wider inner ramp so SDF gradient doesn’t spike at the optical center. */
+  float core = smoothstep(0.0, u_blobRadius * 0.108 + 1e-6, length(p));
   g *= core;
   float glen = length(g);
   vec2 n = glen > 1e-4 ? g / glen : vec2(0.0);
+
+  /**
+   * Wavy blob boundaries make n highly non-radial near the origin → UV displacement
+   * “petals” / pinch. Blend n toward pure radial inside a small core so the center
+   * stays soft without changing the outer lens silhouette much.
+   */
+  float pr = length(p);
+  float pinchW = u_blobRadius * 0.23;
+  /** Bias blend toward radial (exponent > 1) so the center stays softer. */
+  float pinchRelax = smoothstep(0.0, pinchW + 1e-6, pr);
+  pinchRelax = pow(pinchRelax, 2.2);
+  vec2 radialDir =
+    pr > 1e-5 ? p / pr : (glen > 1e-4 ? n : vec2(0.0, 1.0));
+  vec2 nRefract = normalize(mix(radialDir, n, pinchRelax));
 
   // Single edge band: softness + fwidth AA. Refraction and frost both key off this width.
   float aa = max(fwidth(sdf), 1e-6);
   float edgeW = max(u_edgeSoftness, aa * 2.25);
   float lens = smoothstep(edgeW, -edgeW, sdf);
 
-  vec2 refr = n.xy;
+  vec2 refr = nRefract.xy;
   refr.x /= aspect.x;
 
   float falloff = lens * (0.35 + 0.65 * smoothstep(-u_blobRadius * 0.35, 0.0, sdf));
