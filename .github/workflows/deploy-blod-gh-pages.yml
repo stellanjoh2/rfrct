@@ -2,12 +2,14 @@
 #
 # Works from:
 #   • Full refrct monorepo (apps/blod + packages/refract-core), or
-#   • Standalone Blod at repo root (vite + package.json) — clones @refrct/core from <owner>/refrct if missing.
+#   • Standalone Blod at repo root (vite + package.json) — clones @refrct/core from owner/rfrct (default) if missing.
 #
 # Settings → Pages → Source: GitHub Actions
 #
-# If CI cannot clone stellanjoh2/refrct (private repo): make refrct public, OR add repo secret
-# REFRCT_CLONE_PAT = fine-grained PAT with Contents: Read on that repo, OR commit packages/refract-core here.
+# Clone source for @refrct/core when packages/refract-core is missing (standalone repos):
+#   • Default clone URL: https://github.com/<owner>/<REFRCT_MONOREPO_REPO>
+#   • Set repo variable REFRCT_MONOREPO_REPO if your monorepo slug is not "rfrct".
+#   • Private monorepo: secret REFRCT_CLONE_PAT (Contents: Read), or commit packages/refract-core here.
 
 name: Deploy Blod to GitHub Pages
 
@@ -28,6 +30,12 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    env:
+      REFRCT_MONOREPO_REPO: ${{ vars.REFRCT_MONOREPO_REPO }}
     steps:
       - uses: actions/checkout@v4
 
@@ -45,15 +53,17 @@ jobs:
           PAT: ${{ secrets.REFRCT_CLONE_PAT }}
         run: |
           set -euo pipefail
-          URL="https://github.com/${OWNER}/refrct.git"
+          REPO="${REFRCT_MONOREPO_REPO:-rfrct}"
+          echo "Using monorepo repo: ${OWNER}/${REPO} (override with repo variable REFRCT_MONOREPO_REPO)"
+          URL="https://github.com/${OWNER}/${REPO}.git"
           if [ -n "${PAT:-}" ]; then
-            URL="https://x-access-token:${PAT}@github.com/${OWNER}/refrct.git"
-            echo "Cloning refrct using REFRCT_CLONE_PAT"
+            URL="https://x-access-token:${PAT}@github.com/${OWNER}/${REPO}.git"
+            echo "Cloning using REFRCT_CLONE_PAT"
           else
-            echo "Cloning refrct (public repo only — set secret REFRCT_CLONE_PAT if private)"
+            echo "Cloning public repo (set REFRCT_CLONE_PAT if the monorepo is private)"
           fi
           if ! git clone --depth 1 "$URL" _refrct_src; then
-            echo "::error::git clone failed. Make https://github.com/${OWNER}/refrct public, or add repo secret REFRCT_CLONE_PAT (PAT with read access to refrct), or commit packages/refract-core into this repository."
+            echo "::error::git clone failed. Expected https://github.com/${OWNER}/${REPO} — check repo name (variable REFRCT_MONOREPO_REPO), visibility, or secret REFRCT_CLONE_PAT; or commit packages/refract-core into this repository."
             exit 1
           fi
           mkdir -p packages
@@ -68,8 +78,9 @@ jobs:
             echo "Monorepo — npm workspaces resolve @refrct/core"
             exit 0
           fi
+          REPO="${REFRCT_MONOREPO_REPO:-rfrct}"
           test -f packages/refract-core/package.json || {
-            echo "::error::packages/refract-core missing. Clone step must succeed: public https://github.com/${OWNER}/refrct or secret REFRCT_CLONE_PAT, or commit packages/refract-core."
+            echo "::error::packages/refract-core missing. Clone must succeed for https://github.com/${OWNER}/${REPO} (variable REFRCT_MONOREPO_REPO), or commit packages/refract-core."
             exit 1
           }
           python3 << 'PY'
@@ -108,6 +119,15 @@ jobs:
           VITE_BASE: /${{ github.event.repository.name }}/
         run: npm run build
 
+      - name: Verify static output exists
+        run: |
+          set -euo pipefail
+          if [ -f apps/blod/package.json ]; then
+            test -d apps/blod/dist && test -f apps/blod/dist/index.html || { echo "::error::apps/blod/dist or index.html missing after build"; ls -la apps/blod || true; exit 1; }
+          elif [ -f vite.config.ts ]; then
+            test -d dist && test -f dist/index.html || { echo "::error::dist/ missing after root build"; exit 1; }
+          fi
+
       - name: Artifact path
         id: dist
         run: |
@@ -132,4 +152,4 @@ jobs:
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
