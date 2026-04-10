@@ -1,0 +1,95 @@
+# Pushes apps/blod/dist → branch gh-pages. `main` stays untouched.
+#
+# After first green run: Settings → Pages → Deploy from branch → gh-pages / (root)
+# URL: https://<owner>.github.io/<repo>/
+#
+# Needs either:
+#   • Full refrct monorepo layout (apps/blod + packages/refract-core + root package-lock), or
+#   • Same layout but packages/refract-core missing — we clone it from <owner>/refrct (public).
+
+name: Deploy Blod to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: deploy-blod-gh-pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate layout (need monorepo apps/blod or root Vite app)
+        run: |
+          if [ -f apps/blod/package.json ]; then exit 0; fi
+          if [ -f vite.config.ts ] && [ -f package.json ]; then exit 0; fi
+          echo "::error::This workflow needs the refrct monorepo (folders apps/blod + packages/refract-core) on the default branch, or a single Vite app at the repo root."
+          exit 1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      # Partial clone: has apps/blod + workspace root but forgot packages/refract-core
+      - name: Restore packages/refract-core from refrct (if missing)
+        if: hashFiles('packages/refract-core/package.json') == ''
+        env:
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          set -euo pipefail
+          if [ ! -f apps/blod/package.json ]; then
+            echo "No apps/blod — not a refrct-style monorepo layout; skipping vendor."
+            exit 0
+          fi
+          echo "Cloning @refrct/core from https://github.com/${OWNER}/refrct"
+          git clone --depth 1 "https://github.com/${OWNER}/refrct.git" _refrct_src
+          mkdir -p packages
+          cp -a _refrct_src/packages/refract-core packages/refract-core
+          rm -rf _refrct_src
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Blod (monorepo)
+        if: hashFiles('apps/blod/package.json') != ''
+        env:
+          VITE_BASE: /${{ github.event.repository.name }}/
+        run: npm run build:blod
+
+      - name: Build Blod (Vite at repo root)
+        if: hashFiles('apps/blod/package.json') == '' && hashFiles('vite.config.ts') != ''
+        env:
+          VITE_BASE: /${{ github.event.repository.name }}/
+        run: npm run build
+
+      - name: Deploy to gh-pages (monorepo dist)
+        if: hashFiles('apps/blod/package.json') != ''
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./apps/blod/dist
+          publish_branch: gh-pages
+          force_orphan: true
+          user_name: github-actions[bot]
+          user_email: 41898282+github-actions[bot]@users.noreply.github.com
+
+      - name: Deploy to gh-pages (root dist)
+        if: hashFiles('apps/blod/package.json') == '' && hashFiles('vite.config.ts') != ''
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist
+          publish_branch: gh-pages
+          force_orphan: true
+          user_name: github-actions[bot]
+          user_email: 41898282+github-actions[bot]@users.noreply.github.com
