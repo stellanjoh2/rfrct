@@ -1,16 +1,13 @@
-# Publishes dist/ via GitHub’s Pages Actions deploy.
+# Publishes refract-editor dist/ via GitHub Pages Actions.
 #
-# In Settings → Pages, pick ONE source:
-# • GitHub Actions — use this workflow; OR
-# • Deploy from branch → folder /docs — use sync-docs.yml + committed docs/ (not root).
+# Not run on every push — use “Deploy Blod to GitHub Pages” for the live site on main.
+# Run this manually when you want to refresh the editor build on Pages.
 #
-# Do NOT use “Deploy from branch” → / (root): that serves dev index.html (/src/main.tsx).
+# Settings → Pages → Source: GitHub Actions (same slot as Blod — only one site per repo).
 
 name: Deploy GitHub Pages
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -31,6 +28,7 @@ jobs:
         with:
           node-version: "20"
           cache: npm
+          cache-dependency-path: package-lock.json
       - run: npm ci
       - run: npm run build
       - name: Verify production bundle (not dev index)
