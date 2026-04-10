@@ -1,9 +1,10 @@
-# Builds Blod and deploys via GitHub’s official Pages Actions (same stack as “pages build and deployment”).
+# Builds Blod and deploys via GitHub Pages Actions.
 #
-# After first green run: Settings → Pages → Source: GitHub Actions (not “branch”).
-# URL: https://<owner>.github.io/<repo>/
+# Works from:
+#   • Full refrct monorepo (apps/blod + packages/refract-core), or
+#   • Standalone Blod at repo root (vite + package.json) — clones @refrct/core from <owner>/refrct if missing.
 #
-# Only one site per repo — if another workflow also deploys Pages, disable it or they’ll fight.
+# Settings → Pages → Source: GitHub Actions
 
 name: Deploy Blod to GitHub Pages
 
@@ -31,7 +32,7 @@ jobs:
         run: |
           if [ -f apps/blod/package.json ]; then exit 0; fi
           if [ -f vite.config.ts ] && [ -f package.json ]; then exit 0; fi
-          echo "::error::Need apps/blod (monorepo) or a Vite app at repo root."
+          echo "::error::Need apps/blod (monorepo) or a Vite app at repo root (package.json + vite.config.ts)."
           exit 1
 
       - name: Restore packages/refract-core (if missing)
@@ -40,11 +41,34 @@ jobs:
           OWNER: ${{ github.repository_owner }}
         run: |
           set -euo pipefail
-          if [ ! -f apps/blod/package.json ]; then exit 0; fi
+          echo "Cloning @refrct/core from https://github.com/${OWNER}/refrct"
           git clone --depth 1 "https://github.com/${OWNER}/refrct.git" _refrct_src
           mkdir -p packages
           cp -a _refrct_src/packages/refract-core packages/refract-core
           rm -rf _refrct_src
+
+      - name: Point @refrct/core at local package (standalone repos)
+        env:
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          if grep -q '"workspaces"' package.json 2>/dev/null; then
+            echo "Monorepo — npm workspaces resolve @refrct/core"
+            exit 0
+          fi
+          test -f packages/refract-core/package.json || {
+            echo "::error::packages/refract-core missing. Ensure https://github.com/${OWNER}/refrct exists and is public so CI can clone it."
+            exit 1
+          }
+          python3 << 'PY'
+          import json
+          with open("package.json", encoding="utf-8") as f:
+              p = json.load(f)
+          p.setdefault("dependencies", {})
+          p["dependencies"]["@refrct/core"] = "file:./packages/refract-core"
+          with open("package.json", "w", encoding="utf-8") as f:
+              json.dump(p, f, indent=2)
+              f.write("\n")
+          PY
 
       - uses: actions/setup-node@v4
         with:
@@ -53,7 +77,12 @@ jobs:
           cache-dependency-path: package-lock.json
 
       - name: Install
-        run: npm ci
+        run: |
+          if grep -q '"workspaces"' package.json 2>/dev/null; then
+            npm ci
+          else
+            npm install
+          fi
 
       - name: Build Blod (monorepo)
         if: hashFiles('apps/blod/package.json') != ''
