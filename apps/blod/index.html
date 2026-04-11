@@ -14,20 +14,8 @@
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
   </head>
   <body style="margin: 0; background: #070303; color: #e8d6d6">
-    <!-- Full-screen black; faded out in `cinematicCurtain.ts` after load -->
-    <div
-      id="blod-cinematic-curtain"
-      class="blod-cinematic-curtain"
-      aria-hidden="true"
-      style="
-        position: fixed;
-        inset: 0;
-        z-index: 2147483000;
-        background: #000000;
-        opacity: 1;
-        pointer-events: none;
-      "
-    ></div>
+    <!-- Full-screen black + bloodline reveal; finished in `cinematicCurtain.ts` after mount -->
+    <div id="blod-cinematic-curtain" class="blod-cinematic-curtain" aria-hidden="true"></div>
     <div id="root">
       <p style="margin: 0; padding: 1rem; font-family: system-ui, sans-serif; font-size: 14px">
         Loading Blod…
