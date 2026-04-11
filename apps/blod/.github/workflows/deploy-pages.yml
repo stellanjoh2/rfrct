@@ -23,8 +23,12 @@ jobs:
         with:
           node-version: "20"
           cache: npm
+      # Some environments set NODE_ENV=production; npm would then skip devDependencies
+      # and `tsc` / `vite` would be missing for `npm run build`.
       - name: Install dependencies
         run: npm ci
+        env:
+          NODE_ENV: development
       - name: Build
         env:
           VITE_BASE: /blod/
