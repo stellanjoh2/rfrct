@@ -23,7 +23,7 @@ html {
      • Stacked `.blod-section p` use the rhythm token.
      • `h2` uses a larger `margin-top` than `margin-bottom` (more air above titles than below).
      • Intro band uses the same `1.15×` step as symmetric `padding-block` around the opening copy.
-     • Staff grid keeps its own gap; screenshots/concept grids use `--blod-column-gutter`. */
+     • Lore, gallery, and staff portrait grids share `--blod-column-gutter`. */
   --blod-rhythm: clamp(
     calc(2.75rem * var(--blod-layout-scale)),
     5.5vw,
@@ -744,7 +744,7 @@ body {
 
 .blod-staff-grid {
   display: grid;
-  gap: clamp(1.25rem, 2.5vw, 1.75rem);
+  gap: var(--blod-column-gutter);
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
@@ -817,7 +817,7 @@ body {
 
 /* FAQ — accordion rows; same prose width as team; answers narrowed below */
 .blod-section--faq {
-  --blod-faq-staff-gap: clamp(1.25rem, 2.5vw, 1.75rem);
+  --blod-faq-staff-gap: var(--blod-column-gutter);
   text-align: left;
 }
 
