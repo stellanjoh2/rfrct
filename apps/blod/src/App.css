@@ -51,6 +51,17 @@ body {
   line-height: 1.55;
 }
 
+/* Selected text: brand red field, white glyphs (avoids default blue-gray on red body copy). */
+::selection {
+  background-color: var(--blod-brand-red);
+  color: #ffffff;
+}
+
+::-moz-selection {
+  background-color: var(--blod-brand-red);
+  color: #ffffff;
+}
+
 .blod-page {
   position: relative;
 }
