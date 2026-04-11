@@ -29,7 +29,7 @@ import "./App.css";
 export function App() {
   const [devSync, setDevSync] = useState(createDefaultHeroSync);
   const [devImageScale, setDevImageScale] = useState(HERO_DEFAULT_IMAGE_SCALE);
-  const [artPanelOpen, setArtPanelOpen] = useState(true);
+  const [artPanelOpen, setArtPanelOpen] = useState(false);
 
   const activeSync = import.meta.env.DEV ? devSync : LOCKED_HERO_SYNC;
   const heroImageScale = import.meta.env.DEV

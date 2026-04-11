@@ -28,7 +28,9 @@ export function GallerySection({ id, title, images }: Props) {
       className={`blod-section blod-section--gallery${blood ? " blod-section--blood" : ""}`}
     >
       {blood ? (
-        <BlodSectionBloodParallax imageSrc={BLOOD_PARALLAX_URL} side={blood.side} />
+        <div className="blod-section-blood-layer" aria-hidden>
+          <BlodSectionBloodParallax imageSrc={BLOOD_PARALLAX_URL} side={blood.side} />
+        </div>
       ) : null}
       <div className="blod-section-inner blod-section-inner--prose">
         <h2>{title}</h2>

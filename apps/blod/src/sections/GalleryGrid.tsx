@@ -7,19 +7,32 @@ export function GalleryGrid({ images }: Props) {
     <>
       {images.map((src, i) => (
         <figure key={`${src}-${i}`} className="blod-gallery-card">
-          <a
-            className="blod-gallery-card__link lg-item blod-img-hover-tint"
-            href={src}
-          >
-            <img
-              src={src}
-              alt=""
-              loading="lazy"
-              decoding="async"
-              width={800}
-              height={500}
-            />
-          </a>
+          <div className="blod-gallery-card__media-frame">
+            <span className="blod-img-ambilight" aria-hidden>
+              <img
+                className="blod-img-ambilight__img"
+                src={src}
+                alt=""
+                loading="lazy"
+                decoding="async"
+                width={800}
+                height={500}
+              />
+            </span>
+            <a
+              className="blod-gallery-card__link lg-item blod-img-hover-tint"
+              href={src}
+            >
+              <img
+                src={src}
+                alt=""
+                loading="lazy"
+                decoding="async"
+                width={800}
+                height={500}
+              />
+            </a>
+          </div>
         </figure>
       ))}
     </>

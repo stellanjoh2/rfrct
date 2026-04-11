@@ -352,11 +352,20 @@ body {
   background: transparent;
 }
 
-/* Optional parallax blood splatter — behind prose, clipped to section */
+/* Blood splatter is clipped inside `.blod-section-blood-layer` only; section stays
+   overflow:visible so gallery/staff ambilight can bleed past the band without a hard edge */
 .blod-section--blood {
   position: relative;
-  overflow: hidden;
+  overflow: visible;
   isolation: isolate;
+}
+
+.blod-section-blood-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
 }
 
 .blod-section--blood > .blod-section-inner--prose {
@@ -656,18 +665,55 @@ body {
 
 .blod-gallery-card {
   margin: 0;
-  aspect-ratio: 16 / 10;
-  border-radius: 8px;
-  overflow: hidden;
   border: none;
+  background: transparent;
+  overflow: visible;
+}
+
+/* Sharp image + veil live here; glow sits behind and may bleed past the radius */
+.blod-gallery-card__media-frame {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  width: 100%;
+  border-radius: 8px;
   background: #120a0c;
+  overflow: visible;
+}
+
+/* Ambilight: same bitmap, heavily blurred, lights the area behind the card */
+.blod-img-ambilight {
+  position: absolute;
+  inset: -40%;
+  z-index: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.55s ease;
+}
+
+.blod-img-ambilight__img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scale(0.625);
+  filter: blur(clamp(1.85rem, 5.25vw, 3.5rem)) saturate(1.22) brightness(1.14);
+}
+
+.blod-gallery-card:hover .blod-img-ambilight,
+.blod-gallery-card:has(.blod-gallery-card__link:focus-visible) .blod-img-ambilight,
+.blod-staff-card:hover .blod-img-ambilight,
+.blod-staff-card:has(.blod-staff-card__media:focus-visible) .blod-img-ambilight {
+  opacity: 0.29;
 }
 
 .blod-gallery-card__link {
   position: relative;
+  z-index: 1;
   display: block;
   width: 100%;
   height: 100%;
+  overflow: hidden;
+  border-radius: 8px;
   line-height: 0;
   color: inherit;
   text-decoration: none;
@@ -732,6 +778,14 @@ body {
     filter: grayscale(0);
     transition: none;
   }
+
+  .blod-img-ambilight {
+    transition: opacity 0.2s ease;
+  }
+
+  .blod-img-ambilight__img {
+    filter: blur(clamp(1.1rem, 3vw, 2rem)) saturate(1.12) brightness(1.08);
+  }
 }
 
 /* Red multiply veil — fades on hover/focus (gallery + staff). */
@@ -757,7 +811,7 @@ body {
   opacity: 0;
 }
 
-/* Touch: no hover — show full color, no veil, no zoom */
+/* Touch: no hover — show full color, no veil, no zoom, no ambilight */
 @media (hover: none) {
   .blod-gallery-card__link img {
     transform: scale(1);
@@ -769,6 +823,10 @@ body {
 
   .blod-img-hover-tint::after {
     opacity: 0;
+  }
+
+  .blod-img-ambilight {
+    opacity: 0 !important;
   }
 }
 
@@ -793,14 +851,28 @@ body {
 .blod-staff-card {
   margin: 0;
   border-radius: 8px;
-  overflow: hidden;
+  overflow: visible;
   border: none;
   background: #120a0c;
 }
 
+.blod-staff-card__media-frame {
+  position: relative;
+  aspect-ratio: 3 / 4;
+  width: 100%;
+  border-radius: 8px 8px 0 0;
+  background: #120a0c;
+  overflow: visible;
+}
+
 .blod-staff-card__media {
   position: relative;
+  z-index: 1;
   display: block;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: 8px 8px 0 0;
   line-height: 0;
   color: inherit;
   text-decoration: none;
@@ -814,8 +886,7 @@ body {
 .blod-staff-card__media img {
   display: block;
   width: 100%;
-  height: auto;
-  aspect-ratio: 3 / 4;
+  height: 100%;
   object-fit: cover;
   vertical-align: middle;
 }
