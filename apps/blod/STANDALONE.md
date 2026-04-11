@@ -101,7 +101,21 @@ Example dependency:
 
 ---
 
-## 5. Optional: remove `apps/blod` from refrct
+## 5. Deploy from the monorepo only (mirror to `github.com/<you>/blod`)
+
+The refrct repo includes `.github/workflows/push-blod-mirror.yml`. On each push to `main` that touches `apps/blod/` or `packages/refract-core/`, it **git subtree split**s `apps/blod` and **force-pushes** to the **`blod`** repo so `https://<you>.github.io/blod/` stays current—no manual subtree push.
+
+**One-time setup**
+
+1. In the **refrct** repo: **Settings → Secrets and variables → Actions**, add **`BLOD_MIRROR_TOKEN`**: a fine-grained PAT with **Contents: Read and write** on repository **`blod`** only (classic PAT: `repo` scope for that repo is fine).
+2. Ensure your **`blod`** repo has **Settings → Pages → GitHub Actions** and branch **`main`** is allowed for the workflow in `apps/blod/.github/workflows/deploy-pages.yml` (it ships with the mirror).
+3. If `main` on **`blod`** is branch-protected, allow **force push** for the actor that owns the PAT, or the mirror step will fail.
+
+The monorepo’s `.github/workflows/deploy-blod-gh-pages.yml` is **manual-only** so it does not publish a second site under `github.io/<monorepo>/` on every push.
+
+---
+
+## 6. Optional: remove `apps/blod` from refrct
 
 After `blod` and `refract-core` remotes are healthy:
 

@@ -11,11 +11,12 @@
 #   • Set repo variable REFRCT_MONOREPO_REPO if your monorepo slug is not "rfrct".
 #   • Private monorepo: secret REFRCT_CLONE_PAT (Contents: Read), or commit packages/refract-core here.
 
+# Default deploy for https://<user>.github.io/blod/ is the mirror workflow in this monorepo
+# (.github/workflows/push-blod-mirror.yml → stellanjoh2/blod). This job only publishes
+# Blod to THIS repo’s Pages (https://<user>.github.io/<monorepo>/) when run manually.
 name: Deploy Blod to GitHub Pages
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 # Job-level permissions override these; build needs actions:write, deploy needs actions:read for artifacts.
@@ -39,7 +40,7 @@ jobs:
     env:
       REFRCT_MONOREPO_REPO: ${{ vars.REFRCT_MONOREPO_REPO }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Validate layout
         run: |
@@ -96,10 +97,11 @@ jobs:
               f.write("\n")
           PY
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: "22"
           cache: npm
+          cache-dependency-path: package-lock.json
 
       - name: Install
         run: |

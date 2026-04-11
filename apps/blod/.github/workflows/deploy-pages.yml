@@ -18,22 +18,23 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
-          node-version: "20"
+          node-version: "22"
       # Some environments set NODE_ENV=production; npm would then skip devDependencies
       # and `tsc` / `vite` would be missing for `npm run build`.
       - name: Install dependencies
-        run: npm ci
+        run: |
+          if [ -f package-lock.json ]; then npm ci
+          else npm install
+          fi
         env:
           NODE_ENV: development
-      - name: Typecheck
-        run: npx tsc --noEmit --pretty false
-      - name: Vite build
+      - name: Build
         env:
           VITE_BASE: /blod/
-        run: npx vite build
+        run: npm run build
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
@@ -45,5 +46,5 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - uses: actions/deploy-pages@v4
+      - uses: actions/deploy-pages@v5
         id: deployment

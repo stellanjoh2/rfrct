@@ -1,0 +1,69 @@
+# Keeps github.com/<owner>/blod in sync with apps/blod so you only push to this monorepo.
+# Requires secret BLOD_MIRROR_TOKEN: fine-grained PAT with Contents: Read+Write on repo "blod".
+# Optional repo variable BLOD_REPO_NAME if the public site repo is not named "blod".
+
+name: Mirror Blod to Pages repo
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/blod/**"
+      - "packages/refract-core/**"
+      - ".github/workflows/push-blod-mirror.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: mirror-blod
+  cancel-in-progress: true
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Configure git
+        run: |
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+
+      - name: Use standalone package.json for exported repo
+        env:
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          set -euo pipefail
+          python3 <<'PY'
+          import json, os
+          owner = os.environ["OWNER"]
+          with open("apps/blod/package.standalone.json", encoding="utf-8") as f:
+              pkg = json.load(f)
+          pkg["dependencies"]["@refrct/core"] = f"git+https://github.com/{owner}/refract-core.git#main"
+          with open("apps/blod/package.json", "w", encoding="utf-8") as f:
+              json.dump(pkg, f, indent=2)
+              f.write("\n")
+          PY
+          git add apps/blod/package.json
+          if git diff --staged --quiet; then
+            echo "apps/blod/package.json already matches standalone export; skipping commit."
+          else
+            git commit -m "chore(ci): standalone package.json for blod mirror export"
+          fi
+
+      - name: Split apps/blod and push to blod repo
+        env:
+          TOKEN: ${{ secrets.BLOD_MIRROR_TOKEN }}
+          BLOD_REPO_NAME: ${{ vars.BLOD_REPO_NAME }}
+        run: |
+          set -euo pipefail
+          if [ -z "${TOKEN:-}" ]; then
+            echo "::warning::BLOD_MIRROR_TOKEN is not set — skipping mirror push. Add a PAT with Contents: Read+Write on the blod repo so pushes to main update https://${{ github.repository_owner }}.github.io/blod/"
+            exit 0
+          fi
+          OWNER="${{ github.repository_owner }}"
+          REPO_NAME="${BLOD_REPO_NAME:-blod}"
+          git subtree split --prefix=apps/blod -b blod-mirror-split
+          git push --force "https://x-access-token:${TOKEN}@github.com/${OWNER}/${REPO_NAME}.git" blod-mirror-split:main
