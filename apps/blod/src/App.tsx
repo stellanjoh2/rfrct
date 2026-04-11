@@ -2,12 +2,11 @@ import type { RendererSyncSource } from "@refrct/core";
 import {
   useCallback,
   useEffect,
-  useLayoutEffect,
-  useRef,
   useState,
   type CSSProperties,
   type ReactNode,
 } from "react";
+import { BlodGifOverlay } from "./BlodGifOverlay";
 import { BlodLightboxGroup } from "./BlodLightboxGroup";
 import { BlodRefractHero } from "./BlodRefractHero";
 import {
@@ -16,15 +15,13 @@ import {
 } from "./createDefaultHeroSync";
 import { DevBlobControls } from "./DevBlobControls";
 import { BlodScrollReveal } from "./BlodScrollReveal";
+import { BlodTrailer } from "./BlodTrailer";
 import { LOCKED_HERO_SYNC } from "./lockedHeroPreset";
 import { publicUrl } from "./publicUrl";
 import "./App.css";
 
-/** Fixed background for the scroll column — `public/Images/bg.png`. */
-const SCROLL_BG_IMAGE = publicUrl("Images/bg.png");
-
-/** Full-viewport blend overlay — `public/Images/b795fc5853a1f187e92fa83d5aa7c4ba.gif`. */
-const SITE_BLEND_GIF = publicUrl("Images/b795fc5853a1f187e92fa83d5aa7c4ba.gif");
+/** Fixed background for the scroll column — `public/Images/bg.jpg`. */
+const SCROLL_BG_IMAGE = publicUrl("Images/bg.jpg");
 
 const GALLERY_IMG_A = publicUrl("Images/photo-1594662234267-f47effc265a4.avif");
 const GALLERY_IMG_B = publicUrl("Images/photo-1487174244970-cd18784bb4a4.avif");
@@ -219,12 +216,6 @@ export function App() {
   const [devSync, setDevSync] = useState(createDefaultHeroSync);
   const [devImageScale, setDevImageScale] = useState(HERO_DEFAULT_IMAGE_SCALE);
   const [artPanelOpen, setArtPanelOpen] = useState(true);
-  const faqFirstDetailsRef = useRef<HTMLDetailsElement>(null);
-
-  useLayoutEffect(() => {
-    const el = faqFirstDetailsRef.current;
-    if (el) el.open = true;
-  }, []);
 
   const activeSync = import.meta.env.DEV ? devSync : LOCKED_HERO_SYNC;
   const heroImageScale = import.meta.env.DEV
@@ -285,6 +276,8 @@ export function App() {
         />
       </div>
 
+      <BlodGifOverlay />
+
       <div className="blod-scroll">
         <div className="blod-hero-spacer" aria-hidden />
         <div
@@ -309,6 +302,8 @@ export function App() {
                 </p>
               </div>
             </section>
+
+            <BlodTrailer />
 
             <section
               id="screenshots"
@@ -372,12 +367,9 @@ export function App() {
               <div className="blod-section-inner blod-section-inner--prose">
                 <h2>FAQ</h2>
                 <ul className="blod-faq-list">
-                  {FAQ_ITEMS.map((item, index) => (
+                  {FAQ_ITEMS.map((item) => (
                     <li key={item.question} className="blod-faq-list__item">
-                      <details
-                        ref={index === 0 ? faqFirstDetailsRef : undefined}
-                        className="blod-faq-item"
-                      >
+                      <details className="blod-faq-item">
                         <summary className="blod-faq__question">
                           {item.question}
                         </summary>
@@ -397,19 +389,6 @@ export function App() {
               </div>
             </footer>
           </BlodScrollReveal>
-        </div>
-      </div>
-
-      <div className="blod-site-blend-gif" aria-hidden="true">
-        <div className="blod-site-blend-gif__stack">
-          <div className="blod-site-blend-gif__red" />
-          <img
-            src={SITE_BLEND_GIF}
-            alt=""
-            width={1920}
-            height={1080}
-            decoding="async"
-          />
         </div>
       </div>
     </div>

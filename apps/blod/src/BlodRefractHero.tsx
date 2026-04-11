@@ -15,6 +15,15 @@ import {
   useState,
   type PointerEvent as ReactPointerEvent,
 } from "react";
+import { publicUrl } from "./publicUrl";
+
+/** `public/Images/Crimson_Sleeve_Logo_Black.png` — white artwork on transparent (Vite `base`). */
+const HERO_FLASH_LOGO_URL = publicUrl("Images/Crimson_Sleeve_Logo_Black.png");
+
+/** CSS px: shift underlay toward bottom of letterbox; scaled by canvas backing vs client size. */
+const HERO_FLASH_OFFSET_DOWN_CSS_PX = 50;
+/** vs default contain-fit in the shader (1.5 × 1.25) */
+const HERO_FLASH_SCALE = 1.875;
 
 type Props = {
   syncSource: RendererSyncSource;
@@ -35,6 +44,8 @@ export function BlodRefractHero({
   const wrapRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<RefractRenderer | null>(null);
   const [imgDims, setImgDims] = useState<{ w: number; h: number } | null>(null);
+  /** Natural size of hero flash PNG (GPU underlay, same distorted UV as SVG). */
+  const underlayDimsRef = useRef<{ w: number; h: number } | null>(null);
   const [viewportPx, setViewportPx] = useState({ w: 0, h: 0 });
   const imageScaleRef = useRef(imageScale);
   imageScaleRef.current = imageScale;
@@ -61,6 +72,52 @@ export function BlodRefractHero({
     };
   }, [syncSource.blobCenterX, syncSource.blobCenterY]);
 
+  /**
+   * Once per wall-clock second: two one-frame flashes with one blank frame between
+   * (on → off → on → off).
+   */
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    let rafId = 0;
+    let lastSec = Math.floor(performance.now() / 1000);
+
+    const tick = (now: number) => {
+      const sec = Math.floor(now / 1000);
+      if (sec !== lastSec) {
+        lastSec = sec;
+        const r = rendererRef.current;
+        if (!r || !underlayDimsRef.current) {
+          rafId = requestAnimationFrame(tick);
+          return;
+        }
+        const canvas = canvasRef.current;
+        if (!canvas || canvas.width < 1) {
+          rafId = requestAnimationFrame(tick);
+          return;
+        }
+        r.underlayOpacity = 1;
+        requestAnimationFrame(() => {
+          const r0 = rendererRef.current;
+          if (r0) r0.underlayOpacity = 0;
+          requestAnimationFrame(() => {
+            const r1 = rendererRef.current;
+            if (r1) r1.underlayOpacity = 1;
+            requestAnimationFrame(() => {
+              const r2 = rendererRef.current;
+              if (r2) r2.underlayOpacity = 0;
+            });
+          });
+        });
+      }
+      rafId = requestAnimationFrame(tick);
+    };
+
+    rafId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafId);
+  }, []);
+
   useEffect(() => {
     if (!syncSource.lensMouseInput) return;
     const p = blobCenterRef.current;
@@ -72,7 +129,9 @@ export function BlodRefractHero({
   const syncLayout = useCallback(() => {
     const canvas = canvasRef.current;
     const r = rendererRef.current;
-    if (!canvas || !r || !imgDims) return;
+    if (!canvas || !r || !imgDims) {
+      return;
+    }
     const base = computeImageRect(
       canvas.width,
       canvas.height,
@@ -90,6 +149,16 @@ export function BlodRefractHero({
       naturalWidth: imgDims.w,
       naturalHeight: imgDims.h,
     };
+    const ud = underlayDimsRef.current;
+    if (ud) {
+      const clientH = Math.max(1, canvas.clientHeight);
+      const offsetDownBackingPx =
+        HERO_FLASH_OFFSET_DOWN_CSS_PX * (canvas.height / clientH);
+      r.syncUnderlayLayout(canvas.width, canvas.height, rect, ud.w, ud.h, {
+        scale: HERO_FLASH_SCALE,
+        offsetDownBackingPx,
+      });
+    }
   }, [imgDims]);
 
   useEffect(() => {
@@ -214,9 +283,40 @@ export function BlodRefractHero({
         ...syncSource,
         blobCenterX: bc.x,
         blobCenterY: bc.y,
+        transparentSceneDomUnderlay: true,
       }),
     );
   }, [syncSource]);
+
+  /** Upload flash bitmap to GPU underlay (composited in fragment shader behind SVG). */
+  useEffect(() => {
+    let cancelled = false;
+    const img = new Image();
+    if (!HERO_FLASH_LOGO_URL.startsWith("blob:") && !HERO_FLASH_LOGO_URL.startsWith("data:")) {
+      img.crossOrigin = "anonymous";
+    }
+    img.onload = () => {
+      if (cancelled) return;
+      underlayDimsRef.current = {
+        w: img.naturalWidth,
+        h: img.naturalHeight,
+      };
+      rendererRef.current?.setUnderlayFromSource(img);
+    };
+    img.onerror = () => {
+      underlayDimsRef.current = null;
+      rendererRef.current?.clearUnderlay();
+    };
+    img.src = HERO_FLASH_LOGO_URL;
+    return () => {
+      cancelled = true;
+      img.onload = null;
+      img.onerror = null;
+      img.src = "";
+      underlayDimsRef.current = null;
+      rendererRef.current?.clearUnderlay();
+    };
+  }, []);
 
   useEffect(() => {
     if (!syncSource.lensMouseInput) return;

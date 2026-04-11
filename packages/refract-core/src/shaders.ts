@@ -14,6 +14,12 @@ uniform vec4 u_bgColor;
 uniform vec4 u_imageRect;
 uniform sampler2D u_image;
 uniform float u_hasImage;
+/** Optional second bitmap (e.g. hero flash), same letterbox as u_image; sampled at distorted UV. */
+uniform sampler2D u_underlay;
+uniform float u_underlayActive;
+uniform float u_underlayOpacity;
+/** Local-cell contain-fit: offset (xy) and size (zw) in 0–1 cell space (origin bottom-left). */
+uniform vec4 u_underlayCell;
 /** 1 = scene composites over a transparent canvas (e.g. YouTube behind); enables RGBA output. */
 uniform float u_transparentSceneBg;
 /** VJ: tile & scroll logo texture vertically in image UV (0/1). */
@@ -280,6 +286,23 @@ vec4 sampleSceneTex(vec2 uv) {
     }
   }
   return vec4(rgb, tex.a);
+}
+
+/** Underlay bitmap (no SVG tint), contain-mapped inside the image letterbox; same UV as scene. */
+vec4 sampleUnderlayTex(vec2 uv) {
+  if (u_underlayActive < 0.5) {
+    return vec4(0.0);
+  }
+  vec2 local = (uv - u_imageRect.xy) / u_imageRect.zw;
+  if (local.x < 0.0 || local.x > 1.0 || local.y < 0.0 || local.y > 1.0) {
+    return vec4(0.0);
+  }
+  float uTex = (local.x - u_underlayCell.x) / max(u_underlayCell.z, 1e-6);
+  float vTex = (local.y - u_underlayCell.y) / max(u_underlayCell.w, 1e-6);
+  if (uTex < 0.0 || uTex > 1.0 || vTex < 0.0 || vTex > 1.0) {
+    return vec4(0.0);
+  }
+  return texture(u_underlay, vec2(uTex, vTex));
 }
 
 /**
@@ -609,6 +632,17 @@ void main() {
     vec4 rgba = sampleSceneChromaRGBA(uvR, chromaSpread, frostPx);
     col = rgba.rgb;
     outA = rgba.a;
+    /** Scene (SVG) over underlay — same distorted UV as main texture so refraction + filterGlass apply. */
+    if (u_underlayActive > 0.5 && u_underlayOpacity > 1e-5) {
+      vec4 bot = sampleUnderlayTex(uvR);
+      bot.a *= u_underlayOpacity;
+      vec4 tp = vec4(col * outA, outA);
+      vec4 bp = vec4(bot.rgb * bot.a, bot.a);
+      vec4 comp = tp + bp * (1.0 - tp.a);
+      float denom = max(comp.a, 1e-5);
+      col = comp.rgb / denom;
+      outA = comp.a;
+    }
   } else {
     col = sampleSceneChroma(uvR, chromaSpread, frostPx);
     outA = 1.0;

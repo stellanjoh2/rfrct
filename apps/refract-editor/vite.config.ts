@@ -6,4 +6,10 @@ import react from "@vitejs/plugin-react";
 export default defineConfig(({ command }) => ({
   plugins: [react()],
   base: command === "serve" ? "/" : "./",
+  server: {
+    // Avoid some browsers resolving "localhost" to IPv4 while Node only listens on IPv6.
+    host: "127.0.0.1",
+    port: 5173,
+    strictPort: true,
+  },
 }));

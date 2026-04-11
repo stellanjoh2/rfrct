@@ -22,7 +22,13 @@ export {
   type RendererSyncSource,
 } from "./applyRendererState";
 
-export { applyPanToRect, computeImageRect, type ImageRect } from "./layout";
+export {
+  applyPanToRect,
+  computeImageRect,
+  computeUnderlayContainCell,
+  type ImageRect,
+  type UnderlayContainOptions,
+} from "./layout";
 
 export {
   computeSvgRasterDimensions,

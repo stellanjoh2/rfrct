@@ -1,5 +1,8 @@
 import React, { Component, type ErrorInfo, type ReactNode } from "react";
 import ReactDOM from "react-dom/client";
+import { applyBlodBrandCssVars } from "./brandColor";
+
+applyBlodBrandCssVars();
 
 class RootErrorBoundary extends Component<
   { children: ReactNode },

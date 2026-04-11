@@ -1,4 +1,5 @@
 import type { RendererSyncSource } from "@refrct/core";
+import { BLOD_BRAND_RED } from "./brandColor";
 import { publicUrl } from "./publicUrl";
 
 /**
@@ -9,7 +10,11 @@ export const HERO_DEFAULT_SVG_URL = publicUrl("Images/blood.svg");
 /** Default SVG / image zoom; not part of `RendererSyncSource` (matches refrct-editor `imageScale`). */
 export const HERO_DEFAULT_IMAGE_SCALE = 0.9;
 
-/** Starting point for hero art direction; tweak in dev, then copy into `lockedHeroPreset.ts`. */
+/**
+ * Starting point for hero art direction (`LOCKED_HERO_SYNC`).
+ * Sync fields match art-direction export `blodArtDirectionExportVersion: 1` (2026-04-11);
+ * `svgSourceUrl` stays the bundled `HERO_DEFAULT_SVG_URL`, not a dev `blob:` URL.
+ */
 export function createDefaultHeroSync(): RendererSyncSource {
   return {
     bgHex: "#000000",
@@ -20,9 +25,9 @@ export function createDefaultHeroSync(): RendererSyncSource {
     waveAmp: 0.16,
     refract: 0.135,
     edgeSoft: 0.072,
-    frostBlur: 1.75,
+    frostBlur: 0,
     blurQuality: 1,
-    chroma: 0.54,
+    chroma: 0.17,
     shapeMode: 0,
     filterMode: 3,
     filterStrength: 0.14,
@@ -30,12 +35,12 @@ export function createDefaultHeroSync(): RendererSyncSource {
     filterMotionSpeed: 1,
     blobCenterX: 0.72,
     blobCenterY: 0,
-    bloomStrength: 0.85,
-    bloomRadius: 0.95,
-    bloomThreshold: 0.1,
+    bloomStrength: 2.25,
+    bloomRadius: 1.25,
+    bloomThreshold: 0.4,
     svgSourceUrl: HERO_DEFAULT_SVG_URL,
     svgTintMode: "replace",
-    svgTintHex: "#8a0000",
+    svgTintHex: BLOD_BRAND_RED,
     micDrivingRefraction: false,
     micRefractBoost: 0.65,
     micEnvelope: 0,

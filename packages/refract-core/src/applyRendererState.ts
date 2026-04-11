@@ -129,6 +129,11 @@ export type RendererSyncSource = {
   vjPathSpeed: number;
   /** Fullscreen YouTube embed behind the canvas (transparent WebGL pass-through). */
   youtubeEmbedActive: boolean;
+  /**
+   * Same RGBA composite as `youtubeEmbedActive`: canvas can be transparent where the scene
+   * texture is transparent so a DOM layer behind the canvas shows through (e.g. hero flash).
+   */
+  transparentSceneDomUnderlay?: boolean;
   /** VJ glass neon: off | tint | duotone */
   vjGlassGradeMode: "off" | "tint" | "duotone";
   vjGlassNeonAHex: string;
@@ -153,7 +158,8 @@ export type RendererSyncSource = {
 export function buildRendererSyncParams(
   s: RendererSyncSource,
 ): RendererSyncParams {
-  const transparentSceneBg = s.youtubeEmbedActive;
+  const transparentSceneBg =
+    s.youtubeEmbedActive || Boolean(s.transparentSceneDomUnderlay);
   const bg = transparentSceneBg
     ? ([0, 0, 0, 0] as [number, number, number, number])
     : parseHexColor(s.bgHex);

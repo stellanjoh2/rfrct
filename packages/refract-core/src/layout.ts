@@ -40,3 +40,46 @@ export function applyPanToRect(
     h: rect.h,
   };
 }
+
+export type UnderlayContainOptions = {
+  /** Linear scale vs default contain (e.g. 1.5 = 50% larger on each axis). */
+  scale?: number;
+  /**
+   * Positive moves the artwork toward the bottom of the letterbox (backing-store pixels in the
+   * cell — use `cssPx * (canvas.height / canvas.clientHeight)` for CSS px).
+   */
+  offsetDownBackingPx?: number;
+};
+
+/**
+ * Contain-fit `underlayW`×`underlayH` inside the on-screen image letterbox `rect`, in **local
+ * cell** coordinates (0–1 across the rect, origin bottom-left). Used to map screen UV into an
+ * underlay texture the same way CSS `object-fit: contain` centers a bitmap in the hero cell.
+ */
+export function computeUnderlayContainCell(
+  canvasW: number,
+  canvasH: number,
+  rect: ImageRect,
+  underlayW: number,
+  underlayH: number,
+  options?: UnderlayContainOptions,
+): { ox: number; oy: number; sw: number; sh: number } {
+  const cellW = rect.w * canvasW;
+  const cellH = rect.h * canvasH;
+  if (cellW <= 0 || cellH <= 0 || underlayW <= 0 || underlayH <= 0) {
+    return { ox: 0, oy: 0, sw: 1, sh: 1 };
+  }
+  const scale = Math.max(1e-6, options?.scale ?? 1);
+  const offsetDown = options?.offsetDownBackingPx ?? 0;
+  const s = Math.min(cellW / underlayW, cellH / underlayH) * scale;
+  const dw = underlayW * s;
+  const dh = underlayH * s;
+  let x0 = (cellW - dw) * 0.5;
+  let y0 = (cellH - dh) * 0.5 - offsetDown;
+  return {
+    ox: x0 / cellW,
+    oy: y0 / cellH,
+    sw: dw / cellW,
+    sh: dh / cellH,
+  };
+}

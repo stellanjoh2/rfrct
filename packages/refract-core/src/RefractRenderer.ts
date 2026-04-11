@@ -15,6 +15,11 @@ import type {
   ImageLayout,
   SvgTintParams,
 } from "./types";
+import {
+  computeUnderlayContainCell,
+  type ImageRect,
+  type UnderlayContainOptions,
+} from "./layout";
 import { compileShader, linkProgram } from "./webgl";
 
 export type {
@@ -57,6 +62,7 @@ export class RefractRenderer {
   private readonly bloomPipeline: BloomPipeline;
   private readonly vao: WebGLVertexArrayObject;
   private readonly texture: WebGLTexture;
+  private readonly underlayTexture: WebGLTexture;
   private readonly locs: Record<string, WebGLUniformLocation | null> = {};
   private raf = 0;
   /** Monotonic shader time (seconds); advances by dt × speed so pause does not reset phase. */
@@ -68,6 +74,11 @@ export class RefractRenderer {
 
   /** Last uploaded bitmap for re-texImage2D after canvas resize (export can invalidate GPU texture). */
   private texImageSource: TexImageSource | null = null;
+  /** Optional hero underlay (e.g. flash logo); composited in shader behind the SVG, same distorted UV. */
+  private underlayTexSource: TexImageSource | null = null;
+  private underlayCell = { ox: 0, oy: 0, sw: 1, sh: 1 };
+  /** 0–1; brief pulses for one-frame flash (driven by app). */
+  underlayOpacity = 0;
 
   /** Prevents overlapping exports from fighting over canvas dimensions / suppressAnimationDraw. */
   private exportInProgress = false;
@@ -125,6 +136,8 @@ export class RefractRenderer {
   private readonly detailNormalTex: WebGLTexture;
   /** True after `14487-normal` (or fallback) is uploaded to GPU. */
   private detailNormalReady = false;
+  /** Set true in `destroy()` so async image callbacks skip GL calls after teardown. */
+  private disposed = false;
 
   /** VJ texture tiling (0/1); applied in fragment shader when image exists. */
   vjDupVertical = 0;
@@ -173,6 +186,10 @@ export class RefractRenderer {
       "u_imageRect",
       "u_image",
       "u_hasImage",
+      "u_underlay",
+      "u_underlayActive",
+      "u_underlayOpacity",
+      "u_underlayCell",
       "u_transparentSceneBg",
       "u_blobCenter",
       "u_blobRadius",
@@ -224,6 +241,24 @@ export class RefractRenderer {
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 
+    this.underlayTexture = gl.createTexture()!;
+    gl.bindTexture(gl.TEXTURE_2D, this.underlayTexture);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texImage2D(
+      gl.TEXTURE_2D,
+      0,
+      gl.RGBA,
+      1,
+      1,
+      0,
+      gl.RGBA,
+      gl.UNSIGNED_BYTE,
+      new Uint8Array([0, 0, 0, 0]),
+    );
+
     this.detailNormalTex = gl.createTexture()!;
     gl.bindTexture(gl.TEXTURE_2D, this.detailNormalTex);
     const neutralNormal = new Uint8Array([128, 128, 255, 255]);
@@ -246,6 +281,7 @@ export class RefractRenderer {
     gl.useProgram(this.program);
     gl.uniform1i(this.locs.u_image, 0);
     gl.uniform1i(this.locs.u_detailNormal, 1);
+    gl.uniform1i(this.locs.u_underlay, 2);
 
     this.onVisibilityChange = () => {
       if (!document.hidden) {
@@ -261,6 +297,7 @@ export class RefractRenderer {
     const img = new Image();
     img.crossOrigin = "anonymous";
     img.onload = () => {
+      if (this.disposed) return;
       const gl = this.gl;
       const w = img.naturalWidth;
       const h = img.naturalHeight;
@@ -294,6 +331,7 @@ export class RefractRenderer {
     source: TexImageSource,
     layout: ImageLayout,
   ) {
+    if (this.disposed) return;
     const gl = this.gl;
     this.texImageSource = source;
     this.imageLayout = layout;
@@ -312,12 +350,77 @@ export class RefractRenderer {
   }
 
   clearImage() {
+    if (this.disposed) return;
     this.texImageSource = null;
     this.imageLayout = null;
     this.texAspect = 1;
   }
 
+  /**
+   * Optional bitmap drawn **under** the SVG in the fragment shader (premultiplied over), using
+   * the same distorted UV as the main texture so refraction, `filterGlass`, frost, and chroma match.
+   */
+  setUnderlayFromSource(source: TexImageSource) {
+    if (this.disposed) return;
+    const gl = this.gl;
+    this.underlayTexSource = source;
+    gl.bindTexture(gl.TEXTURE_2D, this.underlayTexture);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, source);
+    const { w, h } = textureDimensions(source);
+    if (isPowerOfTwo(w) && isPowerOfTwo(h)) {
+      gl.generateMipmap(gl.TEXTURE_2D);
+      gl.texParameteri(
+        gl.TEXTURE_2D,
+        gl.TEXTURE_MIN_FILTER,
+        gl.LINEAR_MIPMAP_LINEAR,
+      );
+    } else {
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    }
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+  }
+
+  clearUnderlay() {
+    if (this.disposed) return;
+    const gl = this.gl;
+    this.underlayTexSource = null;
+    gl.bindTexture(gl.TEXTURE_2D, this.underlayTexture);
+    gl.texImage2D(
+      gl.TEXTURE_2D,
+      0,
+      gl.RGBA,
+      1,
+      1,
+      0,
+      gl.RGBA,
+      gl.UNSIGNED_BYTE,
+      new Uint8Array([0, 0, 0, 0]),
+    );
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  }
+
+  /** Maps underlay texture UVs with contain-fit inside the same letterbox `rect` as the main image. */
+  syncUnderlayLayout(
+    canvasW: number,
+    canvasH: number,
+    rect: ImageRect,
+    underlayW: number,
+    underlayH: number,
+    options?: UnderlayContainOptions,
+  ) {
+    this.underlayCell = computeUnderlayContainCell(
+      canvasW,
+      canvasH,
+      rect,
+      underlayW,
+      underlayH,
+      options,
+    );
+  }
+
   resize(width: number, height: number) {
+    if (this.disposed) return;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const w = Math.max(1, Math.floor(width * dpr));
     const h = Math.max(1, Math.floor(height * dpr));
@@ -333,6 +436,8 @@ export class RefractRenderer {
     gl.bindVertexArray(this.vao);
     gl.activeTexture(gl.TEXTURE1);
     gl.bindTexture(gl.TEXTURE_2D, this.detailNormalTex);
+    gl.activeTexture(gl.TEXTURE2);
+    gl.bindTexture(gl.TEXTURE_2D, this.underlayTexture);
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, this.texture);
 
@@ -343,6 +448,18 @@ export class RefractRenderer {
     gl.uniform4f(this.locs.u_bgColor, ...this.bgColor);
     gl.uniform4f(this.locs.u_imageRect, rect.x, rect.y, rect.w, rect.h);
     gl.uniform1f(this.locs.u_hasImage, hasImage);
+    gl.uniform1f(
+      this.locs.u_underlayActive,
+      this.underlayTexSource ? 1 : 0,
+    );
+    gl.uniform1f(this.locs.u_underlayOpacity, this.underlayOpacity);
+    gl.uniform4f(
+      this.locs.u_underlayCell,
+      this.underlayCell.ox,
+      this.underlayCell.oy,
+      this.underlayCell.sw,
+      this.underlayCell.sh,
+    );
     gl.uniform1f(
       this.locs.u_transparentSceneBg,
       this.transparentSceneBg ? 1 : 0,
@@ -430,6 +547,9 @@ export class RefractRenderer {
   }
 
   private drawFrame = (opts?: { skipHiddenCheck?: boolean }) => {
+    if (this.disposed) {
+      return;
+    }
     if (this.suppressAnimationDraw) {
       return;
     }
@@ -510,7 +630,36 @@ export class RefractRenderer {
 
   /** Public hook after layout sync when the canvas backing size changes (not on every pan). */
   reuploadTextureIfNeeded(): void {
+    if (this.disposed) return;
     this.reuploadImageTexture();
+    this.reuploadUnderlayTexture();
+  }
+
+  private reuploadUnderlayTexture(): void {
+    if (!this.underlayTexSource) return;
+    const gl = this.gl;
+    gl.bindTexture(gl.TEXTURE_2D, this.underlayTexture);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+    gl.texImage2D(
+      gl.TEXTURE_2D,
+      0,
+      gl.RGBA,
+      gl.RGBA,
+      gl.UNSIGNED_BYTE,
+      this.underlayTexSource,
+    );
+    const { w, h } = textureDimensions(this.underlayTexSource);
+    if (isPowerOfTwo(w) && isPowerOfTwo(h)) {
+      gl.generateMipmap(gl.TEXTURE_2D);
+      gl.texParameteri(
+        gl.TEXTURE_2D,
+        gl.TEXTURE_MIN_FILTER,
+        gl.LINEAR_MIPMAP_LINEAR,
+      );
+    } else {
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    }
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
   }
 
   /**
@@ -521,7 +670,7 @@ export class RefractRenderer {
    * edge pixels may differ slightly from a raw framebuffer read (intentional for cleaner edges).
    */
   exportPng(params: PngExportParams, basename = "refrct", onComplete?: () => void): void {
-    if (this.exportInProgress) {
+    if (this.disposed || this.exportInProgress) {
       return;
     }
     this.exportInProgress = true;
@@ -606,6 +755,7 @@ export class RefractRenderer {
   }
 
   destroy() {
+    this.disposed = true;
     this.stopLoop();
     if (this.onVisibilityChange) {
       document.removeEventListener("visibilitychange", this.onVisibilityChange);
@@ -614,6 +764,7 @@ export class RefractRenderer {
     this.gl.disable(this.gl.BLEND);
     this.bloomPipeline.dispose();
     this.gl.deleteTexture(this.detailNormalTex);
+    this.gl.deleteTexture(this.underlayTexture);
     this.gl.deleteTexture(this.texture);
     this.gl.deleteVertexArray(this.vao);
     this.gl.deleteProgram(this.program);

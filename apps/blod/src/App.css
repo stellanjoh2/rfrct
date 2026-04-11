@@ -6,13 +6,22 @@
 
 html {
   scroll-behavior: smooth;
+  /* Avoid horizontal scroll from full-bleed `100vw` shell caps (scrollbar vs vw). */
+  overflow-x: clip;
+  /* Brand palette — set from `brandColor.ts` via `applyBlodBrandCssVars()` in main.tsx */
+  --blod-brand-red: #b6262b;
+  --blod-brand-red-hover: #d14a50;
+  --blod-brand-bone: #e8e4dc;
+  /* Section rhythm: single step + double “lead” (same as intro top/bottom inset) */
+  --blod-section-pad-y: clamp(3rem, 6vw, 5rem);
+  --blod-section-lead-y: calc(var(--blod-section-pad-y) * 2);
 }
 
 body {
   margin: 0;
   min-height: 100vh;
   background: #070303;
-  color: #e8d6d6;
+  color: var(--blod-brand-bone);
   font-family: "Bageshron", Georgia, "Times New Roman", serif;
   /* Fluid base: comfortable on mobile, caps near previous desktop size */
   font-size: clamp(1.125rem, 2.8vw + 0.65rem, 36pt);
@@ -21,48 +30,6 @@ body {
 
 .blod-page {
   position: relative;
-}
-
-/* Full-screen GIF: multiply vs brand red, then screen over the page (pointer-events pass through). */
-.blod-site-blend-gif {
-  position: fixed;
-  inset: 0;
-  z-index: 2;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  mix-blend-mode: screen;
-}
-
-.blod-site-blend-gif__stack {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  isolation: isolate;
-}
-
-.blod-site-blend-gif__red {
-  position: absolute;
-  inset: 0;
-  background: #8a0000;
-}
-
-.blod-site-blend-gif__stack img {
-  display: block;
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: center;
-  mix-blend-mode: multiply;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .blod-site-blend-gif {
-    display: none;
-  }
 }
 
 /* Full-viewport refraction layer; page content scrolls over it. */
@@ -83,7 +50,42 @@ body {
   background: #070303;
 }
 
+/* Hero flash is GPU underlay (see RefractRenderer) — composited behind SVG with same refraction + filter. */
+
+/* Full-viewport GIF — fixed to the viewport. Blend mode on the *wrapper* (not only the img)
+   so WebKit composites additively against the page; opaque GIFs still need img opacity below 1
+   or they will read as a solid sheet. */
+.blod-gif-overlay {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  z-index: 2;
+  pointer-events: none;
+  overflow: hidden;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  mix-blend-mode: var(--blod-gif-overlay-blend-mode, plus-lighter);
+}
+
+.blod-gif-overlay__img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* Required for typical opaque GIFs — tune 0.35–0.65. Wrapper opacity would dim the whole page. */
+  opacity: var(--blod-gif-overlay-img-opacity, 0.5);
+  mix-blend-mode: normal;
+}
+
 .blod-hero__canvas {
+  position: relative;
+  z-index: 1;
+  background: transparent;
   display: block;
   width: 100%;
   height: 100%;
@@ -103,8 +105,13 @@ body {
   pointer-events: none;
 }
 
-/* Viewport-fixed bg. Can stutter next to the fixed WebGL hero — tune later if needed. */
+/* Scroll column: solid black mid; full-bleed texture top & bottom, soft fade into black.
+   Taller caps show more vertical range of the tall bg art; gradients keep texture visible for most of each cap. */
 .blod-page-shell {
+  --blod-shell-cap-h: clamp(18rem, 48vh, 44rem);
+  /* Native width of `public/Images/bg.jpg` (cap avoids upscaling past this bitmap width). */
+  --blod-shell-bg-master-w: 3840px;
+  position: relative;
   width: 100%;
   max-width: none;
   margin-inline: 0;
@@ -112,23 +119,88 @@ body {
   box-sizing: border-box;
   pointer-events: auto;
   background-color: #070303;
-  background-image: var(--blod-shell-bg-image, none);
-  background-size: cover;
-  background-position: center top;
-  background-attachment: fixed;
-  background-repeat: no-repeat;
+}
+
+/* Top: texture; gentle fade only on the inner (lower) edge toward page body. */
+.blod-page-shell::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100vw;
+  top: 0;
+  z-index: 0;
+  height: var(--blod-shell-cap-h);
+  pointer-events: none;
+  background-image:
+    linear-gradient(
+      to bottom,
+      transparent 0%,
+      transparent 52%,
+      rgba(7, 3, 3, 0.1) 66%,
+      rgba(7, 3, 3, 0.28) 78%,
+      rgba(7, 3, 3, 0.52) 88%,
+      rgba(7, 3, 3, 0.78) 95%,
+      #070303 100%
+    ),
+    var(--blod-shell-bg-image, none);
+  background-repeat: no-repeat, no-repeat;
+  background-position:
+    center,
+    top center;
+  background-size:
+    100% 100%,
+    min(100vw, var(--blod-shell-bg-master-w)) auto;
+}
+
+/* Bottom: same asset; gentle fade on inner (upper) edge toward page body. */
+.blod-page-shell::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100vw;
+  bottom: 0;
+  z-index: 0;
+  height: var(--blod-shell-cap-h);
+  pointer-events: none;
+  background-image:
+    linear-gradient(
+      to top,
+      transparent 0%,
+      transparent 52%,
+      rgba(7, 3, 3, 0.1) 66%,
+      rgba(7, 3, 3, 0.28) 78%,
+      rgba(7, 3, 3, 0.52) 88%,
+      rgba(7, 3, 3, 0.78) 95%,
+      #070303 100%
+    ),
+    var(--blod-shell-bg-image, none);
+  background-repeat: no-repeat, no-repeat;
+  background-position:
+    center,
+    bottom center;
+  background-size:
+    100% 100%,
+    min(100vw, var(--blod-shell-bg-master-w)) auto;
+}
+
+.blod-page-shell > .blod-scroll-reveal {
+  position: relative;
+  z-index: 1;
 }
 
 .blod-section {
-  --blod-section-pad-y: clamp(3rem, 6vw, 5rem);
-  padding-block: var(--blod-section-pad-y);
+  padding-top: var(--blod-section-lead-y);
+  padding-bottom: var(--blod-section-pad-y);
   padding-inline: 0;
   background: transparent;
 }
 
-/* Extra top inset: one full section rhythm (same token as padding-block) below the black edge */
+/* Intro: lead above and below the big body copy (mirrors default “before content” inset) */
 .blod-section--intro {
-  padding-top: calc(var(--blod-section-pad-y) * 2);
+  padding-top: var(--blod-section-lead-y);
+  padding-bottom: var(--blod-section-lead-y);
 }
 
 /* Single main column: intro, gallery, team share the same max-width */
@@ -146,7 +218,7 @@ body {
   font-size: clamp(2rem, 5vw + 1rem, 64pt);
   font-weight: 400;
   line-height: 1.12;
-  color: #8a0000;
+  color: var(--blod-brand-red);
   letter-spacing: 0.04em;
 }
 
@@ -154,7 +226,7 @@ body {
   margin: 0 0 1.25rem;
   font-family: "Bageshron", Georgia, "Times New Roman", serif;
   line-height: 1.55;
-  color: #8a0000;
+  color: var(--blod-brand-red);
   font-size: clamp(1.125rem, 2.8vw + 0.65rem, 36pt);
   width: 100%;
   min-width: 0;
@@ -182,10 +254,127 @@ body {
   letter-spacing: 0.02em;
 }
 
+/* Trailer band: full-width art + fixed attachment (parallax); inner column centers the 16:9 frame.
+   Symmetric vertical padding (overrides generic section lead top / single bottom — no headline slot). */
+.blod-section--trailer {
+  --blod-section-pad-y: clamp(4rem, 11vw, 7.5rem);
+  position: relative;
+  z-index: 0;
+  width: 100%;
+  max-width: none;
+  margin-inline: 0;
+  padding-top: var(--blod-section-pad-y);
+  padding-bottom: var(--blod-section-pad-y);
+  background-color: #070303;
+  background-image: var(--blod-trailer-bg-image, none);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+}
+
+.blod-section-inner--trailer {
+  position: relative;
+  z-index: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .blod-section--trailer {
+    background-attachment: scroll;
+  }
+}
+
+/* 16:9 trailer — multiply lifts only when hovering the play control (not the whole frame) */
+.blod-section--trailer .blod-trailer {
+  width: 100%;
+  min-width: 0;
+}
+
+.blod-trailer__frame {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #120a0c;
+  isolation: isolate;
+  box-shadow:
+    0 16px 56px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(42, 21, 24, 0.55);
+}
+
+.blod-trailer__video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.blod-trailer__tint {
+  position: absolute;
+  inset: 0;
+  background: var(--blod-brand-red);
+  mix-blend-mode: multiply;
+  opacity: 0.88;
+  transition: opacity 0.35s ease;
+  pointer-events: none;
+}
+
+.blod-trailer__frame:has(.blod-trailer__play:hover) .blod-trailer__tint,
+.blod-trailer__frame:has(.blod-trailer__play:focus-visible) .blod-trailer__tint {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .blod-trailer__tint {
+    transition: none;
+  }
+}
+
+.blod-trailer__play {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  margin: auto;
+  width: min(28vw, 7.75rem);
+  height: min(28vw, 7.75rem);
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  color: var(--blod-brand-red);
+  transition: color 0.2s ease;
+}
+
+.blod-trailer__play:hover {
+  color: var(--blod-brand-bone);
+}
+
+.blod-trailer__play-icon {
+  display: block;
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 4px 24px rgba(0, 0, 0, 0.55));
+  pointer-events: none;
+}
+
+.blod-trailer__play-icon svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.blod-trailer__play:focus-visible {
+  outline: 2px solid var(--blod-brand-bone);
+  outline-offset: 4px;
+}
+
 .blod-section code {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 0.85em;
-  color: #e8d6d6;
+  color: var(--blod-brand-bone);
 }
 
 .blod-gallery-grid {
@@ -237,7 +426,7 @@ body {
   position: absolute;
   inset: 0;
   z-index: 1;
-  background: #8a0000;
+  background: var(--blod-brand-red);
   mix-blend-mode: multiply;
   opacity: 0.5;
   transition: opacity 0.45s ease;
@@ -312,7 +501,7 @@ body {
   display: block;
   font-family: "Bageshron", Georgia, "Times New Roman", serif;
   font-size: clamp(1.35rem, 2.8vw + 0.55rem, 1.85rem);
-  color: #8a0000;
+  color: var(--blod-brand-red);
   letter-spacing: 0.03em;
   line-height: 1.2;
 }
@@ -324,7 +513,7 @@ body {
   font-size: clamp(0.6875rem, 0.85vw + 0.35rem, 12pt);
   font-weight: 500;
   line-height: 1.35;
-  color: #8a0000;
+  color: var(--blod-brand-red);
 }
 
 .blod-staff-card__bio {
@@ -335,7 +524,7 @@ body {
   font-size: clamp(0.6875rem, 0.85vw + 0.35rem, 12pt);
   font-weight: 400;
   line-height: 1.45;
-  color: #c9b8b8;
+  color: var(--blod-brand-bone);
   overflow-wrap: break-word;
 }
 
@@ -350,6 +539,7 @@ body {
 
 .blod-section--faq h2 {
   margin-bottom: clamp(2rem, 4vw, 3rem);
+  font-size: clamp(2.2rem, 5.25vw + 1.05rem, 68pt);
 }
 
 .blod-faq-list {
@@ -378,11 +568,11 @@ body {
   cursor: pointer;
   list-style: none;
   font-family: "Bageshron", Georgia, "Times New Roman", serif;
-  font-size: clamp(1.35rem, 2.65vw + 0.72rem, 1.95rem);
+  font-size: clamp(1.5rem, 2.85vw + 0.78rem, 2.15rem);
   font-weight: 500;
   line-height: 1.25;
   letter-spacing: 0.02em;
-  color: #8a0000;
+  color: var(--blod-brand-red);
 }
 
 .blod-faq__question::-webkit-details-marker {
@@ -449,10 +639,10 @@ body {
 .blod-section--faq .blod-faq__answer p {
   margin: 0 0 1rem;
   font-family: "Inter", system-ui, -apple-system, sans-serif;
-  font-size: clamp(0.8125rem, 1.05vw + 0.42rem, 0.98rem);
+  font-size: clamp(0.9rem, 1.15vw + 0.48rem, 1.08rem);
   font-weight: 400;
   line-height: 1.65;
-  color: #c9b8b8;
+  color: var(--blod-brand-bone);
   font-kerning: normal;
   font-variant-ligatures: normal;
 }
@@ -462,14 +652,14 @@ body {
 }
 
 .blod-faq__link {
-  color: #8ab4f8;
+  color: var(--blod-brand-red);
   text-decoration: underline;
   text-underline-offset: 0.15em;
   transition: color 0.15s ease;
 }
 
 .blod-faq__link:hover {
-  color: #b8d0ff;
+  color: var(--blod-brand-red-hover);
 }
 
 .blod-faq__link:focus-visible {
@@ -478,12 +668,13 @@ body {
 }
 
 .blod-footer {
-  padding-block: clamp(2.5rem, 5vw, 3.5rem);
+  padding-top: var(--blod-section-lead-y);
+  padding-bottom: var(--blod-section-pad-y);
   padding-inline: 0;
   text-align: center;
   font-family: "Bageshron", Georgia, "Times New Roman", serif;
   font-size: clamp(1.125rem, 2.8vw + 0.65rem, 36pt);
-  color: #8a0000;
+  color: var(--blod-brand-red);
   background: transparent;
 }
 
