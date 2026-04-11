@@ -20,6 +20,8 @@ uniform float u_underlayActive;
 uniform float u_underlayOpacity;
 /** Local-cell contain-fit: offset (xy) and size (zw) in 0–1 cell space (origin bottom-left). */
 uniform vec4 u_underlayCell;
+/** Multiply underlay (PNG) rgb after sample; default (1,1,1) = unchanged. */
+uniform vec3 u_underlayTintRgb;
 /** 1 = scene composites over a transparent canvas (e.g. YouTube behind); enables RGBA output. */
 uniform float u_transparentSceneBg;
 /** VJ: tile & scroll logo texture vertically in image UV (0/1). */
@@ -288,7 +290,7 @@ vec4 sampleSceneTex(vec2 uv) {
   return vec4(rgb, tex.a);
 }
 
-/** Underlay bitmap (no SVG tint), contain-mapped inside the image letterbox; same UV as scene. */
+/** Underlay bitmap (PNG flash logo); optional rgb multiply; contain-mapped in image letterbox. */
 vec4 sampleUnderlayTex(vec2 uv) {
   if (u_underlayActive < 0.5) {
     return vec4(0.0);
@@ -302,7 +304,9 @@ vec4 sampleUnderlayTex(vec2 uv) {
   if (uTex < 0.0 || uTex > 1.0 || vTex < 0.0 || vTex > 1.0) {
     return vec4(0.0);
   }
-  return texture(u_underlay, vec2(uTex, vTex));
+  vec4 t = texture(u_underlay, vec2(uTex, vTex));
+  t.rgb *= u_underlayTintRgb;
+  return t;
 }
 
 /**

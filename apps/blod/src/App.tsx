@@ -1,6 +1,7 @@
 import type { RendererSyncSource } from "@refrct/core";
 import { useCallback, useEffect, useState, type CSSProperties } from "react";
 import { BlodGifOverlay } from "./BlodGifOverlay";
+import { BlodHeroTeaserVideo } from "./BlodHeroTeaserVideo";
 import { BlodRefractHero } from "./BlodRefractHero";
 import {
   createDefaultHeroSync,
@@ -81,6 +82,7 @@ export function App() {
       ) : null}
 
       <div className="blod-hero-fixed">
+        <BlodHeroTeaserVideo />
         <BlodRefractHero
           syncSource={activeSync}
           imageScale={heroImageScale}

@@ -1,9 +1,12 @@
+import { BlodSectionBloodParallax } from "../BlodSectionBloodParallax";
+import { BLOOD_PARALLAX_URL } from "../content/bloodParallax";
 import { BlodLightboxGroup } from "../BlodLightboxGroup";
 import { staffMembers } from "../content/staff";
 
 export function TeamSection() {
   return (
-    <section id="team" className="blod-section">
+    <section id="team" className="blod-section blod-section--blood">
+      <BlodSectionBloodParallax imageSrc={BLOOD_PARALLAX_URL} side="left" />
       <div className="blod-section-inner blod-section-inner--prose">
         <h2>Team</h2>
         <BlodLightboxGroup className="blod-staff-grid">
@@ -25,7 +28,6 @@ export function TeamSection() {
               <figcaption className="blod-staff-card__meta">
                 <span className="blod-staff-card__name">{person.name}</span>
                 <span className="blod-staff-card__role">{person.role}</span>
-                <div className="blod-staff-card__bio">{person.bio}</div>
               </figcaption>
             </figure>
           ))}

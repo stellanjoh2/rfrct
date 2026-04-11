@@ -2,10 +2,10 @@
  * Primary brand palette — change these values when the art direction shifts.
  * `applyBlodBrandCssVars()` syncs them to `:root` for CSS (`var(--blod-brand-red)`).
  */
-export const BLOD_BRAND_RED = "#b6262b";
-export const BLOD_BRAND_RED_HOVER = "#d14a50";
-/** Warm bone white — replace when final hex is locked. */
-export const BLOD_BRAND_BONE = "#e8e4dc";
+export const BLOD_BRAND_RED = "#ff0c3a";
+export const BLOD_BRAND_RED_HOVER = "#ff4d6d";
+/** Official light / body text (hero SVG multiply tint uses the same). */
+export const BLOD_BRAND_BONE = "#bababa";
 
 export function applyBlodBrandCssVars(): void {
   if (typeof document === "undefined") return;

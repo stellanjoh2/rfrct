@@ -6,13 +6,9 @@ import {
   type CSSProperties,
 } from "react";
 import { publicUrl } from "./publicUrl";
-import playIconSvg from "/Images/playbutton.svg?raw";
-
-const TRAILER_SRC = publicUrl("Videos/blod-trailer-temp.mp4");
+import { BLOD_TRAILER_MP4_URL } from "./trailerUrl";
 /** Full-bleed parallax band — `public/Images/bg.jpg` (same master as scroll shell). */
 const TRAILER_BG_IMAGE = publicUrl("Images/bg.jpg");
-
-const PLAY_ICON_HTML = playIconSvg.replace(/^\uFEFF/, "").trim();
 
 /** Seek to start slightly before the file end to avoid native `loop` seam glitches. */
 const LOOP_TAIL_SEC = 0.05;
@@ -96,7 +92,7 @@ export function BlodTrailer() {
             <video
               ref={videoRef}
               className="blod-trailer__video"
-              src={TRAILER_SRC}
+              src={BLOD_TRAILER_MP4_URL}
               autoPlay
               muted
               playsInline
@@ -107,13 +103,9 @@ export function BlodTrailer() {
               type="button"
               className="blod-trailer__play"
               onClick={togglePlayback}
-              aria-label={isPlaying ? "Pause trailer" : "Play trailer"}
+              aria-label={isPlaying ? "Pause teaser" : "Play teaser"}
             >
-              <span
-                className="blod-trailer__play-icon"
-                aria-hidden
-                dangerouslySetInnerHTML={{ __html: PLAY_ICON_HTML }}
-              />
+              <span className="blod-trailer__play-label">Play Teaser</span>
             </button>
           </div>
         </div>

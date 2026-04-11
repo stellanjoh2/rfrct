@@ -79,6 +79,8 @@ export class RefractRenderer {
   private underlayCell = { ox: 0, oy: 0, sw: 1, sh: 1 };
   /** 0–1; brief pulses for one-frame flash (driven by app). */
   underlayOpacity = 0;
+  /** Multiply sampled underlay rgb (PNG); default white leaves bitmap unchanged. */
+  underlayTintRgb: [number, number, number] = [1, 1, 1];
 
   /** Prevents overlapping exports from fighting over canvas dimensions / suppressAnimationDraw. */
   private exportInProgress = false;
@@ -190,6 +192,7 @@ export class RefractRenderer {
       "u_underlayActive",
       "u_underlayOpacity",
       "u_underlayCell",
+      "u_underlayTintRgb",
       "u_transparentSceneBg",
       "u_blobCenter",
       "u_blobRadius",
@@ -459,6 +462,12 @@ export class RefractRenderer {
       this.underlayCell.oy,
       this.underlayCell.sw,
       this.underlayCell.sh,
+    );
+    gl.uniform3f(
+      this.locs.u_underlayTintRgb,
+      this.underlayTintRgb[0],
+      this.underlayTintRgb[1],
+      this.underlayTintRgb[2],
     );
     gl.uniform1f(
       this.locs.u_transparentSceneBg,

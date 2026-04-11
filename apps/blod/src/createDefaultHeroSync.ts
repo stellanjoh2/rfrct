@@ -1,5 +1,5 @@
 import type { RendererSyncSource } from "@refrct/core";
-import { BLOD_BRAND_RED } from "./brandColor";
+import { BLOD_BRAND_BONE, BLOD_BRAND_RED } from "./brandColor";
 import { publicUrl } from "./publicUrl";
 
 /**
@@ -7,13 +7,14 @@ import { publicUrl } from "./publicUrl";
  */
 export const HERO_DEFAULT_SVG_URL = publicUrl("Images/blood.svg");
 
-/** Default SVG / image zoom; not part of `RendererSyncSource` (matches refrct-editor `imageScale`). */
+/** Default SVG / image zoom; not part of `RendererSyncSource` (matches refract-editor `imageScale`). */
 export const HERO_DEFAULT_IMAGE_SCALE = 0.9;
 
 /**
  * Starting point for hero art direction (`LOCKED_HERO_SYNC`).
- * Sync fields match art-direction export `blodArtDirectionExportVersion: 1` (2026-04-11, 10:37Z);
+ * Sync fields match art-direction export `blodArtDirectionExportVersion: 1` (2026-04-11, 13:08Z);
  * `svgSourceUrl` stays the bundled `HERO_DEFAULT_SVG_URL`, not a dev `blob:` URL.
+ * SVG: replace tint with brand red. PNG underlay (flash logo): multiply rgb by official white in shader.
  */
 export function createDefaultHeroSync(): RendererSyncSource {
   return {
@@ -37,10 +38,11 @@ export function createDefaultHeroSync(): RendererSyncSource {
     blobCenterY: 0,
     bloomStrength: 2.25,
     bloomRadius: 1.25,
-    bloomThreshold: 0.4,
+    bloomThreshold: 0.65,
     svgSourceUrl: HERO_DEFAULT_SVG_URL,
     svgTintMode: "replace",
     svgTintHex: BLOD_BRAND_RED,
+    underlayTintHex: BLOD_BRAND_BONE,
     micDrivingRefraction: false,
     micRefractBoost: 0.65,
     micEnvelope: 0,

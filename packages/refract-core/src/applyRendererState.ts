@@ -34,6 +34,8 @@ export type RendererSyncParams = {
   glassGrade: GlassGradeParams;
   /** Normal-map micro-refraction layered on the main lens displacement. */
   detailDistortion: DetailDistortionParams;
+  /** Multiply hero underlay (PNG) rgb in shader; default white = no change. */
+  underlayTintRgb: [number, number, number];
 };
 
 /** Mutable renderer fields the app syncs each frame (avoids importing `RefractRenderer` here). */
@@ -49,6 +51,7 @@ export type RendererStateTarget = {
   vjDupScrollSpeed: number;
   glassGrade: GlassGradeParams;
   detailDistortion: DetailDistortionParams;
+  underlayTintRgb: [number, number, number];
 };
 
 export function applyRendererState(
@@ -84,6 +87,11 @@ export function applyRendererState(
       p.detailDistortion.dirtRgb[2],
     ],
   };
+  r.underlayTintRgb = [
+    p.underlayTintRgb[0],
+    p.underlayTintRgb[1],
+    p.underlayTintRgb[2],
+  ];
 }
 
 export type RendererSyncSource = {
@@ -153,6 +161,11 @@ export type RendererSyncSource = {
   lensMouseInput: boolean;
   /** 0–1 — heavier / slower liquid when using mouse follow. */
   fluidDensity: number;
+  /**
+   * When set, hero underlay bitmap (PNG) rgb *= this colour in the fragment shader (multiply).
+   * SVG tint is separate (`svgTintHex`). Omit or empty for white (no change to underlay).
+   */
+  underlayTintHex?: string;
 };
 
 export function buildRendererSyncParams(
@@ -178,6 +191,13 @@ export function buildRendererSyncParams(
           return [c[0], c[1], c[2]] as [number, number, number];
         })(),
       };
+
+  const underlayTintRgb = (() => {
+    const h = s.underlayTintHex?.trim();
+    if (!h) return [1, 1, 1] as [number, number, number];
+    const c = parseHexColor(h);
+    return [c[0], c[1], c[2]] as [number, number, number];
+  })();
 
   const bloom: BloomParams = {
     strength: s.bloomStrength,
@@ -281,5 +301,6 @@ export function buildRendererSyncParams(
         return [c[0], c[1], c[2]] as [number, number, number];
       })(),
     },
+    underlayTintRgb,
   };
 }

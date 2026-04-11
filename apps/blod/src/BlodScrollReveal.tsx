@@ -45,7 +45,7 @@ type Props = {
  *
  * Block fade/slide (per section): headings, gallery/staff figures, FAQ details,
  * `.blod-trailer`, and any element with `.blod-scroll-reveal__block` for custom
- * sections. Footer uses the same selector list when it contains matching nodes.
+ * sections. Footer logo uses `.blod-scroll-reveal__block`; legal copy is not line-split (see below).
  */
 export function BlodScrollReveal({ children }: Props) {
   const rootRef = useRef<HTMLDivElement>(null);
@@ -149,8 +149,9 @@ export function BlodScrollReveal({ children }: Props) {
       };
 
       runLineReveal(".blod-section--intro p", introLineDuration, introLineStagger);
+      /* Section body copy only — not `.blod-footer p` (SplitType + line opacity:0 left credits invisible if ScrollTrigger never completed). */
       runLineReveal(
-        ".blod-section:not(.blod-section--intro) p, .blod-footer p",
+        ".blod-section:not(.blod-section--intro) p",
         bodyLineDuration,
         bodyLineStagger,
       );

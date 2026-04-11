@@ -8,7 +8,9 @@ export function IntroSection() {
         <p>
           Sed ut perspiciatis unde omnis iste natus error sit voluptatem
           accusantium doloremque laudantium, totam rem aperiam, eaque ipsa ab
-          illo inventore veritatis et quasi architecto beatae vitae dicta
+          illo inventore veritatis et quasi{" "}
+          <span className="blod-intro-markout">architecto beatae</span> vitae
+          dicta
           explicabo. Nemo enim ipsam voluptatem quia voluptas aspernatur aut
           odit aut fugit, sed consequuntur magni dolores eos qui voluptatem
           sequi nesciunt. Neque porro quisquam est, qui dolorem ipsum quia dolor

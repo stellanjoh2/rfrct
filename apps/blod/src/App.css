@@ -9,12 +9,17 @@ html {
   /* Avoid horizontal scroll from full-bleed `100vw` shell caps (scrollbar vs vw). */
   overflow-x: clip;
   /* Brand palette — set from `brandColor.ts` via `applyBlodBrandCssVars()` in main.tsx */
-  --blod-brand-red: #b6262b;
-  --blod-brand-red-hover: #d14a50;
-  --blod-brand-bone: #e8e4dc;
-  /* Section rhythm: single step + double “lead” (same as intro top/bottom inset) */
-  --blod-section-pad-y: clamp(3rem, 6vw, 5rem);
-  --blod-section-lead-y: calc(var(--blod-section-pad-y) * 2);
+  --blod-brand-red: #ff0c3a;
+  --blod-brand-red-hover: #ff4d6d;
+  --blod-brand-bone: #bababa;
+  /* —— Vertical rhythm (single source) ——
+     `--blod-rhythm` is the large step for primary bands only (intro → trailer → … → footer):
+     • `.blod-scroll-reveal` uses `gap` + `padding-block`; section inners have no vertical padding.
+     • Stacked `.blod-section p` use the rhythm token.
+     • `h2` uses a larger `margin-top` than `margin-bottom` (more air above titles than below).
+     • Intro band uses the same `1.15×` step as symmetric `padding-block` around the opening copy.
+     • Gallery / staff grids use their own tighter `gap` (image rows, not section seams). */
+  --blod-rhythm: clamp(2.75rem, 5.5vw, 5rem);
 }
 
 /* Initial visit: covers the viewport until GSAP fades it out (see `cinematicCurtain.ts`). */
@@ -52,20 +57,53 @@ body {
   pointer-events: none;
 }
 
-.blod-hero__gl {
+/* Muted teaser — under WebGL; full-bleed cover (no side gutters — video fills viewport). */
+.blod-hero-teaser-stack {
   position: absolute;
   inset: 0;
   z-index: 0;
-  pointer-events: auto;
-  /* If WebGL fails to init or the canvas is cleared transparent, avoid a white flash */
+  pointer-events: none;
   background: #070303;
+  display: flex;
+  justify-content: stretch;
+  align-items: stretch;
+}
+
+.blod-hero-teaser-stack__column {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+}
+
+.blod-hero-teaser-stack__column::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  pointer-events: none;
+}
+
+.blod-hero-teaser-video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.blod-hero__gl {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: auto;
+  /* Let DOM video show through transparent canvas pixels (see BlodHeroTeaserVideo). */
+  background: transparent;
 }
 
 /* Hero flash is GPU underlay (see RefractRenderer) — composited behind SVG with same refraction + filter. */
 
-/* Full-viewport GIF — fixed to the viewport. Blend mode on the *wrapper* (not only the img)
-   so WebKit composites additively against the page; opaque GIFs still need img opacity below 1
-   or they will read as a solid sheet. */
+/* Full-viewport GIF — fixed to the viewport. Two stacked phases crossfade (multiply+red ↔ screen);
+   blend mode lives on each phase so we can opacity-animate between them. */
 .blod-gif-overlay {
   position: fixed;
   left: 0;
@@ -80,7 +118,33 @@ body {
   padding: 0;
   border: 0;
   background: transparent;
-  mix-blend-mode: var(--blod-gif-overlay-blend-mode, plus-lighter);
+}
+
+.blod-gif-overlay__phase {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.blod-gif-overlay__phase--multiply {
+  z-index: 0;
+  mix-blend-mode: multiply;
+  opacity: 1;
+  animation: blod-gif-overlay-phase-multiply
+    var(--blod-gif-phase-cycle, 14s) ease-in-out infinite;
+}
+
+.blod-gif-overlay__phase--screen {
+  z-index: 1;
+  mix-blend-mode: screen;
+  opacity: 0;
+  animation: blod-gif-overlay-phase-screen
+    var(--blod-gif-phase-cycle, 14s) ease-in-out infinite;
+}
+
+/* Multiply pass: push toward blood-red before compositing */
+.blod-gif-overlay__phase--multiply .blod-gif-overlay__img {
+  filter: sepia(0.5) saturate(2.1) hue-rotate(-18deg) contrast(1.06) brightness(0.97);
 }
 
 .blod-gif-overlay__img {
@@ -88,10 +152,51 @@ body {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  /* Required for typical opaque GIFs — tune 0.35–0.65. Wrapper opacity would dim the whole page. */
-  /* Default was 0.5; halved for a subtler rolling overlay */
   opacity: var(--blod-gif-overlay-img-opacity, 0.25);
   mix-blend-mode: normal;
+}
+
+/* ~5% of cycle each crossfade; multiply leads, then screen, then back */
+@keyframes blod-gif-overlay-phase-multiply {
+  0%,
+  38% {
+    opacity: 1;
+  }
+  43%,
+  88% {
+    opacity: 0;
+  }
+  93%,
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes blod-gif-overlay-phase-screen {
+  0%,
+  38% {
+    opacity: 0;
+  }
+  43%,
+  88% {
+    opacity: 1;
+  }
+  93%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .blod-gif-overlay__phase--multiply {
+    opacity: 0;
+    animation: none;
+  }
+
+  .blod-gif-overlay__phase--screen {
+    opacity: 1;
+    animation: none;
+  }
 }
 
 .blod-hero__canvas {
@@ -117,8 +222,7 @@ body {
   pointer-events: none;
 }
 
-/* Scroll column: solid black mid; full-bleed texture top & bottom, soft fade into black.
-   Taller caps show more vertical range of the tall bg art; gradients keep texture visible for most of each cap. */
+/* Scroll column: body fill #070303; caps = bg image + simple linear fade (full image → black at seam). */
 .blod-page-shell {
   --blod-shell-cap-h: clamp(18rem, 48vh, 44rem);
   /* Native width of `public/Images/bg.jpg` (cap avoids upscaling past this bitmap width). */
@@ -133,7 +237,7 @@ body {
   background-color: #070303;
 }
 
-/* Top: texture; gentle fade only on the inner (lower) edge toward page body. */
+/* Top cap: top row = image at full strength; bottom row = black (overlay only; image underneath). */
 .blod-page-shell::before {
   content: "";
   position: absolute;
@@ -145,16 +249,7 @@ body {
   height: var(--blod-shell-cap-h);
   pointer-events: none;
   background-image:
-    linear-gradient(
-      to bottom,
-      transparent 0%,
-      transparent 52%,
-      rgba(7, 3, 3, 0.1) 66%,
-      rgba(7, 3, 3, 0.28) 78%,
-      rgba(7, 3, 3, 0.52) 88%,
-      rgba(7, 3, 3, 0.78) 95%,
-      #070303 100%
-    ),
+    linear-gradient(to bottom, transparent, #000000),
     var(--blod-shell-bg-image, none);
   background-repeat: no-repeat, no-repeat;
   background-position:
@@ -165,7 +260,7 @@ body {
     min(100vw, var(--blod-shell-bg-master-w)) auto;
 }
 
-/* Bottom: same asset; gentle fade on inner (upper) edge toward page body. */
+/* Bottom cap: bottom row = full image; top row of cap = black — reverse of ::before. */
 .blod-page-shell::after {
   content: "";
   position: absolute;
@@ -177,16 +272,7 @@ body {
   height: var(--blod-shell-cap-h);
   pointer-events: none;
   background-image:
-    linear-gradient(
-      to top,
-      transparent 0%,
-      transparent 52%,
-      rgba(7, 3, 3, 0.1) 66%,
-      rgba(7, 3, 3, 0.28) 78%,
-      rgba(7, 3, 3, 0.52) 88%,
-      rgba(7, 3, 3, 0.78) 95%,
-      #070303 100%
-    ),
+    linear-gradient(to top, transparent, #000000),
     var(--blod-shell-bg-image, none);
   background-repeat: no-repeat, no-repeat;
   background-position:
@@ -200,34 +286,90 @@ body {
 .blod-page-shell > .blod-scroll-reveal {
   position: relative;
   z-index: 1;
+  display: flex;
+  flex-direction: column;
+  /* One rhythm between every major band (same as title→content and stacked paragraphs). */
+  gap: var(--blod-rhythm);
+  padding-block: var(--blod-rhythm);
+}
+
+.blod-scroll-reveal > * {
+  min-width: 0;
 }
 
 .blod-section {
-  padding-top: var(--blod-section-lead-y);
-  padding-bottom: var(--blod-section-pad-y);
-  padding-inline: 0;
+  padding: 0;
   background: transparent;
 }
 
-/* Intro: lead above and below the big body copy (mirrors default “before content” inset) */
-.blod-section--intro {
-  padding-top: var(--blod-section-lead-y);
-  padding-bottom: var(--blod-section-lead-y);
+/* Optional parallax blood splatter — behind prose, clipped to section */
+.blod-section--blood {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.blod-section--blood > .blod-section-inner--prose {
+  position: relative;
+  z-index: 1;
+}
+
+.blod-blood-parallax {
+  position: absolute;
+  /* Shift blob start ~300px lower; adjust both edges so vertical span matches previous */
+  top: calc(-28.125% + 300px);
+  bottom: calc(-28.125% - 300px);
+  width: min(168.75vw, 91.40625rem);
+  max-width: 182.5%;
+  opacity: 0.25;
+  pointer-events: none;
+  z-index: 0;
+  filter: blur(4px);
+  will-change: transform, filter;
+}
+
+/* Inner layer: GSAP animates translate on the outer box; flip stays on the surface */
+.blod-blood-parallax__surface {
+  position: absolute;
+  inset: 0;
+  background-size: contain;
+  background-position: center center;
+  background-repeat: no-repeat;
+}
+
+.blod-blood-parallax__surface--flip {
+  transform: scaleX(-1);
+}
+
+/* Nudge toward viewport edges + fixed offset further out on each side */
+.blod-blood-parallax--left {
+  left: calc(max(-4%, -1.5rem) - clamp(50px, 5vw, 100px) - 550px);
+  right: auto;
+}
+
+.blod-blood-parallax--right {
+  right: calc(max(-4%, -1.5rem) - clamp(50px, 5vw, 100px) - 550px);
+  left: auto;
 }
 
 /* Single main column: intro, gallery, team share the same max-width */
 .blod-section-inner--prose {
-  max-width: 1280px;
+  max-width: 1360px;
   margin-inline: auto;
   width: 100%;
   min-width: 0;
   padding-inline: clamp(1.5rem, 5vw + 0.75rem, 2.75rem);
 }
 
+.blod-section > .blod-section-inner--prose {
+  padding-block: 0;
+}
+
 .blod-section h2 {
-  margin: 0 0 1.25rem;
+  margin-top: calc(var(--blod-rhythm) * 1.15);
+  margin-bottom: calc(var(--blod-rhythm) * 0.55);
   font-family: "Bageshron", Georgia, "Times New Roman", serif;
-  font-size: clamp(2rem, 5vw + 1rem, 64pt);
+  font-size: clamp(2rem, 5vw + 1rem, 72pt);
   font-weight: 400;
   line-height: 1.12;
   color: var(--blod-brand-red);
@@ -235,7 +377,7 @@ body {
 }
 
 .blod-section p {
-  margin: 0 0 1.25rem;
+  margin: 0 0 var(--blod-rhythm);
   font-family: "Bageshron", Georgia, "Times New Roman", serif;
   line-height: 1.55;
   color: var(--blod-brand-red);
@@ -254,10 +396,12 @@ body {
   margin-bottom: 0;
 }
 
-.blod-section--intro .blod-section-inner--prose {
+.blod-section--intro > .blod-section-inner--prose {
   text-align: center;
-  /* ~2 fewer words per line vs main 1280px column */
-  max-width: min(65rem, 100%);
+  /* Slightly wider than main column — ~1 extra word per line */
+  max-width: min(72rem, 100%);
+  /* Same vertical step as `h2` margin-top — equal air above and below intro copy */
+  padding-block: calc(var(--blod-rhythm) * 1.15);
 }
 
 .blod-section--intro p {
@@ -266,28 +410,41 @@ body {
   letter-spacing: 0.02em;
 }
 
-/* Trailer band: full-width art + fixed attachment (parallax); inner column centers the 16:9 frame.
-   Symmetric vertical padding (overrides generic section lead top / single bottom — no headline slot). */
+.blod-intro-markout {
+  color: var(--blod-brand-bone);
+  text-decoration: line-through;
+  text-decoration-color: currentColor;
+}
+
+/* Trailer band: tall static parallax bg; vertical inset 2× rhythm; horizontal = prose (same width as galleries). */
 .blod-section--trailer {
-  --blod-section-pad-y: clamp(4rem, 11vw, 7.5rem);
   position: relative;
   z-index: 0;
   width: 100%;
   max-width: none;
   margin-inline: 0;
-  padding-top: var(--blod-section-pad-y);
-  padding-bottom: var(--blod-section-pad-y);
   background-color: #070303;
   background-image: var(--blod-trailer-bg-image, none);
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
   background-attachment: fixed;
+  min-height: clamp(40rem, 78vh, 60rem);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.blod-section--trailer > .blod-section-inner--prose {
+  /* Do not use `padding` shorthand — it was overriding prose `padding-inline` and shrinking the frame. */
+  padding-block: calc(var(--blod-rhythm) * 2);
 }
 
 .blod-section-inner--trailer {
   position: relative;
   z-index: 1;
+  width: 100%;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -310,9 +467,7 @@ body {
   overflow: hidden;
   background: #120a0c;
   isolation: isolate;
-  box-shadow:
-    0 16px 56px rgba(0, 0, 0, 0.5),
-    0 0 0 1px rgba(42, 21, 24, 0.55);
+  box-shadow: 0 16px 56px rgba(0, 0, 0, 0.5);
 }
 
 .blod-trailer__video {
@@ -359,15 +514,16 @@ body {
   position: absolute;
   inset: 0;
   z-index: 1;
-  margin: auto;
-  width: min(28vw, 7.75rem);
-  height: min(28vw, 7.75rem);
+  margin: 0;
+  width: 100%;
+  height: 100%;
   padding: 0;
   border: none;
   background: transparent;
   cursor: pointer;
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   color: var(--blod-brand-red);
   transition: color 0.2s ease;
 }
@@ -376,21 +532,18 @@ body {
   color: var(--blod-brand-bone);
 }
 
-.blod-trailer__play-icon {
-  display: block;
-  width: 100%;
-  height: 100%;
-  filter: drop-shadow(0 4px 24px rgba(0, 0, 0, 0.55));
+.blod-trailer__play-label {
+  font-family: "Bageshron", Georgia, "Times New Roman", serif;
+  font-size: clamp(4rem, 13vw + 1.5rem, 9rem);
+  font-weight: 400;
+  line-height: 1.08;
+  letter-spacing: 0.04em;
+  text-shadow: 0 6px 40px rgba(0, 0, 0, 0.55);
   pointer-events: none;
 }
 
-.blod-trailer__play-icon svg {
-  display: block;
-  width: 100%;
-  height: 100%;
-}
-
 .blod-trailer__play:focus-visible {
+  color: var(--blod-brand-bone);
   outline: 2px solid var(--blod-brand-bone);
   outline-offset: 4px;
 }
@@ -403,6 +556,7 @@ body {
 
 .blod-gallery-grid {
   display: grid;
+  /* Card spacing only — large `--blod-rhythm` is for primary sections, not image rows */
   gap: clamp(1.15rem, 2.2vw, 1.5rem);
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -418,7 +572,7 @@ body {
   aspect-ratio: 16 / 10;
   border-radius: 8px;
   overflow: hidden;
-  border: 1px solid #2a1518;
+  border: none;
   background: #120a0c;
 }
 
@@ -443,17 +597,23 @@ body {
   height: 100%;
   object-fit: cover;
   filter: grayscale(1);
-  transition: filter 0.45s ease;
+  transform: scale(1);
+  transform-origin: center center;
+  transition:
+    filter 0.45s ease,
+    transform 0.5s ease;
 }
 
 .blod-gallery-card__link:hover img,
 .blod-gallery-card__link:focus-visible img {
   filter: grayscale(0);
+  transform: scale(1.04);
 }
 
 @media (hover: none) {
   .blod-gallery-card__link img {
     filter: grayscale(0);
+    transform: scale(1);
   }
 }
 
@@ -461,6 +621,12 @@ body {
   .blod-gallery-card__link img {
     transition: none;
     filter: grayscale(0);
+    transform: scale(1);
+  }
+
+  .blod-gallery-card__link:hover img,
+  .blod-gallery-card__link:focus-visible img {
+    transform: scale(1);
   }
 }
 
@@ -475,6 +641,11 @@ body {
   opacity: 0.5;
   transition: opacity 0.45s ease;
   pointer-events: none;
+}
+
+.blod-gallery-card .blod-img-hover-tint::after,
+.blod-staff-card .blod-img-hover-tint::after {
+  opacity: 1;
 }
 
 .blod-img-hover-tint:hover::after,
@@ -510,7 +681,7 @@ body {
   margin: 0;
   border-radius: 8px;
   overflow: hidden;
-  border: 1px solid #2a1518;
+  border: none;
   background: #120a0c;
 }
 
@@ -557,7 +728,8 @@ body {
 }
 
 .blod-staff-card__meta {
-  padding: 1rem 0.75rem 0.85rem;
+  padding-block: clamp(1.45rem, 3.2vw, 2rem);
+  padding-inline: clamp(0.85rem, 2vw, 1.15rem);
   text-align: center;
 }
 
@@ -577,19 +749,7 @@ body {
   font-size: clamp(0.6875rem, 0.85vw + 0.35rem, 12pt);
   font-weight: 500;
   line-height: 1.35;
-  color: var(--blod-brand-red);
-}
-
-.blod-staff-card__bio {
-  margin: 0;
-  margin-top: calc(0.65rem + 0.725em);
-  margin-top: calc(0.65rem + 0.5lh);
-  font-family: "Inter", system-ui, -apple-system, sans-serif;
-  font-size: clamp(0.6875rem, 0.85vw + 0.35rem, 12pt);
-  font-weight: 400;
-  line-height: 1.45;
   color: var(--blod-brand-bone);
-  overflow-wrap: break-word;
 }
 
 /* FAQ — accordion rows, line separators, Bageshron questions / Inter answers */
@@ -602,8 +762,7 @@ body {
 }
 
 .blod-section--faq h2 {
-  margin-bottom: clamp(2rem, 4vw, 3rem);
-  font-size: clamp(2.2rem, 5.25vw + 1.05rem, 68pt);
+  font-size: clamp(2.2rem, 5.25vw + 1.05rem, 72pt);
 }
 
 .blod-faq-list {
@@ -627,7 +786,7 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding-block: clamp(1.15rem, 2.2vw, 1.55rem);
+  padding-block: calc(var(--blod-rhythm) * 0.5);
   padding-inline: 0;
   cursor: pointer;
   list-style: none;
@@ -674,7 +833,7 @@ body {
 .blod-faq__answer {
   overflow: hidden;
   min-height: 0;
-  padding-bottom: clamp(0.85rem, 2vw, 1.25rem);
+  padding-bottom: var(--blod-rhythm);
   padding-inline: 0;
   opacity: 0;
   transform: translateY(-0.35rem);
@@ -701,7 +860,7 @@ body {
 }
 
 .blod-section--faq .blod-faq__answer p {
-  margin: 0 0 1rem;
+  margin: 0 0 var(--blod-rhythm);
   font-family: "Inter", system-ui, -apple-system, sans-serif;
   font-size: clamp(0.9rem, 1.15vw + 0.48rem, 1.08rem);
   font-weight: 400;
@@ -732,8 +891,7 @@ body {
 }
 
 .blod-footer {
-  padding-top: var(--blod-section-lead-y);
-  padding-bottom: var(--blod-section-pad-y);
+  padding-block: 0;
   padding-inline: 0;
   text-align: center;
   font-family: "Bageshron", Georgia, "Times New Roman", serif;
@@ -750,7 +908,42 @@ body {
 }
 
 .blod-footer__logo-wrap {
-  margin-bottom: clamp(1.75rem, 4vw, 2.75rem);
+  margin-bottom: calc(var(--blod-rhythm) * 0.5);
+}
+
+.blod-footer__social {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: clamp(1.5rem, 4.25vw, 2.5rem);
+  margin-bottom: var(--blod-rhythm);
+}
+
+.blod-footer__social-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--blod-brand-red);
+  line-height: 0;
+  transition:
+    color 0.2s ease,
+    opacity 0.2s ease;
+}
+
+.blod-footer__social-link:hover {
+  color: #ffffff;
+}
+
+.blod-footer__social-link:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+
+.blod-footer__social-icon {
+  width: clamp(1.5rem, 3.5vw, 1.85rem);
+  height: clamp(1.5rem, 3.5vw, 1.85rem);
 }
 
 .blod-footer__logo {
@@ -782,12 +975,8 @@ body {
   hyphens: none;
 }
 
-.blod-footer__legal p + p {
-  margin-top: 1rem;
-}
-
 .blod-footer__copyright {
-  margin-top: 1.5rem !important;
+  margin-top: clamp(0.85rem, 2vw, 1.25rem) !important;
   color: var(--blod-brand-red) !important;
   opacity: 0.88;
   font-size: 0.92em;
