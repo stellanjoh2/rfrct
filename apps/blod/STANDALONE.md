@@ -1,6 +1,8 @@
 # Running Blod outside the refrct monorepo
 
-Blod depends on `@refrct/core`. In this monorepo that is satisfied by npm workspaces (`"@refrct/core": "*"`). In a **standalone** repo you must point at `@refrct/core` in one of these ways:
+> **Day-to-day:** use the standalone **[`blod`](https://github.com/stellanjoh2/blod)** repo and [README.md](./README.md). You do not need `refrct`. This file is **optional** reference (history, extracting `@refrct/core`, CI).
+
+Blod depends on `@refrct/core`. In the old monorepo that was satisfied by npm workspaces (`"@refrct/core": "*"`). In the **standalone** `blod` repo you point at `@refrct/core` in one of these ways:
 
 | Approach | Pros | Cons |
 |----------|------|------|
@@ -101,15 +103,11 @@ Example dependency:
 
 ---
 
-## 5. Publish the live site (keep this simple)
+## 5. Publish the live site
 
-**`https://<you>.github.io/blod/`** is built from the **`blod`** repository (`main`), via `.github/workflows/deploy-pages.yml` in that repo — not from anything automatic in `refrct`.
+**`https://<you>.github.io/blod/`** is built from the **`blod`** repository (`main`), via `.github/workflows/deploy-pages.yml` there.
 
-**Straightforward workflow:** clone **`github.com/<you>/blod`**, work there, **`git push origin main`** when you want the site to update. No PATs or mirror jobs required.
-
-If you edit Blod **in this monorepo** (`apps/blod`), copy or merge those changes into the **`blod`** repo when you ship (see §2 for subtree export, or plain copy). The monorepo does **not** auto-push to `blod`.
-
-Optional: run **Deploy Blod to GitHub Pages** manually in `refrct` Actions only if you want a preview at `github.io/<monorepo>/`.
+**Workflow:** work in **`blod`**, **`git push origin main`** — done. Ignore `refrct` unless you still keep a copy of `apps/blod` there and merge by hand (§2).
 
 ---
 
