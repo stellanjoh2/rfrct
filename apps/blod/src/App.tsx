@@ -91,7 +91,7 @@ export function App() {
       <BlodGifOverlay />
 
       <div className="blod-scroll">
-        <div className="blod-hero-spacer" aria-hidden />
+        <div id="blod-hero-spacer" className="blod-hero-spacer" aria-hidden />
         <div
           className="blod-page-shell"
           style={

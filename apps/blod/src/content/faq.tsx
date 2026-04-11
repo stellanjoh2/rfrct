@@ -84,7 +84,7 @@ export const faqItems: readonly FaqItem[] = [
       <p>
         Purchases and invoices live in your account on whichever storefront you
         use. We will link to each partner’s order history and refund flow from
-        this FAQ when sales go live.
+        this Faq when sales go live.
       </p>
     ),
   },

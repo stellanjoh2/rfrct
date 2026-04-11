@@ -65,6 +65,9 @@ export function BlodRefractHero({
   const mouseFluidVelRef = useRef({ x: 0, y: 0 });
   const mouseLoopPrevTRef = useRef(performance.now());
 
+  /** Mirrors `.blod-hero-spacer` IO — pause GPU when user scrolls past the first viewport. */
+  const heroSpacerVisibleRef = useRef(true);
+
   useEffect(() => {
     blobCenterRef.current = {
       x: syncSource.blobCenterX,
@@ -84,6 +87,10 @@ export function BlodRefractHero({
     let lastSec = Math.floor(performance.now() / 1000);
 
     const tick = (now: number) => {
+      if (!heroSpacerVisibleRef.current) {
+        rafId = requestAnimationFrame(tick);
+        return;
+      }
       const sec = Math.floor(now / 1000);
       if (sec !== lastSec) {
         lastSec = sec;
@@ -177,6 +184,30 @@ export function BlodRefractHero({
     renderer.blob.centerY = blobCenterRef.current.y;
     renderer.startLoop();
 
+    const spacer = document.getElementById("blod-hero-spacer");
+    let spacerIo: IntersectionObserver | null = null;
+    if (spacer) {
+      let prevVisible = true;
+      spacerIo = new IntersectionObserver(
+        (entries) => {
+          const ren = rendererRef.current;
+          if (!ren) return;
+          const visible = entries[0]?.isIntersecting ?? true;
+          heroSpacerVisibleRef.current = visible;
+          if (prevVisible === visible) return;
+          prevVisible = visible;
+          if (visible) {
+            ren.stopLoop();
+            ren.startLoop();
+          } else {
+            ren.stopLoop();
+          }
+        },
+        { threshold: 0 },
+      );
+      spacerIo.observe(spacer);
+    }
+
     const ro = new ResizeObserver(() => {
       const b = wrap.getBoundingClientRect();
       const w = Math.max(1, Math.floor(b.width));
@@ -193,9 +224,11 @@ export function BlodRefractHero({
     renderer.resize(w, h);
 
     return () => {
+      spacerIo?.disconnect();
       ro.disconnect();
       renderer.destroy();
       rendererRef.current = null;
+      heroSpacerVisibleRef.current = true;
     };
   }, []);
 
@@ -322,6 +355,10 @@ export function BlodRefractHero({
     if (!syncSource.lensMouseInput) return;
     let id = 0;
     const loop = () => {
+      if (!heroSpacerVisibleRef.current) {
+        id = requestAnimationFrame(loop);
+        return;
+      }
       const now = performance.now();
       const dt = Math.min(0.05, (now - mouseLoopPrevTRef.current) / 1000);
       mouseLoopPrevTRef.current = now;
