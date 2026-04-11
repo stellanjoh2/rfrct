@@ -534,7 +534,7 @@ body {
 
 .blod-trailer__play-label {
   font-family: "Bageshron", Georgia, "Times New Roman", serif;
-  font-size: clamp(4rem, 13vw + 1.5rem, 9rem);
+  font-size: clamp(4rem, 13vw + 1.5rem, 172px);
   font-weight: 400;
   line-height: 1.08;
   letter-spacing: 0.04em;
@@ -801,7 +801,7 @@ body {
   cursor: pointer;
   list-style: none;
   font-family: "Bageshron", Georgia, "Times New Roman", serif;
-  font-size: clamp(1.8rem, 3.25vw + 0.88rem, 2.6rem);
+  font-size: clamp(1.8rem, 3.25vw + 0.88rem, 48px);
   font-weight: 500;
   line-height: 1.25;
   letter-spacing: 0.02em;
