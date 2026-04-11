@@ -1,6 +1,8 @@
 import React, { Component, type ErrorInfo, type ReactNode } from "react";
 import ReactDOM from "react-dom/client";
 import { applyBlodBrandCssVars } from "./brandColor";
+import "./fontSetup";
+import { App } from "./App";
 
 applyBlodBrandCssVars();
 
@@ -70,16 +72,11 @@ function showFatalError(rootEl: HTMLElement, err: unknown) {
   rootEl.append(wrap);
 }
 
-void (async () => {
-  const rootEl = document.getElementById("root");
-  if (!rootEl) {
-    console.error("Missing #root — check apps/blod/index.html");
-    return;
-  }
-
+const rootEl = document.getElementById("root");
+if (!rootEl) {
+  console.error("Missing #root — check apps/blod/index.html");
+} else {
   try {
-    await import("./fontSetup");
-    const { App } = await import("./App");
     ReactDOM.createRoot(rootEl).render(
       <React.StrictMode>
         <RootErrorBoundary>
@@ -91,4 +88,4 @@ void (async () => {
     console.error("Blod bootstrap error:", err);
     showFatalError(rootEl, err);
   }
-})();
+}
