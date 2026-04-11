@@ -596,7 +596,6 @@ body {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  filter: grayscale(1);
   transform: scale(1);
   transform-origin: center center;
   transition:
@@ -606,27 +605,45 @@ body {
 
 .blod-gallery-card__link:hover img,
 .blod-gallery-card__link:focus-visible img {
-  filter: grayscale(0);
   transform: scale(1.04);
-}
-
-@media (hover: none) {
-  .blod-gallery-card__link img {
-    filter: grayscale(0);
-    transform: scale(1);
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .blod-gallery-card__link img {
     transition: none;
-    filter: grayscale(0);
     transform: scale(1);
   }
 
   .blod-gallery-card__link:hover img,
   .blod-gallery-card__link:focus-visible img {
     transform: scale(1);
+  }
+}
+
+/*
+ * Grayscale in neutral state (under red multiply) — screenshots, concept art, staff portraits.
+ * Color restores on hover/focus together with veil lift (see .blod-img-hover-tint::after).
+ */
+.blod-img-hover-tint img {
+  filter: grayscale(1);
+  transition: filter 0.45s ease;
+}
+
+.blod-gallery-card__link.blod-img-hover-tint img {
+  transition:
+    filter 0.45s ease,
+    transform 0.5s ease;
+}
+
+.blod-img-hover-tint:hover img,
+.blod-img-hover-tint:focus-visible img {
+  filter: grayscale(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .blod-img-hover-tint img {
+    filter: grayscale(0);
+    transition: none;
   }
 }
 
@@ -653,7 +670,16 @@ body {
   opacity: 0;
 }
 
+/* Touch: no hover — show full color, no veil, no zoom */
 @media (hover: none) {
+  .blod-gallery-card__link img {
+    transform: scale(1);
+  }
+
+  .blod-img-hover-tint img {
+    filter: grayscale(0);
+  }
+
   .blod-img-hover-tint::after {
     opacity: 0;
   }
@@ -705,26 +731,6 @@ body {
   aspect-ratio: 3 / 4;
   object-fit: cover;
   vertical-align: middle;
-  filter: grayscale(1);
-  transition: filter 0.45s ease;
-}
-
-.blod-staff-card__media:hover img,
-.blod-staff-card__media:focus-visible img {
-  filter: grayscale(0);
-}
-
-@media (hover: none) {
-  .blod-staff-card__media img {
-    filter: grayscale(0);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .blod-staff-card__media img {
-    transition: none;
-    filter: grayscale(0);
-  }
 }
 
 .blod-staff-card__meta {
