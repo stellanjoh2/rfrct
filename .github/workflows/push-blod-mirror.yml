@@ -53,7 +53,13 @@ jobs:
             git commit -m "chore(ci): standalone package.json for blod mirror export"
           fi
 
-      - name: Split apps/blod and push to blod repo
+      - name: Git subtree split (apps/blod)
+        run: |
+          set -euo pipefail
+          git branch -D blod-mirror-split 2>/dev/null || true
+          git subtree split --prefix=apps/blod -b blod-mirror-split
+
+      - name: Push split branch to blod repo
         env:
           TOKEN: ${{ secrets.BLOD_MIRROR_TOKEN }}
           BLOD_REPO_NAME: ${{ vars.BLOD_REPO_NAME }}
@@ -63,7 +69,18 @@ jobs:
             echo "::warning::BLOD_MIRROR_TOKEN is not set — skipping mirror push. Add a PAT with Contents: Read+Write on the blod repo so pushes to main update https://${{ github.repository_owner }}.github.io/blod/"
             exit 0
           fi
+          # Trim accidental newlines in the secret (common cause of exit 128 on push).
+          TOKEN="$(printf '%s' "$TOKEN" | tr -d '\r\n')"
           OWNER="${{ github.repository_owner }}"
           REPO_NAME="${BLOD_REPO_NAME:-blod}"
-          git subtree split --prefix=apps/blod -b blod-mirror-split
-          git push --force "https://x-access-token:${TOKEN}@github.com/${OWNER}/${REPO_NAME}.git" blod-mirror-split:main
+          URL="https://x-access-token:${TOKEN}@github.com/${OWNER}/${REPO_NAME}.git"
+          echo "Checking mirror remote access (ls-remote) for ${OWNER}/${REPO_NAME} …"
+          if ! git ls-remote "$URL" HEAD >/dev/null 2>&1; then
+            echo "::error::Cannot read ${OWNER}/${REPO_NAME} with BLOD_MIRROR_TOKEN (exit 128). Fix: use a PAT with Contents: Read+Write on that repo; for org repos authorize SSO for the token; ensure the token is not expired."
+            exit 128
+          fi
+          echo "Pushing blod-mirror-split → ${OWNER}/${REPO_NAME} main …"
+          if ! git push --force "$URL" blod-mirror-split:main; then
+            echo "::error::git push failed (often exit 128). Check: (1) PAT has Contents: Write on ${OWNER}/${REPO_NAME}; (2) SAML SSO: GitHub → Settings → Applications → authorize this token for the org; (3) Branch protection on main: allow force-push for your account or use a bypass-capable token; (4) Repo name matches (variable BLOD_REPO_NAME if not \"blod\")."
+            exit 128
+          fi

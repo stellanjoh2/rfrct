@@ -110,6 +110,7 @@ The refrct repo includes `.github/workflows/push-blod-mirror.yml`. On each push 
 1. In the **refrct** repo: **Settings → Secrets and variables → Actions**, add **`BLOD_MIRROR_TOKEN`**: a fine-grained PAT with **Contents: Read and write** on repository **`blod`** only (classic PAT: `repo` scope for that repo is fine).
 2. Ensure your **`blod`** repo has **Settings → Pages → GitHub Actions** and branch **`main`** is allowed for the workflow in `apps/blod/.github/workflows/deploy-pages.yml` (it ships with the mirror).
 3. If `main` on **`blod`** is branch-protected, allow **force push** for the actor that owns the PAT, or the mirror step will fail.
+4. **Exit 128** on the mirror job is almost always **bad/expired PAT**, **SSO not authorized** for the token (GitHub → Settings → Applications → **configure** the PAT and “Authorize” for your org), or **branch protection** blocking force-push to `main`.
 
 The monorepo’s `.github/workflows/deploy-blod-gh-pages.yml` is **manual-only** so it does not publish a second site under `github.io/<monorepo>/` on every push.
 
