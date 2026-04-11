@@ -31,6 +31,10 @@ const INTRO_LINE_SLOW_FACTOR = 1.25;
 const BLOCK_REVEAL_DURATION = 1.32;
 const BLOCK_REVEAL_STAGGER = 0.15;
 
+/** Blur-in + slight rise: start blur (px) for line splits vs blocks */
+const LINE_REVEAL_BLUR_PX = 14;
+const BLOCK_REVEAL_BLUR_PX = 14;
+
 type Props = {
   children: ReactNode;
 };
@@ -39,7 +43,7 @@ type Props = {
  * Scroll-driven fades for main content below the hero. Skipped when
  * `prefers-reduced-motion: reduce` is set.
  *
- * Body copy uses SplitType line splits with a staggered fade/slide per line.
+ * Body copy uses SplitType line splits with staggered blur-in, rise, and fade per line.
  * SplitType locks line breaks to the width at split time — we re-run splits when
  * the container width changes (resize, orientation) or after webfonts load.
  *
@@ -131,11 +135,16 @@ export function BlodScrollReveal({ children }: Props) {
           const lines = split.lines;
           if (!lines?.length) return;
 
-          gsap.set(lines, { opacity: 0, y: "0.35em" });
+          gsap.set(lines, {
+            opacity: 0,
+            y: "0.45em",
+            filter: `blur(${LINE_REVEAL_BLUR_PX}px)`,
+          });
 
           gsap.to(lines, {
             opacity: 1,
             y: 0,
+            filter: "blur(0px)",
             duration,
             ease: "power3.out",
             stagger,
@@ -164,11 +173,16 @@ export function BlodScrollReveal({ children }: Props) {
           targets instanceof Array ? targets : Array.from(targets);
         if (list.length === 0) return;
 
-        gsap.set(list, { opacity: 0, y: "1.35rem" });
+        gsap.set(list, {
+          opacity: 0,
+          y: "1.1rem",
+          filter: `blur(${BLOCK_REVEAL_BLUR_PX}px)`,
+        });
 
         gsap.to(list, {
           opacity: 1,
           y: 0,
+          filter: "blur(0px)",
           duration: BLOCK_REVEAL_DURATION,
           ease: "power3.out",
           stagger: BLOCK_REVEAL_STAGGER,

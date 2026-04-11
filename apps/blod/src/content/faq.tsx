@@ -1,5 +1,10 @@
 import type { ReactNode } from "react";
 
+/** Non-breaking space — keeps short phrases (e.g. early access, opt in) from splitting */
+const NBSP = "\u00A0";
+/** Non-breaking hyphen — “pre-orders” won’t break as “pre-” / “orders” */
+const NBHY = "\u2011";
+
 export type FaqItem = {
   question: string;
   /** Body copy uses Inter via `.blod-faq__answer` in CSS. */
@@ -10,20 +15,16 @@ export const faqItems: readonly FaqItem[] = [
   {
     question: "What are bundles?",
     content: (
-      <>
-        <p>
-          Bundles group the base game with add-ons—soundtrack, art book, or
-          similar—at a single price when we announce them. Each listing will
-          spell out exactly what is included and any regional differences.
-        </p>
-        <p>
-          Refund and billing rules follow the store you buy from; see our{" "}
-          <a className="blod-faq__link" href="#faq">
-            billing policy page
-          </a>{" "}
-          once purchases are live.
-        </p>
-      </>
+      <p>
+        Bundles combine the base game with add-ons (soundtrack, art book, or
+        similar) at one price when we announce them. Each listing will spell out
+        what is included and any regional differences. Refund and billing rules
+        follow the store you buy from. See our{" "}
+        <a className="blod-faq__link" href="#faq">
+          billing policy page
+        </a>{" "}
+        once purchases are live.
+      </p>
     ),
   },
   {
@@ -31,8 +32,8 @@ export const faqItems: readonly FaqItem[] = [
     content: (
       <p>
         After launch we will publish a support hub with known issues, patches,
-        and how to reach us. For now, use the contact channel listed on the main
-        site for press or partnership questions.
+        and how to reach us. For now, use the contact channel on the main site
+        for press or partnership questions.
       </p>
     ),
   },
@@ -41,9 +42,9 @@ export const faqItems: readonly FaqItem[] = [
     content: (
       <p>
         We plan standard and deluxe editions where it makes sense, sold through
-        major PC and console storefronts. Supported payment methods will match
-        each store (card, wallet, regional options)—exact tiers and prices will
-        be confirmed before pre-orders open.
+        major PC and console storefronts. Payment methods will match each store
+        (card, wallet, regional options). Exact tiers and prices will be
+        confirmed before pre{NBHY}orders open.
       </p>
     ),
   },
@@ -51,8 +52,8 @@ export const faqItems: readonly FaqItem[] = [
     question: "What platforms is Blod coming to?",
     content: (
       <p>
-        Target platforms and any performance tiers will be announced with the
-        release roadmap. This page will list minimum and recommended specs for PC
+        Target platforms and performance tiers will be announced with the
+        release roadmap. This page will list minimum and recommended PC specs
         when we lock them.
       </p>
     ),
@@ -61,9 +62,9 @@ export const faqItems: readonly FaqItem[] = [
     question: "Is there a beta or early access program?",
     content: (
       <p>
-        If we run a closed beta or early access, we will say how to opt in,
-        what build you get, and how feedback is handled. Watch announcements
-        here and on our social channels.
+        If we run a closed beta or early{NBSP}access, we will explain how to
+        opt{NBSP}in, what build you get, and how feedback is handled. Watch
+        announcements here and on our social channels.
       </p>
     ),
   },
@@ -84,7 +85,7 @@ export const faqItems: readonly FaqItem[] = [
       <p>
         Purchases and invoices live in your account on whichever storefront you
         use. We will link to each partner’s order history and refund flow from
-        this Faq when sales go live.
+        this FAQ when sales go live.
       </p>
     ),
   },
