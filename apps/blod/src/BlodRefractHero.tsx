@@ -158,9 +158,13 @@ export function BlodRefractHero({
     };
     const ud = underlayDimsRef.current;
     if (ud) {
-      const clientH = Math.max(1, canvas.clientHeight);
+      // Backing-store / CSS-pixel ratio for offsets. `clientHeight` is often 0 before first
+      // layout (or unreliable in some WebKit builds); using layout box size avoids huge bogus
+      // ratios that clip the flash underlay and make the logo look vertically squashed.
+      const box = canvas.getBoundingClientRect();
+      const cssH = Math.max(1, box.height, canvas.clientHeight);
       const offsetDownBackingPx =
-        HERO_FLASH_OFFSET_DOWN_CSS_PX * (canvas.height / clientH);
+        HERO_FLASH_OFFSET_DOWN_CSS_PX * (canvas.height / cssH);
       r.syncUnderlayLayout(canvas.width, canvas.height, rect, ud.w, ud.h, {
         scale: HERO_FLASH_SCALE,
         offsetDownBackingPx,
