@@ -26,9 +26,9 @@ export function BlodSectionBloodParallax({ imageSrc, side }: Props) {
       const section = root.closest(".blod-section");
       if (!section) return;
 
-      /** Same scroll response on both sides (mirrored yRange felt wrong on the left). */
-      const fromY = 16;
-      const toY = -16;
+      /** Same scroll response on both sides; half y-range vs before = ~50% slower parallax. */
+      const fromY = 8;
+      const toY = -8;
 
       const tween = gsap.fromTo(
         root,

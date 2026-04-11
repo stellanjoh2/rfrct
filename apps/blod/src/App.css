@@ -324,7 +324,7 @@ body {
   opacity: 0.25;
   pointer-events: none;
   z-index: 0;
-  filter: blur(4px);
+  filter: blur(4px) brightness(0.75);
   will-change: transform, filter;
 }
 
