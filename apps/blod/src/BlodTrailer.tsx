@@ -6,7 +6,7 @@ import {
   type CSSProperties,
 } from "react";
 import { publicUrl } from "./publicUrl";
-import playIconSvg from "../public/Images/playbutton.svg?raw";
+import playIconSvg from "/Images/playbutton.svg?raw";
 
 const TRAILER_SRC = publicUrl("Videos/blod-trailer-temp.mp4");
 /** Full-bleed parallax band — `public/Images/bg.jpg` (same master as scroll shell). */
