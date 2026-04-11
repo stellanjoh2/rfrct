@@ -18,6 +18,8 @@ const SECTION_SCROLL_REVEAL_SELECTOR = [
   // Trailer / custom bands — not matched by headings or figures
   ".blod-trailer",
   ".blod-scroll-reveal__block",
+  // Story: block fade per paragraph (not SplitType lines — columns need normal reflow)
+  ".blod-section--story p",
 ].join(", ");
 
 /** When the top of the trigger crosses this viewport line — lower % = later / more in view. */
@@ -158,9 +160,10 @@ export function BlodScrollReveal({ children }: Props) {
       };
 
       runLineReveal(".blod-section--intro p", introLineDuration, introLineStagger);
-      /* Section body copy only — not `.blod-footer p` (SplitType + line opacity:0 left credits invisible if ScrollTrigger never completed). */
+      /* Section body copy — not intro, footer, or Story (Story uses two columns; SplitType line
+       * splits lock breaks and cause ragged “gaps”; Story paragraphs use block reveal instead). */
       runLineReveal(
-        ".blod-section:not(.blod-section--intro) p",
+        ".blod-section:not(.blod-section--intro):not(.blod-section--story) p",
         bodyLineDuration,
         bodyLineStagger,
       );

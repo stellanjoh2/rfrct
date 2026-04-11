@@ -20,6 +20,7 @@ import {
   FooterSection,
   GallerySection,
   IntroSection,
+  StorySection,
   TeamSection,
   TrailerSection,
 } from "./sections";
@@ -105,6 +106,7 @@ export function App() {
           <BlodScrollReveal>
             <IntroSection />
             <TrailerSection />
+            <StorySection />
             <GallerySection
               id="screenshots"
               title="Screenshots"
