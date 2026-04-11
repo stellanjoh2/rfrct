@@ -15,13 +15,15 @@ html {
   /* Main column cap; scale matches former 1360px art direction so vertical steps stay proportional */
   --blod-content-max: 1440px;
   --blod-layout-scale: calc(1440 / 1360);
+  /* Lore two-col + gallery image grid: same horizontal/vertical gutter between cells */
+  --blod-column-gutter: clamp(1.75rem, 4vw + 1rem, 3.5rem);
   /* —— Vertical rhythm (single source) ——
      `--blod-rhythm` is the large step for primary bands only (intro → trailer → … → footer):
      • `.blod-scroll-reveal` uses `gap` + `padding-block`; section inners have no vertical padding.
      • Stacked `.blod-section p` use the rhythm token.
      • `h2` uses a larger `margin-top` than `margin-bottom` (more air above titles than below).
      • Intro band uses the same `1.15×` step as symmetric `padding-block` around the opening copy.
-     • Gallery / staff grids use their own tighter `gap` (image rows, not section seams). */
+     • Staff grid keeps its own gap; screenshots/concept grids use `--blod-column-gutter`. */
   --blod-rhythm: clamp(
     calc(2.75rem * var(--blod-layout-scale)),
     5.5vw,
@@ -432,7 +434,7 @@ body {
 .blod-section-inner--story .blod-story-columns {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  column-gap: clamp(1.75rem, 4vw + 1rem, 3.5rem);
+  column-gap: var(--blod-column-gutter);
   row-gap: 0;
   align-items: start;
   width: 100%;
@@ -612,8 +614,7 @@ body {
 
 .blod-gallery-grid {
   display: grid;
-  /* Card spacing only — large `--blod-rhythm` is for primary sections, not image rows */
-  gap: clamp(1.15rem, 2.2vw, 1.5rem);
+  gap: var(--blod-column-gutter);
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
