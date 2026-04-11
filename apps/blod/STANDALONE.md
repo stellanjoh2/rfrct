@@ -101,18 +101,15 @@ Example dependency:
 
 ---
 
-## 5. Deploy from the monorepo only (mirror to `github.com/<you>/blod`)
+## 5. Publish the live site (keep this simple)
 
-The refrct repo includes `.github/workflows/push-blod-mirror.yml`. On each push to `main` that touches `apps/blod/` or `packages/refract-core/`, it **git subtree split**s `apps/blod` and **force-pushes** to the **`blod`** repo so `https://<you>.github.io/blod/` stays current—no manual subtree push.
+**`https://<you>.github.io/blod/`** is built from the **`blod`** repository (`main`), via `.github/workflows/deploy-pages.yml` in that repo — not from anything automatic in `refrct`.
 
-**One-time setup**
+**Straightforward workflow:** clone **`github.com/<you>/blod`**, work there, **`git push origin main`** when you want the site to update. No PATs or mirror jobs required.
 
-1. In the **refrct** repo: **Settings → Secrets and variables → Actions**, add **`BLOD_MIRROR_TOKEN`**: a fine-grained PAT with **Contents: Read and write** on repository **`blod`** only (classic PAT: `repo` scope for that repo is fine).
-2. Ensure your **`blod`** repo has **Settings → Pages → GitHub Actions** and branch **`main`** is allowed for the workflow in `apps/blod/.github/workflows/deploy-pages.yml` (it ships with the mirror).
-3. If `main` on **`blod`** is branch-protected, allow **force push** for the actor that owns the PAT, or the mirror step will fail.
-4. **Exit 128** on the mirror job is almost always **bad/expired PAT**, **SSO not authorized** for the token (GitHub → Settings → Applications → **configure** the PAT and “Authorize” for your org), or **branch protection** blocking force-push to `main`.
+If you edit Blod **in this monorepo** (`apps/blod`), copy or merge those changes into the **`blod`** repo when you ship (see §2 for subtree export, or plain copy). The monorepo does **not** auto-push to `blod`.
 
-The monorepo’s `.github/workflows/deploy-blod-gh-pages.yml` is **manual-only** so it does not publish a second site under `github.io/<monorepo>/` on every push.
+Optional: run **Deploy Blod to GitHub Pages** manually in `refrct` Actions only if you want a preview at `github.io/<monorepo>/`.
 
 ---
 

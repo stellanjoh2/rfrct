@@ -11,9 +11,8 @@
 #   • Set repo variable REFRCT_MONOREPO_REPO if your monorepo slug is not "rfrct".
 #   • Private monorepo: secret REFRCT_CLONE_PAT (Contents: Read), or commit packages/refract-core here.
 
-# Default deploy for https://<user>.github.io/blod/ is the mirror workflow in this monorepo
-# (.github/workflows/push-blod-mirror.yml → stellanjoh2/blod). This job only publishes
-# Blod to THIS repo’s Pages (https://<user>.github.io/<monorepo>/) when run manually.
+# Manual preview only: publishes Blod to THIS repo’s Pages (https://<user>.github.io/<monorepo>/).
+# The public Blod site at github.io/<user>/blod/ is deployed from the separate `blod` repo.
 name: Deploy Blod to GitHub Pages
 
 on:
