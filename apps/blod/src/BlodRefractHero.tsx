@@ -158,11 +158,13 @@ export function BlodRefractHero({
     };
     const ud = underlayDimsRef.current;
     if (ud) {
-      // Backing-store / CSS-pixel ratio for offsets. `clientHeight` is often 0 before first
-      // layout (or unreliable in some WebKit builds); using layout box size avoids huge bogus
-      // ratios that clip the flash underlay and make the logo look vertically squashed.
-      const box = canvas.getBoundingClientRect();
-      const cssH = Math.max(1, box.height, canvas.clientHeight);
+      // Backing / CSS px for offsets — use the same `client*` box as `renderer.resize()` so the
+      // ratio matches how the bitmap is displayed.
+      const cssH = Math.max(
+        1,
+        canvas.clientHeight,
+        Math.round(canvas.getBoundingClientRect().height),
+      );
       const offsetDownBackingPx =
         HERO_FLASH_OFFSET_DOWN_CSS_PX * (canvas.height / cssH);
       r.syncUnderlayLayout(canvas.width, canvas.height, rect, ud.w, ud.h, {
@@ -212,22 +214,38 @@ export function BlodRefractHero({
       spacerIo.observe(spacer);
     }
 
+    // Resize from the canvas’s laid-out CSS size (not wrap’s floored getBoundingClientRect),
+    // so backing-store aspect matches the box the browser uses to draw the bitmap. Otherwise
+    // the GL output is stretched on screen (often reads as a vertically squashed hero flash on
+    // GitHub Pages / mobile WebKit).
+    let alive = true;
+    let resizeRaf = 0;
+    const applyCanvasCssSize = () => {
+      resizeRaf = 0;
+      if (!alive) return;
+      const cw = Math.max(1, canvas.clientWidth);
+      const ch = Math.max(1, canvas.clientHeight);
+      setViewportPx({ w: cw, h: ch });
+      renderer.resize(cw, ch);
+    };
+    const scheduleCanvasResize = () => {
+      if (resizeRaf) cancelAnimationFrame(resizeRaf);
+      resizeRaf = requestAnimationFrame(applyCanvasCssSize);
+    };
+
     const ro = new ResizeObserver(() => {
-      const b = wrap.getBoundingClientRect();
-      const w = Math.max(1, Math.floor(b.width));
-      const h = Math.max(1, Math.floor(b.height));
-      setViewportPx({ w, h });
-      renderer.resize(w, h);
+      scheduleCanvasResize();
     });
     ro.observe(wrap);
 
-    const b = wrap.getBoundingClientRect();
-    const w = Math.max(1, Math.floor(b.width));
-    const h = Math.max(1, Math.floor(b.height));
-    setViewportPx({ w, h });
-    renderer.resize(w, h);
+    scheduleCanvasResize();
+    requestAnimationFrame(() => {
+      requestAnimationFrame(applyCanvasCssSize);
+    });
 
     return () => {
+      alive = false;
+      if (resizeRaf) cancelAnimationFrame(resizeRaf);
       spacerIo?.disconnect();
       ro.disconnect();
       renderer.destroy();
