@@ -46,7 +46,8 @@ export function BlodRefractHero({
   const [imgDims, setImgDims] = useState<{ w: number; h: number } | null>(null);
   /** Natural size of hero flash PNG (GPU underlay, same distorted UV as SVG). */
   const underlayDimsRef = useRef<{ w: number; h: number } | null>(null);
-  const [viewportPx, setViewportPx] = useState({ w: 0, h: 0 });
+  /** CSS layout + DPR — DPR must be tracked so backing store updates when e.g. moving across monitors. */
+  const [viewportPx, setViewportPx] = useState({ w: 0, h: 0, dpr: 0 });
   const imageScaleRef = useRef(imageScale);
   imageScaleRef.current = imageScale;
   const [imagePan, setImagePan] = useState({ x: 0, y: 0 });
@@ -225,7 +226,8 @@ export function BlodRefractHero({
       if (!alive) return;
       const cw = Math.max(1, canvas.clientWidth);
       const ch = Math.max(1, canvas.clientHeight);
-      setViewportPx({ w: cw, h: ch });
+      const dpr = window.devicePixelRatio || 1;
+      setViewportPx({ w: cw, h: ch, dpr });
       renderer.resize(cw, ch);
     };
     const scheduleCanvasResize = () => {
@@ -233,19 +235,38 @@ export function BlodRefractHero({
       resizeRaf = requestAnimationFrame(applyCanvasCssSize);
     };
 
-    const ro = new ResizeObserver(() => {
+    /** Fullscreen / maximize often finish layout a frame or two after ResizeObserver; window resize
+     * can fire before clientWidth matches the final box. */
+    const scheduleCanvasResizeSettled = () => {
       scheduleCanvasResize();
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (!alive) return;
+          applyCanvasCssSize();
+        });
+      });
+    };
+
+    const onWinResize = () => scheduleCanvasResizeSettled();
+    const onFullscreen = () => scheduleCanvasResizeSettled();
+    window.addEventListener("resize", onWinResize);
+    document.addEventListener("fullscreenchange", onFullscreen);
+    const vv = window.visualViewport;
+    vv?.addEventListener("resize", onWinResize);
+
+    const ro = new ResizeObserver(() => {
+      scheduleCanvasResizeSettled();
     });
     ro.observe(wrap);
 
-    scheduleCanvasResize();
-    requestAnimationFrame(() => {
-      requestAnimationFrame(applyCanvasCssSize);
-    });
+    scheduleCanvasResizeSettled();
 
     return () => {
       alive = false;
       if (resizeRaf) cancelAnimationFrame(resizeRaf);
+      window.removeEventListener("resize", onWinResize);
+      document.removeEventListener("fullscreenchange", onFullscreen);
+      vv?.removeEventListener("resize", onWinResize);
       spacerIo?.disconnect();
       ro.disconnect();
       renderer.destroy();
@@ -259,13 +280,13 @@ export function BlodRefractHero({
   }, [syncLayout, viewportPx, imageScale, imagePan]);
 
   /** Only re-upload GPU texture when canvas backing size actually changes (not on spurious RO spam). */
-  const lastReuploadSizeRef = useRef({ w: 0, h: 0 });
+  const lastReuploadSizeRef = useRef({ w: 0, h: 0, dpr: 0 });
   useEffect(() => {
-    const { w, h } = viewportPx;
+    const { w, h, dpr } = viewportPx;
     if (w < 1 || h < 1) return;
     const prev = lastReuploadSizeRef.current;
-    if (prev.w === w && prev.h === h) return;
-    lastReuploadSizeRef.current = { w, h };
+    if (prev.w === w && prev.h === h && prev.dpr === dpr) return;
+    lastReuploadSizeRef.current = { w, h, dpr };
     rendererRef.current?.reuploadTextureIfNeeded();
   }, [viewportPx]);
 
