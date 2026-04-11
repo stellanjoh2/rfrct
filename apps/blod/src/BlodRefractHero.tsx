@@ -175,6 +175,10 @@ export function BlodRefractHero({
     }
   }, [imgDims]);
 
+  /** Latest layout sync — underlay PNG often loads after SVG; refs avoid stale closures in img.onload. */
+  const syncLayoutRef = useRef(syncLayout);
+  syncLayoutRef.current = syncLayout;
+
   useEffect(() => {
     const canvas = canvasRef.current;
     const wrap = wrapRef.current;
@@ -229,6 +233,9 @@ export function BlodRefractHero({
       const dpr = window.devicePixelRatio || 1;
       setViewportPx({ w: cw, h: ch, dpr });
       renderer.resize(cw, ch);
+      // Same tick as backing-store update — avoids one frame (or a stuck state) where GL size and
+      // `syncUnderlayLayout` / image rect disagree before React’s viewport effect runs.
+      syncLayoutRef.current();
     };
     const scheduleCanvasResize = () => {
       if (resizeRaf) cancelAnimationFrame(resizeRaf);
@@ -261,10 +268,19 @@ export function BlodRefractHero({
 
     scheduleCanvasResizeSettled();
 
+    /** First paint / late layout (mobile toolbars, fonts): RO can settle before final viewport box. */
+    const onWindowLoad = () => scheduleCanvasResizeSettled();
+    if (document.readyState === "complete") {
+      onWindowLoad();
+    } else {
+      window.addEventListener("load", onWindowLoad);
+    }
+
     return () => {
       alive = false;
       if (resizeRaf) cancelAnimationFrame(resizeRaf);
       window.removeEventListener("resize", onWinResize);
+      window.removeEventListener("load", onWindowLoad);
       document.removeEventListener("fullscreenchange", onFullscreen);
       vv?.removeEventListener("resize", onWinResize);
       spacerIo?.disconnect();
@@ -378,6 +394,12 @@ export function BlodRefractHero({
         h: img.naturalHeight,
       };
       rendererRef.current?.setUnderlayFromSource(img);
+      // SVG usually wins the race; if the PNG arrives second, we must run `syncUnderlayLayout`
+      // or `underlayCell` stays at defaults (reads as squashed flash until the next resize).
+      syncLayoutRef.current();
+      requestAnimationFrame(() => {
+        syncLayoutRef.current();
+      });
     };
     img.onerror = () => {
       underlayDimsRef.current = null;
