@@ -17,6 +17,17 @@ html {
   --blod-section-lead-y: calc(var(--blod-section-pad-y) * 2);
 }
 
+/* Initial visit: covers the viewport until GSAP fades it out (see `cinematicCurtain.ts`). */
+.blod-cinematic-curtain {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  background: #000000;
+  pointer-events: none;
+  opacity: 1;
+  will-change: opacity;
+}
+
 body {
   margin: 0;
   min-height: 100vh;

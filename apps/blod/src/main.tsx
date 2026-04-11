@@ -1,6 +1,10 @@
 import React, { Component, type ErrorInfo, type ReactNode } from "react";
 import ReactDOM from "react-dom/client";
 import { applyBlodBrandCssVars } from "./brandColor";
+import {
+  dismissCinematicCurtainImmediate,
+  runCinematicFadeFromBlack,
+} from "./cinematicCurtain";
 import "./fontSetup";
 import { App } from "./App";
 
@@ -84,8 +88,10 @@ if (!rootEl) {
         </RootErrorBoundary>
       </React.StrictMode>,
     );
+    runCinematicFadeFromBlack();
   } catch (err) {
     console.error("Blod bootstrap error:", err);
+    dismissCinematicCurtainImmediate();
     showFatalError(rootEl, err);
   }
 }

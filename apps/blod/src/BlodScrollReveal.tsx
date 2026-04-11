@@ -6,6 +6,31 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 
 gsap.registerPlugin(ScrollTrigger);
 
+/** Elements that get the shared fade/slide-in per section (plus opt-in blocks). */
+const SECTION_SCROLL_REVEAL_SELECTOR = [
+  "h1",
+  "h2",
+  "h3",
+  "h4",
+  "figure.blod-gallery-card",
+  "figure.blod-staff-card",
+  "details.blod-faq-item",
+  // Trailer / custom bands — not matched by headings or figures
+  ".blod-trailer",
+  ".blod-scroll-reveal__block",
+].join(", ");
+
+/** When the top of the trigger crosses this viewport line — lower % = later / more in view. */
+const SCROLL_TRIGGER_START = "top 78%";
+
+const BODY_LINE_DURATION = 1.12;
+const BODY_LINE_STAGGER = 0.145;
+/** Intro paragraphs stay ~25% slower than body copy */
+const INTRO_LINE_SLOW_FACTOR = 1.25;
+
+const BLOCK_REVEAL_DURATION = 1.32;
+const BLOCK_REVEAL_STAGGER = 0.15;
+
 type Props = {
   children: ReactNode;
 };
@@ -17,6 +42,10 @@ type Props = {
  * Body copy uses SplitType line splits with a staggered fade/slide per line.
  * SplitType locks line breaks to the width at split time — we re-run splits when
  * the container width changes (resize, orientation) or after webfonts load.
+ *
+ * Block fade/slide (per section): headings, gallery/staff figures, FAQ details,
+ * `.blod-trailer`, and any element with `.blod-scroll-reveal__block` for custom
+ * sections. Footer uses the same selector list when it contains matching nodes.
  */
 export function BlodScrollReveal({ children }: Props) {
   const rootRef = useRef<HTMLDivElement>(null);
@@ -75,64 +104,98 @@ export function BlodScrollReveal({ children }: Props) {
 
       const splits: SplitType[] = [];
 
-      const paragraphs = root.querySelectorAll<HTMLParagraphElement>(
-        ".blod-section p, .blod-footer p",
+      const introLineDuration = BODY_LINE_DURATION * INTRO_LINE_SLOW_FACTOR;
+      const introLineStagger = BODY_LINE_STAGGER * INTRO_LINE_SLOW_FACTOR;
+      const bodyLineDuration = BODY_LINE_DURATION;
+      const bodyLineStagger = BODY_LINE_STAGGER;
+
+      const runLineReveal = (
+        selector: string,
+        duration: number,
+        stagger: number,
+      ) => {
+        const nodes = root.querySelectorAll<HTMLParagraphElement>(selector);
+        nodes.forEach((p) => {
+          let split: SplitType;
+          try {
+            split = new SplitType(p, {
+              types: "lines",
+              lineClass: "blod-line",
+              absolute: false,
+            });
+          } catch {
+            return;
+          }
+          splits.push(split);
+
+          const lines = split.lines;
+          if (!lines?.length) return;
+
+          gsap.set(lines, { opacity: 0, y: "0.35em" });
+
+          gsap.to(lines, {
+            opacity: 1,
+            y: 0,
+            duration,
+            ease: "power3.out",
+            stagger,
+            scrollTrigger: {
+              trigger: p,
+              start: SCROLL_TRIGGER_START,
+              toggleActions: "play none none none",
+            },
+          });
+        });
+      };
+
+      runLineReveal(".blod-section--intro p", introLineDuration, introLineStagger);
+      runLineReveal(
+        ".blod-section:not(.blod-section--intro) p, .blod-footer p",
+        bodyLineDuration,
+        bodyLineStagger,
       );
 
-      paragraphs.forEach((p) => {
-        let split: SplitType;
-        try {
-          split = new SplitType(p, {
-            types: "lines",
-            lineClass: "blod-line",
-            absolute: false,
-          });
-        } catch {
-          return;
-        }
-        splits.push(split);
+      const revealBlock = (
+        targets: NodeListOf<HTMLElement> | HTMLElement[],
+        trigger: HTMLElement,
+      ) => {
+        const list =
+          targets instanceof Array ? targets : Array.from(targets);
+        if (list.length === 0) return;
 
-        const lines = split.lines;
-        if (!lines?.length) return;
+        gsap.set(list, { opacity: 0, y: "1.35rem" });
 
-        gsap.set(lines, { opacity: 0, y: "0.35em" });
-
-        gsap.to(lines, {
+        gsap.to(list, {
           opacity: 1,
           y: 0,
-          duration: 0.95,
-          ease: "power2.out",
-          stagger: 0.11,
+          duration: BLOCK_REVEAL_DURATION,
+          ease: "power3.out",
+          stagger: BLOCK_REVEAL_STAGGER,
           scrollTrigger: {
-            trigger: p,
-            start: "top 88%",
+            trigger,
+            start: SCROLL_TRIGGER_START,
             toggleActions: "play none none none",
           },
         });
-      });
+      };
 
       const sections = root.querySelectorAll<HTMLElement>(".blod-section");
       sections.forEach((section) => {
         const targets = section.querySelectorAll<HTMLElement>(
-          "h2, figure.blod-gallery-card, figure.blod-staff-card, details.blod-faq-item",
+          SECTION_SCROLL_REVEAL_SELECTOR,
         );
-        if (targets.length === 0) return;
-
-        gsap.set(targets, { opacity: 0, y: "1.35rem" });
-
-        gsap.to(targets, {
-          opacity: 1,
-          y: 0,
-          duration: 1.1,
-          ease: "power2.out",
-          stagger: 0.11,
-          scrollTrigger: {
-            trigger: section,
-            start: "top 88%",
-            toggleActions: "play none none none",
-          },
-        });
+        revealBlock(targets, section);
       });
+
+      const footer = root.querySelector<HTMLElement>("footer.blod-footer");
+      if (footer) {
+        const footerTargets = footer.querySelectorAll<HTMLElement>(
+          SECTION_SCROLL_REVEAL_SELECTOR,
+        );
+        if (footerTargets.length > 0) {
+          revealBlock(footerTargets, footer);
+        }
+      }
 
       requestAnimationFrame(() => {
         ScrollTrigger.refresh();

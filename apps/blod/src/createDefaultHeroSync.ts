@@ -12,27 +12,27 @@ export const HERO_DEFAULT_IMAGE_SCALE = 0.9;
 
 /**
  * Starting point for hero art direction (`LOCKED_HERO_SYNC`).
- * Sync fields match art-direction export `blodArtDirectionExportVersion: 1` (2026-04-11);
+ * Sync fields match art-direction export `blodArtDirectionExportVersion: 1` (2026-04-11, 10:37Z);
  * `svgSourceUrl` stays the bundled `HERO_DEFAULT_SVG_URL`, not a dev `blob:` URL.
  */
 export function createDefaultHeroSync(): RendererSyncSource {
   return {
     bgHex: "#000000",
-    blobSize: 0.99,
+    blobSize: 0.74,
     pauseAnimation: false,
     blobSpeed: 0.3,
-    waveFreq: 4,
-    waveAmp: 0.16,
-    refract: 0.135,
-    edgeSoft: 0.072,
+    waveFreq: 1.5,
+    waveAmp: 0.47,
+    refract: 0.075,
+    edgeSoft: 0.13,
     frostBlur: 0,
     blurQuality: 1,
-    chroma: 0.17,
+    chroma: 0.48,
     shapeMode: 0,
     filterMode: 3,
-    filterStrength: 0.14,
-    filterScale: 0.5,
-    filterMotionSpeed: 1,
+    filterStrength: 0.12,
+    filterScale: 0,
+    filterMotionSpeed: 0.85,
     blobCenterX: 0.72,
     blobCenterY: 0,
     bloomStrength: 2.25,
@@ -58,10 +58,10 @@ export function createDefaultHeroSync(): RendererSyncSource {
     vjGlassGradeIntensity: 0,
     detailDistortionEnabled: true,
     detailDistortionStrength: 1,
-    detailDistortionScale: 3.2,
-    detailDirtStrength: 1,
+    detailDistortionScale: 5.5,
+    detailDirtStrength: 0.52,
     detailDirtHex: "#0f0200",
-    lensMouseInput: false,
-    fluidDensity: 0.45,
+    lensMouseInput: true,
+    fluidDensity: 1,
   };
 }
