@@ -12,6 +12,9 @@ html {
   --blod-brand-red: #ff0c3a;
   --blod-brand-red-hover: #ff4d6d;
   --blod-brand-bone: #bababa;
+  /* Main column cap; scale matches former 1360px art direction so vertical steps stay proportional */
+  --blod-content-max: 1440px;
+  --blod-layout-scale: calc(1440 / 1360);
   /* —— Vertical rhythm (single source) ——
      `--blod-rhythm` is the large step for primary bands only (intro → trailer → … → footer):
      • `.blod-scroll-reveal` uses `gap` + `padding-block`; section inners have no vertical padding.
@@ -19,7 +22,11 @@ html {
      • `h2` uses a larger `margin-top` than `margin-bottom` (more air above titles than below).
      • Intro band uses the same `1.15×` step as symmetric `padding-block` around the opening copy.
      • Gallery / staff grids use their own tighter `gap` (image rows, not section seams). */
-  --blod-rhythm: clamp(2.75rem, 5.5vw, 5rem);
+  --blod-rhythm: clamp(
+    calc(2.75rem * var(--blod-layout-scale)),
+    5.5vw,
+    calc(5rem * var(--blod-layout-scale))
+  );
 }
 
 /* Initial visit: covers the viewport until GSAP fades it out (see `cinematicCurtain.ts`). */
@@ -354,7 +361,7 @@ body {
 
 /* Single main column: intro, gallery, team share the same max-width */
 .blod-section-inner--prose {
-  max-width: 1360px;
+  max-width: var(--blod-content-max);
   margin-inline: auto;
   width: 100%;
   min-width: 0;
@@ -398,8 +405,8 @@ body {
 
 .blod-section--intro > .blod-section-inner--prose {
   text-align: center;
-  /* Slightly wider than main column — ~1 extra word per line */
-  max-width: min(72rem, 100%);
+  /* Narrower than main column (~72rem at 1360-era scale) */
+  max-width: min(calc(72rem * var(--blod-layout-scale)), 100%);
   /* Same vertical step as `h2` margin-top — equal air above and below intro copy */
   padding-block: calc(var(--blod-rhythm) * 1.15);
 }
@@ -429,7 +436,11 @@ body {
   background-position: center;
   background-repeat: no-repeat;
   background-attachment: fixed;
-  min-height: clamp(40rem, 78vh, 60rem);
+  min-height: clamp(
+    calc(40rem * var(--blod-layout-scale)),
+    80vh,
+    calc(60rem * var(--blod-layout-scale))
+  );
   display: flex;
   flex-direction: column;
   justify-content: center;
