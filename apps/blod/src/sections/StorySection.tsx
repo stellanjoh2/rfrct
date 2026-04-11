@@ -1,11 +1,11 @@
 /**
- * Long-form story copy — two-column editorial layout (stacks on narrow viewports).
+ * Long-form lore copy — two-column editorial layout (stacks on narrow viewports).
  */
 export function StorySection() {
   return (
-    <section id="story" lang="en" className="blod-section blod-section--story">
+    <section id="lore" lang="en" className="blod-section blod-section--story">
       <div className="blod-section-inner blod-section-inner--prose blod-section-inner--story">
-        <h2>Story</h2>
+        <h2>Lore</h2>
         <div className="blod-story-columns">
           <div className="blod-story-columns__col">
             <p>

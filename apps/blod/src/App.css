@@ -428,7 +428,7 @@ body {
   letter-spacing: 0.02em;
 }
 
-/* Story — two main columns (editorial), single column on small screens */
+/* Lore (Story section) — two main columns (editorial), single column on small screens */
 .blod-section-inner--story .blod-story-columns {
   display: grid;
   grid-template-columns: 1fr 1fr;
