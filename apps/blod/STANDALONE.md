@@ -15,7 +15,10 @@ Below: **A** (recommended) + **git subtree** so Blod keeps history from this fol
 
 From the **refrct** repo root:
 
+**Fast path (already prepared in this monorepo):** the folder `refrct/.export/refract-core` is a ready git repo. Create the empty GitHub repo, then either run `cd .export/refract-core && git push -u origin main` or use `scripts/publish-refract-core.sh` (optional `GITHUB_TOKEN` to create the repo via API).
+
 ```bash
+# Manual copy (if you are not using .export/)
 # From refrct repo root — copy the package, then turn it into its own repo.
 cp -a packages/refract-core /tmp/refract-core-export
 cd /tmp/refract-core-export
