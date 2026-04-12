@@ -3,6 +3,23 @@ import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import SplitType from "split-type";
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  BLOCK_REVEAL_BLUR_PX,
+  BLOCK_REVEAL_DURATION,
+  BLOCK_REVEAL_STAGGER,
+  BLOCK_REVEAL_Y_INITIAL,
+  BODY_LINE_DURATION,
+  BODY_LINE_STAGGER,
+  INTRO_LINE_SLOW_FACTOR,
+  LINE_REVEAL_BLUR_PX,
+  LINE_REVEAL_Y_INITIAL,
+  SCROLL_TRIGGER_START,
+} from "./scrollRevealMotion";
+import {
+  isHeavyRevealBlock,
+  preloadRevealFrameAssets,
+  waitForHeavyRevealContent,
+} from "./waitForRevealMedia";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -20,22 +37,9 @@ const SECTION_SCROLL_REVEAL_SELECTOR = [
   ".blod-scroll-reveal__block",
   // Story: block fade per paragraph (not SplitType lines — columns need normal reflow)
   ".blod-section--story p",
+  // Footer legal — paragraphs only (logo + social already `.blod-scroll-reveal__block`)
+  ".blod-footer__legal p",
 ].join(", ");
-
-/** When the top of the trigger crosses this viewport line — lower % = later / more in view. */
-const SCROLL_TRIGGER_START = "top 78%";
-
-const BODY_LINE_DURATION = 1.12;
-const BODY_LINE_STAGGER = 0.145;
-/** Intro paragraphs stay ~25% slower than body copy */
-const INTRO_LINE_SLOW_FACTOR = 1.25;
-
-const BLOCK_REVEAL_DURATION = 1.32;
-const BLOCK_REVEAL_STAGGER = 0.15;
-
-/** Blur-in + slight rise: start blur (px) for line splits vs blocks */
-const LINE_REVEAL_BLUR_PX = 14;
-const BLOCK_REVEAL_BLUR_PX = 14;
 
 type Props = {
   children: ReactNode;
@@ -50,8 +54,11 @@ type Props = {
  * the container width changes (resize, orientation) or after webfonts load.
  *
  * Block fade/slide (per section): headings, gallery/staff figures, FAQ details,
- * `.blod-trailer`, and any element with `.blod-scroll-reveal__block` for custom
- * sections. Footer logo uses `.blod-scroll-reveal__block`; legal copy is not line-split (see below).
+ * `.blod-trailer`, `.blod-footer__legal p`, and any element with `.blod-scroll-reveal__block`.
+ * Hero teaser video uses the same motion on mount (fixed layer — see `BlodHeroTeaserVideo`).
+ *
+ * Gallery / staff / trailer / footer logo waits for images, video, and mask SVGs to be ready
+ * when the block enters view before playing (avoids mask/ambilight pops).
  */
 export function BlodScrollReveal({ children }: Props) {
   const rootRef = useRef<HTMLDivElement>(null);
@@ -99,6 +106,11 @@ export function BlodScrollReveal({ children }: Props) {
     };
   }, []);
 
+  /** Warm mask SVGs + trailer bg early so they’re less likely to race heavy reveals. */
+  useEffect(() => {
+    void preloadRevealFrameAssets();
+  }, []);
+
   useGSAP(
     () => {
       const root = rootRef.current;
@@ -108,12 +120,28 @@ export function BlodScrollReveal({ children }: Props) {
         return;
       }
 
+      let cancelled = false;
       const splits: SplitType[] = [];
 
       const introLineDuration = BODY_LINE_DURATION * INTRO_LINE_SLOW_FACTOR;
       const introLineStagger = BODY_LINE_STAGGER * INTRO_LINE_SLOW_FACTOR;
       const bodyLineDuration = BODY_LINE_DURATION;
       const bodyLineStagger = BODY_LINE_STAGGER;
+
+      const blockRevealInit = {
+        opacity: 0,
+        y: BLOCK_REVEAL_Y_INITIAL,
+        filter: `blur(${BLOCK_REVEAL_BLUR_PX}px)`,
+      } as const;
+
+      const blockRevealTween = {
+        opacity: 1,
+        y: 0,
+        filter: "blur(0px)",
+        duration: BLOCK_REVEAL_DURATION,
+        ease: "power3.out" as const,
+        stagger: BLOCK_REVEAL_STAGGER,
+      };
 
       const runLineReveal = (
         selector: string,
@@ -139,7 +167,7 @@ export function BlodScrollReveal({ children }: Props) {
 
           gsap.set(lines, {
             opacity: 0,
-            y: "0.45em",
+            y: LINE_REVEAL_Y_INITIAL,
             filter: `blur(${LINE_REVEAL_BLUR_PX}px)`,
           });
 
@@ -168,27 +196,14 @@ export function BlodScrollReveal({ children }: Props) {
         bodyLineStagger,
       );
 
-      const revealBlock = (
-        targets: NodeListOf<HTMLElement> | HTMLElement[],
+      const revealLightBlocks = (
+        elements: HTMLElement[],
         trigger: HTMLElement,
       ) => {
-        const list =
-          targets instanceof Array ? targets : Array.from(targets);
-        if (list.length === 0) return;
-
-        gsap.set(list, {
-          opacity: 0,
-          y: "1.1rem",
-          filter: `blur(${BLOCK_REVEAL_BLUR_PX}px)`,
-        });
-
-        gsap.to(list, {
-          opacity: 1,
-          y: 0,
-          filter: "blur(0px)",
-          duration: BLOCK_REVEAL_DURATION,
-          ease: "power3.out",
-          stagger: BLOCK_REVEAL_STAGGER,
+        if (elements.length === 0) return;
+        gsap.set(elements, blockRevealInit);
+        gsap.to(elements, {
+          ...blockRevealTween,
           scrollTrigger: {
             trigger,
             start: SCROLL_TRIGGER_START,
@@ -197,30 +212,77 @@ export function BlodScrollReveal({ children }: Props) {
         });
       };
 
-      const sections = root.querySelectorAll<HTMLElement>(".blod-section");
-      sections.forEach((section) => {
-        const targets = section.querySelectorAll<HTMLElement>(
-          SECTION_SCROLL_REVEAL_SELECTOR,
-        );
-        revealBlock(targets, section);
-      });
+      const revealHeavyBlocks = (
+        elements: HTMLElement[],
+        trigger: HTMLElement,
+      ) => {
+        if (elements.length === 0) return;
+        gsap.set(elements, blockRevealInit);
+        ScrollTrigger.create({
+          trigger,
+          start: SCROLL_TRIGGER_START,
+          once: true,
+          onEnter: async () => {
+            if (cancelled) return;
+            try {
+              await Promise.all(
+                elements.map((el) => waitForHeavyRevealContent(el)),
+              );
+            } catch {
+              /* reveal anyway so blocks don’t stay invisible */
+            }
+            if (cancelled) return;
+            requestAnimationFrame(() => {
+              if (cancelled) return;
+              gsap.to(elements, blockRevealTween);
+            });
+          },
+        });
+      };
 
-      const footer = root.querySelector<HTMLElement>("footer.blod-footer");
-      if (footer) {
-        const footerTargets = footer.querySelectorAll<HTMLElement>(
-          SECTION_SCROLL_REVEAL_SELECTOR,
-        );
-        if (footerTargets.length > 0) {
-          revealBlock(footerTargets, footer);
+      const revealBlocksForTrigger = (
+        targets: NodeListOf<HTMLElement> | HTMLElement[],
+        trigger: HTMLElement,
+      ) => {
+        const list = (
+          targets instanceof Array ? targets : Array.from(targets)
+        ) as HTMLElement[];
+        const light = list.filter((el) => !isHeavyRevealBlock(el));
+        const heavy = list.filter(isHeavyRevealBlock);
+        revealLightBlocks(light, trigger);
+        revealHeavyBlocks(heavy, trigger);
+      };
+
+      const ctx = gsap.context(() => {
+        const sections = root.querySelectorAll<HTMLElement>(".blod-section");
+        sections.forEach((section) => {
+          revealBlocksForTrigger(
+            section.querySelectorAll<HTMLElement>(
+              SECTION_SCROLL_REVEAL_SELECTOR,
+            ),
+            section,
+          );
+        });
+
+        const footer = root.querySelector<HTMLElement>("footer.blod-footer");
+        if (footer) {
+          revealBlocksForTrigger(
+            footer.querySelectorAll<HTMLElement>(
+              SECTION_SCROLL_REVEAL_SELECTOR,
+            ),
+            footer,
+          );
         }
-      }
+      }, root);
 
       requestAnimationFrame(() => {
         ScrollTrigger.refresh();
       });
 
       return () => {
+        cancelled = true;
         splits.forEach((s) => s.revert());
+        ctx.revert();
       };
     },
     { scope: rootRef, dependencies: [layoutEpoch] },

@@ -938,17 +938,15 @@ body {
 }
 
 .blod-staff-card__meta {
-  padding-block: clamp(1.45rem, 3.2vw, 2rem);
+  padding-block: clamp(1.55rem, 3.45vw, 2.15rem);
   padding-inline: clamp(0.85rem, 2vw, 1.15rem);
   text-align: center;
-  background: #120a0c;
-  border-radius: 0 0 8px 8px;
 }
 
 .blod-staff-card__name {
   display: block;
   font-family: "Bageshron", Georgia, "Times New Roman", serif;
-  font-size: clamp(1.5rem, 3.05vw + 0.58rem, 2rem);
+  font-size: clamp(1.62rem, 3.35vw + 0.62rem, 2.15rem);
   color: var(--blod-brand-red);
   letter-spacing: 0.03em;
   line-height: 1.2;
@@ -956,9 +954,9 @@ body {
 
 .blod-staff-card__role {
   display: block;
-  margin-top: 0.55rem;
+  margin-top: 0.65rem;
   font-family: "Inter", system-ui, -apple-system, sans-serif;
-  font-size: clamp(0.6875rem, 0.85vw + 0.35rem, 12pt);
+  font-size: clamp(0.75rem, 0.95vw + 0.38rem, 13pt);
   font-weight: 500;
   line-height: 1.35;
   color: var(--blod-brand-bone);
