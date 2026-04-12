@@ -1,9 +1,23 @@
+import { BlodSectionBloodParallax } from "../BlodSectionBloodParallax";
+import { BLOOD_PARALLAX_URL } from "../content/bloodParallax";
+
 /**
  * Long-form lore copy — two-column editorial layout (stacks on narrow viewports).
  */
 export function StorySection() {
   return (
-    <section id="lore" lang="en" className="blod-section blod-section--story">
+    <section
+      id="lore"
+      lang="en"
+      className="blod-section blod-section--story blod-section--blood"
+    >
+      <div className="blod-section-blood-layer" aria-hidden>
+        <BlodSectionBloodParallax
+          imageSrc={BLOOD_PARALLAX_URL}
+          side="right"
+          rotationDeg={20}
+        />
+      </div>
       <div className="blod-section-inner blod-section-inner--prose blod-section-inner--story">
         <h2>Lore</h2>
         <div className="blod-story-columns">

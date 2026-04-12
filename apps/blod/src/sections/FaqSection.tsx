@@ -1,8 +1,16 @@
+import { BlodSectionBloodParallax } from "../BlodSectionBloodParallax";
+import { BLOOD_PARALLAX_URL } from "../content/bloodParallax";
 import { faqItems } from "../content/faq";
 
 export function FaqSection() {
   return (
-    <section id="faq" className="blod-section blod-section--faq">
+    <section
+      id="faq"
+      className="blod-section blod-section--faq blod-section--blood"
+    >
+      <div className="blod-section-blood-layer" aria-hidden>
+        <BlodSectionBloodParallax imageSrc={BLOOD_PARALLAX_URL} side="left" />
+      </div>
       <div className="blod-section-inner blod-section-inner--prose">
         <div className="blod-faq-band">
           <h2>Faq</h2>

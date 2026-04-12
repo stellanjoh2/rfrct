@@ -1,8 +1,10 @@
 import type { CSSProperties } from "react";
+import { BlodSectionBloodParallax } from "../BlodSectionBloodParallax";
+import { BLOOD_PARALLAX_URL } from "../content/bloodParallax";
 import { HERO_FLASH_LOGO_URL } from "../content/heroFlashLogo";
 
 /**
- * Opening prose — edit copy here without touching layout shell (`App.tsx`).
+ * First text section below the hero; edit copy here without touching layout shell (`App.tsx`).
  */
 export function IntroSection() {
   const signatureStyle = {
@@ -11,7 +13,13 @@ export function IntroSection() {
   } satisfies CSSProperties;
 
   return (
-    <section id="intro" className="blod-section blod-section--intro">
+    <section
+      id="intro"
+      className="blod-section blod-section--intro blod-section--blood"
+    >
+      <div className="blod-section-blood-layer" aria-hidden>
+        <BlodSectionBloodParallax imageSrc={BLOOD_PARALLAX_URL} side="left" />
+      </div>
       <div className="blod-section-inner blod-section-inner--prose">
         <p>
           A lowborn Bloodhound, Pascale, doth ascend from the mire of debt and

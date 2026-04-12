@@ -29,6 +29,11 @@ html {
     5.5vw,
     calc(5rem * var(--blod-layout-scale))
   );
+  /* Seamless wall tile — `public/Images/gray-wall-texture.jpg` (intrinsic size sets repeat step). */
+  --blod-tiling-texture: url("/Images/gray-wall-texture.jpg");
+  /* Bridges mask/GPU seams (flat #070303, no tile — hides hairlines next to textured fills). */
+  --blod-tear-seam-overlap: clamp(16px, 4vw, 40px);
+  --blod-tear-seam-bridge: clamp(20px, 5vw, 48px);
   /* Firefox — thumb / track (after brand vars) */
   scrollbar-width: thin;
   scrollbar-color: var(--blod-brand-red) #141010;
@@ -102,7 +107,10 @@ html::-webkit-scrollbar-corner {
 body {
   margin: 0;
   min-height: 100vh;
-  background: #070303;
+  background-color: #070303;
+  background-image: var(--blod-tiling-texture);
+  background-repeat: repeat;
+  background-size: auto;
   color: var(--blod-brand-bone);
   font-family: "Bageshron", Georgia, "Times New Roman", serif;
   /* Fluid base: comfortable on mobile, caps near previous desktop size */
@@ -140,7 +148,10 @@ body {
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  background: #070303;
+  background-color: #070303;
+  background-image: var(--blod-tiling-texture);
+  background-repeat: repeat;
+  background-size: auto;
   display: flex;
   justify-content: stretch;
   align-items: stretch;
@@ -291,6 +302,9 @@ body {
   position: relative;
   z-index: 1;
   pointer-events: none;
+  /* Lets `100cqi` track layout width (scrollbar-inclusive), not `100vw`. */
+  container-type: inline-size;
+  container-name: blod-scroll;
 }
 
 .blod-hero-spacer {
@@ -315,12 +329,36 @@ body {
   padding-inline: 0;
   box-sizing: border-box;
   pointer-events: auto;
+  /* Clear only through the hero→scroll tear band; solid fill + tile live on `::before`. */
   background: linear-gradient(
     to bottom,
     transparent 0,
-    transparent var(--blod-hero-tear-h),
-    var(--blod-shell-body) var(--blod-hero-tear-h)
+    transparent var(--blod-hero-tear-h)
   );
+}
+
+@supports (width: 1cqi) {
+  .blod-page-shell {
+    --blod-hero-tear-h: calc(100cqi * 131.69 / 1920);
+  }
+}
+
+/* Scroll column fill below the tear: base + tiling (opaque gradient on the shell would hide it). */
+.blod-page-shell::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  width: 100%;
+  transform: none;
+  /* Slight underlap of the hero tear strip — mask valleys + rounding otherwise show a hairline. */
+  top: calc(var(--blod-hero-tear-h) - var(--blod-tear-seam-overlap));
+  bottom: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-color: var(--blod-shell-body);
+  background-image: var(--blod-tiling-texture);
+  background-repeat: repeat;
+  background-size: auto;
 }
 
 /*
@@ -329,9 +367,9 @@ body {
  */
 .blod-page-shell__cap {
   position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 100vw;
+  left: 0;
+  width: 100%;
+  transform: none;
   top: var(--blod-hero-tear-h);
   z-index: 0;
   height: max(0px, calc(var(--blod-shell-cap-h) - var(--blod-hero-tear-h)));
@@ -339,14 +377,17 @@ body {
   min-height: 0;
   background-image:
     linear-gradient(rgba(7, 3, 3, 0.38), rgba(7, 3, 3, 0.38)),
-    var(--blod-shell-bg-image, none);
-  background-repeat: no-repeat, no-repeat;
+    var(--blod-shell-bg-image, none),
+    var(--blod-tiling-texture);
+  background-repeat: no-repeat, no-repeat, repeat;
   background-position:
     center,
-    top center;
+    top center,
+    center;
   background-size:
     100% 100%,
-    min(100vw, var(--blod-shell-bg-master-w)) auto;
+    min(100vw, var(--blod-shell-bg-master-w)) auto,
+    auto;
 }
 
 /*
@@ -355,14 +396,19 @@ body {
  */
 .blod-page-shell__hero-tear {
   position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 100vw;
+  left: 0;
+  width: 100%;
+  transform: none;
   top: 0;
   z-index: 3;
   height: var(--blod-hero-tear-h);
   pointer-events: none;
   background-color: var(--blod-shell-body);
+  background-image: var(--blod-tiling-texture);
+  /* One scaled sample — `repeat` on a strip this wide shows an obvious 1024px grid. */
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: center;
   -webkit-mask-image: var(--blod-hero-scroll-tear-mask, none);
   mask-image: var(--blod-hero-scroll-tear-mask, none);
   -webkit-mask-size: 100% 100%;
@@ -379,35 +425,56 @@ body {
 .blod-page-shell::after {
   content: "";
   position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 100vw;
+  left: 0;
+  width: 100%;
+  transform: none;
   bottom: 0;
   z-index: 0;
   height: var(--blod-shell-cap-h);
   pointer-events: none;
   background-image:
     linear-gradient(to top, transparent, rgba(7, 3, 3, 0.55)),
-    var(--blod-shell-bg-image, none);
-  background-repeat: no-repeat, no-repeat;
+    var(--blod-shell-bg-image, none),
+    var(--blod-tiling-texture);
+  background-repeat: no-repeat, no-repeat, repeat;
   background-position:
     center,
-    bottom center;
+    bottom center,
+    center;
   background-size:
     100% 100%,
-    min(100vw, var(--blod-shell-bg-master-w)) auto;
+    min(100vw, var(--blod-shell-bg-master-w)) auto,
+    auto;
 }
 
 .blod-page-shell > .blod-scroll-reveal {
   position: relative;
   z-index: 2;
-  /* Opaque below the tear band; clear in the tear so hero reads through the SVG’s open areas. */
-  background: linear-gradient(
+  /*
+   * Tile + base only from `--blod-hero-tear-h` downward. Above that line this layer is fully masked
+   * out so luminance holes in `.blod-page-shell__hero-tear` still reach the fixed hero — but we no
+   * longer leave y ≥ tear line visually empty (that was the huge “see-through” band).
+   */
+  background-color: var(--blod-shell-body);
+  background-image: var(--blod-tiling-texture);
+  background-repeat: repeat;
+  background-size: auto;
+  -webkit-mask-image: linear-gradient(
     to bottom,
     transparent 0,
     transparent var(--blod-hero-tear-h),
-    var(--blod-shell-body) var(--blod-hero-tear-h)
+    #fff var(--blod-hero-tear-h)
   );
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent var(--blod-hero-tear-h),
+    #fff var(--blod-hero-tear-h)
+  );
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
   display: flex;
   flex-direction: column;
   /* One rhythm between every major band (same as title→content and stacked paragraphs). */
@@ -426,7 +493,7 @@ body {
   background: transparent;
 }
 
-/* Blood splatter is clipped inside `.blod-section-blood-layer` only; section stays
+/* Parallax splats can extend past the section band horizontally; section stays
    overflow:visible so gallery/staff ambilight can bleed past the band without a hard edge */
 .blod-section--blood {
   position: relative;
@@ -438,7 +505,8 @@ body {
   position: absolute;
   inset: 0;
   z-index: 0;
-  overflow: hidden;
+  /* visible so left/right splats can sit ~400px outside the band without clipping */
+  overflow: visible;
   pointer-events: none;
 }
 
@@ -448,40 +516,39 @@ body {
 }
 
 .blod-blood-parallax {
+  --blod-blood-splat-px: 2048; /* matches Blood_Stain_*_2K_BaseColor.png — never scale past this in CSS */
+  --_blood-parallax-size: min(92vw, 92vmin, calc(var(--blod-blood-splat-px) * 1px));
   position: absolute;
-  /* Shift blob start ~300px lower; adjust both edges so vertical span matches previous */
-  top: calc(-28.125% + 300px);
-  bottom: calc(-28.125% - 300px);
-  width: min(168.75vw, 91.40625rem);
-  max-width: 182.5%;
-  opacity: 0.25;
+  /* Centered vertically in section, then shifted ~200px up so splats start earlier */
+  top: 50%;
+  bottom: auto;
+  width: var(--_blood-parallax-size);
+  height: var(--_blood-parallax-size);
+  margin-top: calc(-1 * var(--_blood-parallax-size) / 2 - 200px);
+  /* As large as the viewport allows, but never wider/taller than source pixels (no upscaling blur) */
   pointer-events: none;
   z-index: 0;
-  filter: blur(4px) brightness(0.75);
-  will-change: transform, filter;
+  will-change: transform;
 }
 
 /* Inner layer: GSAP animates translate on the outer box; flip stays on the surface */
 .blod-blood-parallax__surface {
   position: absolute;
   inset: 0;
+  /* One bitmap pixel maps to at most one CSS px (tile is capped above); subpixel only when viewport forces smaller */
   background-size: contain;
   background-position: center center;
   background-repeat: no-repeat;
 }
 
-.blod-blood-parallax__surface--flip {
-  transform: scaleX(-1);
-}
-
-/* Nudge toward viewport edges + fixed offset further out on each side */
+/* ~400px outward from the band edge; requires blood-layer overflow:visible */
 .blod-blood-parallax--left {
-  left: calc(max(-4%, -1.5rem) - clamp(50px, 5vw, 100px) - 550px);
+  left: calc(clamp(0rem, 2vw, 1.25rem) - 400px);
   right: auto;
 }
 
 .blod-blood-parallax--right {
-  right: calc(max(-4%, -1.5rem) - clamp(50px, 5vw, 100px) - 550px);
+  right: calc(clamp(0rem, 2vw, 1.25rem) - 400px);
   left: auto;
 }
 
@@ -635,11 +702,17 @@ body {
 }
 
 .blod-section--trailer {
-  background-image: var(--blod-trailer-bg-image, none);
+  background-image: var(--blod-trailer-bg-image, none), var(--blod-tiling-texture);
+  background-repeat: no-repeat, repeat;
+  background-position: center, center;
+  background-size: cover, auto;
 }
 
 .blod-section--footer {
-  background-image: var(--blod-footer-bg-image, none);
+  background-image: var(--blod-footer-bg-image, none), var(--blod-tiling-texture);
+  background-repeat: no-repeat, repeat;
+  background-position: center, center;
+  background-size: cover, auto;
 }
 
 /*
@@ -662,6 +735,10 @@ body {
   pointer-events: none;
   z-index: 1;
   background-color: #000;
+  background-image: var(--blod-tiling-texture);
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: center;
   -webkit-mask-image: var(--blod-tear-strip-mask, none);
   mask-image: var(--blod-tear-strip-mask, none);
   -webkit-mask-size: 100% 100%;
@@ -681,12 +758,21 @@ body {
   left: 0;
   right: 0;
   top: auto;
-  bottom: 0;
+  /* Extend past the band bottom so the mask edge + rounding don’t leave a gap over the next paint. */
+  bottom: calc(-1 * var(--blod-tear-seam-overlap));
   width: 100%;
   aspect-ratio: 1920 / 131.69;
   pointer-events: none;
   z-index: 1;
   background-color: #000;
+  background-image: var(--blod-tiling-texture);
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: center;
+  /* Flat #000 bridges above/below the masked strip (same as strip fill — hides tile “slots”). */
+  box-shadow:
+    0 calc(-1 * var(--blod-tear-seam-bridge)) 0 0 #000,
+    0 var(--blod-tear-seam-bridge) 0 0 #000;
   -webkit-mask-image: var(--blod-tear-strip-mask-bottom, none);
   mask-image: var(--blod-tear-strip-mask-bottom, none);
   -webkit-mask-size: 100% 100%;

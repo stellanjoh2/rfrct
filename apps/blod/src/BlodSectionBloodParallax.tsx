@@ -1,20 +1,48 @@
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { useRef } from "react";
+import { useMemo, useRef } from "react";
 
 gsap.registerPlugin(ScrollTrigger);
+
+/** Keep splats near the texture’s dominant angle; flips add variety without big spins. */
+const MAX_ROTATION_DEG = 20;
+
+function clampRotationDeg(n: number) {
+  return Math.max(-MAX_ROTATION_DEG, Math.min(MAX_ROTATION_DEG, n));
+}
 
 type Props = {
   imageSrc: string;
   side: "left" | "right";
+  /** Optional tilt in degrees, clamped to ±MAX_ROTATION_DEG; omit for random tilt + flips per instance. */
+  rotationDeg?: number;
 };
 
 /**
  * Decorative blood splatter behind a section — scrubbed vertical parallax on scroll.
  */
-export function BlodSectionBloodParallax({ imageSrc, side }: Props) {
+export function BlodSectionBloodParallax({
+  imageSrc,
+  side,
+  rotationDeg,
+}: Props) {
   const rootRef = useRef<HTMLDivElement>(null);
+
+  /** Small rotation ±20° plus optional H/V flips — lives on the surface, not the GSAP layer. */
+  const surfaceTransform = useMemo(() => {
+    const angle =
+      rotationDeg !== undefined
+        ? clampRotationDeg(rotationDeg)
+        : Math.random() * (2 * MAX_ROTATION_DEG) - MAX_ROTATION_DEG;
+    const flipX = Math.random() < 0.5;
+    const flipY = Math.random() < 0.5;
+    return {
+      angle,
+      scaleX: flipX ? -1 : 1,
+      scaleY: flipY ? -1 : 1,
+    };
+  }, [rotationDeg]);
 
   useGSAP(
     () => {
@@ -60,8 +88,11 @@ export function BlodSectionBloodParallax({ imageSrc, side }: Props) {
       aria-hidden
     >
       <div
-        className={`blod-blood-parallax__surface${side === "right" ? " blod-blood-parallax__surface--flip" : ""}`}
-        style={{ backgroundImage: `url(${imageSrc})` }}
+        className="blod-blood-parallax__surface"
+        style={{
+          backgroundImage: `url(${imageSrc})`,
+          transform: `rotate(${surfaceTransform.angle}deg) scaleX(${surfaceTransform.scaleX}) scaleY(${surfaceTransform.scaleY})`,
+        }}
       />
     </div>
   );
