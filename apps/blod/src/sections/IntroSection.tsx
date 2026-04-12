@@ -21,12 +21,14 @@ export function IntroSection() {
           wrought into an instrument of tyranny, or to stand as the wretched
           world&apos;s last and dreadful salvation.
         </p>
-        <div
-          className="blod-intro-signature"
-          style={signatureStyle}
-          role="img"
-          aria-label="Crimson Sleeve mark"
-        />
+        <div className="blod-intro-signature-wrap">
+          <div
+            className="blod-intro-signature"
+            style={signatureStyle}
+            role="img"
+            aria-label="Crimson Sleeve mark"
+          />
+        </div>
       </div>
     </section>
   );

@@ -544,14 +544,19 @@ body {
   letter-spacing: 0.02em;
 }
 
+/* Wrapper gets GSAP opacity/y/blur; inner keeps mask (same node = sharp / no blur in WebKit) */
+.blod-intro-signature-wrap {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  margin-bottom: clamp(1.35rem, 3.25vw, 2.25rem);
+}
+
 /* Same PNG as hero flash — full square; transparent padding in the file is layout cost, not clipped */
 .blod-intro-signature {
   display: block;
   width: min(240px, 58vw);
   aspect-ratio: 1;
-  margin-inline: auto;
-  margin-top: 0;
-  margin-bottom: clamp(1.35rem, 3.25vw, 2.25rem);
   background-color: var(--blod-brand-red);
   -webkit-mask-size: contain;
   mask-size: contain;

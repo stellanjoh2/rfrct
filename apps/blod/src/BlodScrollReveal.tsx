@@ -37,6 +37,7 @@ const SECTION_SCROLL_REVEAL_SELECTOR = [
   ".blod-scroll-reveal__block",
   // Story: block fade per paragraph (not SplitType lines — columns need normal reflow)
   ".blod-section--story p",
+  // Intro signature: own trigger (see below) — section-as-trigger fires while mark is still below fold
   // Footer legal — paragraphs only (logo + social already `.blod-scroll-reveal__block`)
   ".blod-footer__legal p",
 ].join(", ");
@@ -264,6 +265,16 @@ export function BlodScrollReveal({ children }: Props) {
             section,
           );
         });
+
+        /* Intro flash mark: must use the element as ScrollTrigger — if the whole intro section is the
+         * trigger, the tween runs when the section top hits the threshold while the icon is still
+         * off-screen, so the reveal finishes before the user sees it. */
+        const introSignature = root.querySelector<HTMLElement>(
+          ".blod-intro-signature-wrap",
+        );
+        if (introSignature) {
+          revealLightBlocks([introSignature], introSignature);
+        }
       }, root);
 
       requestAnimationFrame(() => {
