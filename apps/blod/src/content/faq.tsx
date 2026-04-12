@@ -7,7 +7,7 @@ const NBHY = "\u2011";
 
 export type FaqItem = {
   question: string;
-  /** Body copy uses Inter via `.blod-faq__answer` in CSS. */
+  /** Answer body copy: Bellefair + large type via `.blod-faq__answer` in CSS (questions stay Bageshron). */
   content: ReactNode;
 };
 

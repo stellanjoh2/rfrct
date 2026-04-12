@@ -2,11 +2,13 @@ import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { useMemo, useRef } from "react";
+import {
+  BLOCK_REVEAL_DURATION,
+  LINE_REVEAL_BLUR_PX,
+  SCROLL_TRIGGER_START,
+} from "./scrollRevealMotion";
 
 gsap.registerPlugin(ScrollTrigger);
-
-/** Set to `true` to restore scrubbed vertical parallax on scroll. */
-const BLOOD_PARALLAX_SCROLL_ENABLED = false;
 
 /** Keep splats near the texture’s dominant angle; flips add variety without big spins. */
 const MAX_ROTATION_DEG = 20;
@@ -23,8 +25,8 @@ type Props = {
 };
 
 /**
- * Decorative blood splatter behind a section — optional scrubbed vertical parallax on scroll
- * (see `BLOOD_PARALLAX_SCROLL_ENABLED`).
+ * Decorative blood splatter behind a section — static layout; GSAP blur-in on scroll (same threshold
+ * as `BlodScrollReveal` blocks).
  */
 export function BlodSectionBloodParallax({
   imageSrc,
@@ -32,6 +34,7 @@ export function BlodSectionBloodParallax({
   rotationDeg,
 }: Props) {
   const rootRef = useRef<HTMLDivElement>(null);
+  const surfaceRef = useRef<HTMLDivElement>(null);
 
   /** Small rotation ±20° plus optional H/V flips — lives on the surface, not the GSAP layer. */
   const surfaceTransform = useMemo(() => {
@@ -51,38 +54,35 @@ export function BlodSectionBloodParallax({
   useGSAP(
     () => {
       const root = rootRef.current;
-      if (!root) return;
-      if (!BLOOD_PARALLAX_SCROLL_ENABLED) {
-        return;
-      }
+      const surface = surfaceRef.current;
+      if (!root || !surface) return;
       if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
         return;
       }
       const section = root.closest(".blod-section");
       if (!section) return;
 
-      /** Same scroll response on both sides; half y-range vs before = ~50% slower parallax. */
-      const fromY = 8;
-      const toY = -8;
+      const blurIn = `${LINE_REVEAL_BLUR_PX}px`;
+      /* Keep in sync with `.blod-blood-parallax__surface` — 20% darker than prior 0.85 */
+      const b = 0.68;
+      const sharp = `brightness(${b}) blur(0px)`;
+      const soft = `brightness(${b}) blur(${blurIn})`;
 
-      const tween = gsap.fromTo(
-        root,
-        { yPercent: fromY },
-        {
-          yPercent: toY,
-          ease: "none",
-          scrollTrigger: {
-            trigger: section,
-            start: "top bottom",
-            end: "bottom top",
-            scrub: 0.65,
-          },
+      gsap.set(surface, { filter: soft });
+      const blurTween = gsap.to(surface, {
+        filter: sharp,
+        duration: BLOCK_REVEAL_DURATION,
+        ease: "power3.out",
+        scrollTrigger: {
+          trigger: section,
+          start: SCROLL_TRIGGER_START,
+          toggleActions: "play none none none",
         },
-      );
+      });
 
       return () => {
-        tween.scrollTrigger?.kill();
-        tween.kill();
+        blurTween.scrollTrigger?.kill();
+        blurTween.kill();
       };
     },
     { scope: rootRef, dependencies: [imageSrc, side] },
@@ -95,6 +95,7 @@ export function BlodSectionBloodParallax({
       aria-hidden
     >
       <div
+        ref={surfaceRef}
         className="blod-blood-parallax__surface"
         style={{
           backgroundImage: `url(${imageSrc})`,

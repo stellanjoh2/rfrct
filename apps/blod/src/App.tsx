@@ -9,6 +9,7 @@ import {
 } from "./createDefaultHeroSync";
 import { DevBlobControls } from "./DevBlobControls";
 import { BlodScrollReveal } from "./BlodScrollReveal";
+import { BlodStickyHeader } from "./BlodStickyHeader";
 import { LOCKED_HERO_SYNC } from "./lockedHeroPreset";
 import {
   conceptGalleryImages,
@@ -16,7 +17,6 @@ import {
   scrollShellBackgroundUrl,
 } from "./content/galleries";
 import {
-  BLOD_HERO_SCROLL_TEAR_URL,
   BLOD_TEAR_BOTTOM_MASK_URL,
   BLOD_TEAR_STRIP_MASK_URL,
 } from "./blodTearMask";
@@ -75,6 +75,42 @@ export function App() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    const ignore = (t: EventTarget | null) => {
+      const el = t as HTMLElement | null;
+      return (
+        el &&
+        (el.tagName === "INPUT" ||
+          el.tagName === "TEXTAREA" ||
+          el.tagName === "SELECT" ||
+          el.isContentEditable)
+      );
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (!e.altKey || !e.shiftKey || e.repeat) return;
+      if (e.code !== "KeyT" && e.code !== "KeyY") return;
+      if (ignore(e.target)) return;
+      e.preventDefault();
+      const root = document.documentElement;
+      if (e.code === "KeyT") {
+        root.toggleAttribute("data-debug-hide-tear-masks");
+        const off = root.hasAttribute("data-debug-hide-tear-masks");
+        console.info(
+          `[blod] tear luminance SVG masks: ${off ? "bypassed (rect strips)" : "normal"}`,
+        );
+      } else {
+        root.toggleAttribute("data-debug-peel-tear-strips");
+        const off = root.hasAttribute("data-debug-peel-tear-strips");
+        console.info(
+          `[blod] tear strip layers: ${off ? "hidden (opacity 0)" : "normal"}`,
+        );
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   return (
     <div className="blod-page">
       {import.meta.env.DEV ? (
@@ -98,6 +134,8 @@ export function App() {
 
       <BlodGifOverlay />
 
+      <BlodStickyHeader />
+
       <div className="blod-scroll">
         <div id="blod-hero-spacer" className="blod-hero-spacer" aria-hidden />
         <div
@@ -107,7 +145,6 @@ export function App() {
               "--blod-shell-bg-image": `url(${scrollShellBackgroundUrl})`,
               "--blod-tear-strip-mask": `url(${BLOD_TEAR_STRIP_MASK_URL})`,
               "--blod-tear-strip-mask-bottom": `url(${BLOD_TEAR_BOTTOM_MASK_URL})`,
-              "--blod-hero-scroll-tear-mask": `url(${BLOD_HERO_SCROLL_TEAR_URL})`,
             } as CSSProperties
           }
         >
