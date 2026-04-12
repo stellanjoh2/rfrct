@@ -5,6 +5,9 @@ import { useMemo, useRef } from "react";
 
 gsap.registerPlugin(ScrollTrigger);
 
+/** Set to `true` to restore scrubbed vertical parallax on scroll. */
+const BLOOD_PARALLAX_SCROLL_ENABLED = false;
+
 /** Keep splats near the texture’s dominant angle; flips add variety without big spins. */
 const MAX_ROTATION_DEG = 20;
 
@@ -20,7 +23,8 @@ type Props = {
 };
 
 /**
- * Decorative blood splatter behind a section — scrubbed vertical parallax on scroll.
+ * Decorative blood splatter behind a section — optional scrubbed vertical parallax on scroll
+ * (see `BLOOD_PARALLAX_SCROLL_ENABLED`).
  */
 export function BlodSectionBloodParallax({
   imageSrc,
@@ -48,6 +52,9 @@ export function BlodSectionBloodParallax({
     () => {
       const root = rootRef.current;
       if (!root) return;
+      if (!BLOOD_PARALLAX_SCROLL_ENABLED) {
+        return;
+      }
       if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
         return;
       }
