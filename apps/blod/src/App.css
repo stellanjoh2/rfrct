@@ -42,6 +42,11 @@ html {
    */
   --blod-wall-tile-attachment: fixed;
   --blod-wall-tile-position: 0 0;
+  /* ~20% black veil on fixed wallpaper stacks (trailer, footer, scroll shell caps). */
+  --blod-static-wp-darken: linear-gradient(
+    rgba(0, 0, 0, 0.2),
+    rgba(0, 0, 0, 0.2)
+  );
   /* Subpixel seam only — large underlaps on the hero handoff read as a ruler-straight band above the rip. */
   --blod-tear-seam-overlap: 1px;
   /* Firefox — thumb / track (after brand vars) */
@@ -549,19 +554,22 @@ body {
   pointer-events: none;
   min-height: 0;
   background-image:
+    var(--blod-static-wp-darken),
     linear-gradient(rgba(7, 3, 3, 0.38), rgba(7, 3, 3, 0.38)),
     var(--blod-shell-bg-image, none),
     var(--blod-tiling-texture);
-  background-repeat: no-repeat, no-repeat, repeat;
+  background-repeat: no-repeat, no-repeat, no-repeat, repeat;
   background-position:
+    0 0,
     center,
     top center,
     0 0;
   background-size:
     100% 100%,
+    100% 100%,
     min(100vw, var(--blod-shell-bg-master-w)) auto,
     auto;
-  background-attachment: scroll, fixed, var(--blod-wall-tile-attachment);
+  background-attachment: scroll, scroll, fixed, var(--blod-wall-tile-attachment);
 }
 
 /*
@@ -610,19 +618,22 @@ body {
   height: var(--blod-shell-cap-h);
   pointer-events: none;
   background-image:
+    var(--blod-static-wp-darken),
     linear-gradient(to top, transparent, rgba(7, 3, 3, 0.55)),
     var(--blod-shell-bg-image, none),
     var(--blod-tiling-texture);
-  background-repeat: no-repeat, no-repeat, repeat;
+  background-repeat: no-repeat, no-repeat, no-repeat, repeat;
   background-position:
+    0 0,
     center,
     bottom center,
     0 0;
   background-size:
     100% 100%,
+    100% 100%,
     min(100vw, var(--blod-shell-bg-master-w)) auto,
     auto;
-  background-attachment: scroll, scroll, var(--blod-wall-tile-attachment);
+  background-attachment: scroll, scroll, scroll, var(--blod-wall-tile-attachment);
 }
 
 .blod-page-shell > .blod-scroll-reveal {
@@ -848,6 +859,8 @@ body {
 
 .blod-story-columns__col {
   min-width: 0;
+  /* ~1–2 fewer characters per line; end padding only so column start edges stay put */
+  padding-inline-end: clamp(0.75ch, 0.35em, 1.5ch);
 }
 
 /* Normal paragraph reflow (no SplitType line locks) + softer rag: hyphenation & orphan control */
@@ -901,24 +914,38 @@ body {
 }
 
 .blod-section--trailer {
-  background-image: var(--blod-trailer-bg-image, none), var(--blod-tiling-texture);
-  background-repeat: no-repeat, repeat;
+  background-image: var(--blod-static-wp-darken), var(--blod-trailer-bg-image, none),
+    var(--blod-tiling-texture);
+  background-repeat: no-repeat, no-repeat, repeat;
   /*
    * Same master + rules as `.blod-page-shell__cap` / `::after`: `cover` crops `bg.jpg` and can remove
    * the bottom of the bitmap before it reaches the tear — reads as a straight seam. Cap width, natural
    * height, anchor bottom so the photo meets the masked strip.
    */
-  background-position: center bottom, var(--blod-wall-tile-position);
-  background-size: min(100vw, var(--blod-shell-bg-master-w, 3840px)) auto, auto;
-  background-attachment: fixed, var(--blod-wall-tile-attachment);
+  background-position: 0 0, center bottom, var(--blod-wall-tile-position);
+  background-size:
+    100% 100%,
+    min(100vw, var(--blod-shell-bg-master-w, 3840px)) auto,
+    auto;
+  background-attachment: scroll, fixed, var(--blod-wall-tile-attachment);
 }
 
+/* Darken + two photo layers (hero over master) + wall tile — matches `--blod-footer-bg-image`. */
 .blod-section--footer {
-  background-image: var(--blod-footer-bg-image, none), var(--blod-tiling-texture);
-  background-repeat: no-repeat, repeat;
-  background-position: center bottom, var(--blod-wall-tile-position);
-  background-size: min(100vw, var(--blod-shell-bg-master-w, 3840px)) auto, auto;
-  background-attachment: fixed, var(--blod-wall-tile-attachment);
+  background-image: var(--blod-static-wp-darken), var(--blod-footer-bg-image, none),
+    var(--blod-tiling-texture);
+  background-repeat: no-repeat, no-repeat, no-repeat, repeat;
+  background-position:
+    0 0,
+    center bottom,
+    center bottom,
+    var(--blod-wall-tile-position);
+  background-size:
+    100% 100%,
+    min(100vw, var(--blod-shell-bg-master-w, 3840px)) auto,
+    min(100vw, var(--blod-shell-bg-master-w, 3840px)) auto,
+    auto;
+  background-attachment: scroll, fixed, fixed, var(--blod-wall-tile-attachment);
 }
 
 /*

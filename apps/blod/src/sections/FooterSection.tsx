@@ -9,8 +9,9 @@ import {
 import type { CSSProperties } from "react";
 import { publicUrl } from "../publicUrl";
 
-/** Same master as trailer / scroll shell — static parallax band. */
-const FOOTER_BG_IMAGE = publicUrl("Images/bg.jpg");
+/** Static parallax band: character over the same master as trailer / scroll shell. */
+const FOOTER_BG_BASE = publicUrl("Images/bg.jpg");
+const FOOTER_BG_HERO = publicUrl("Images/demonhero2.jpg");
 const LOGO_SRC = publicUrl("Images/blod-logo-footer.png");
 
 /** Replace `#` with real profile / server / hub URLs before launch. */
@@ -29,7 +30,7 @@ export function FooterSection() {
       className="blod-footer blod-section blod-section--footer"
       style={
         {
-          "--blod-footer-bg-image": `url(${FOOTER_BG_IMAGE})`,
+          "--blod-footer-bg-image": `url(${FOOTER_BG_HERO}), url(${FOOTER_BG_BASE})`,
         } as CSSProperties
       }
     >
