@@ -533,14 +533,32 @@ body {
   text-align: center;
   /* Narrower than main column (~72rem at 1360-era scale) */
   max-width: min(calc(72rem * var(--blod-layout-scale)), 100%);
-  /* Same vertical step as `h2` margin-top — equal air above and below intro copy */
-  padding-block: calc(var(--blod-rhythm) * 1.15);
+  padding-top: calc(var(--blod-rhythm) * 1.15);
+  /* Tighter than symmetric top — pull bottom seam up (250px vs full padding) */
+  padding-bottom: max(0.5rem, calc(var(--blod-rhythm) * 1.15 - 15.625rem));
 }
 
 .blod-section--intro p {
   font-size: clamp(1.5rem, 3.5vw + 1.25rem, 72pt);
   line-height: 1.18;
   letter-spacing: 0.02em;
+}
+
+/* Same PNG as hero flash — full square; transparent padding in the file is layout cost, not clipped */
+.blod-intro-signature {
+  display: block;
+  width: min(240px, 58vw);
+  aspect-ratio: 1;
+  margin-inline: auto;
+  margin-top: 0;
+  margin-bottom: clamp(1.35rem, 3.25vw, 2.25rem);
+  background-color: var(--blod-brand-red);
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
 }
 
 /* Lore (Story section) — two main columns (editorial), single column on small screens */

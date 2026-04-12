@@ -15,10 +15,7 @@ import {
   useState,
   type PointerEvent as ReactPointerEvent,
 } from "react";
-import { publicUrl } from "./publicUrl";
-
-/** `public/Images/Crimson_Sleeve_Logo_Black.png` — white artwork on transparent (Vite `base`). */
-const HERO_FLASH_LOGO_URL = publicUrl("Images/Crimson_Sleeve_Logo_Black.png");
+import { HERO_FLASH_LOGO_URL } from "./content/heroFlashLogo";
 
 /** CSS px: shift underlay toward bottom of letterbox; scaled by canvas backing vs client size. */
 const HERO_FLASH_OFFSET_DOWN_CSS_PX = 50;
