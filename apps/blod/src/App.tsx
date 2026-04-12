@@ -16,6 +16,11 @@ import {
   scrollShellBackgroundUrl,
 } from "./content/galleries";
 import {
+  BLOD_HERO_SCROLL_TEAR_URL,
+  BLOD_TEAR_BOTTOM_MASK_URL,
+  BLOD_TEAR_STRIP_MASK_URL,
+} from "./blodTearMask";
+import {
   FaqSection,
   FooterSection,
   GallerySection,
@@ -100,9 +105,14 @@ export function App() {
           style={
             {
               "--blod-shell-bg-image": `url(${scrollShellBackgroundUrl})`,
+              "--blod-tear-strip-mask": `url(${BLOD_TEAR_STRIP_MASK_URL})`,
+              "--blod-tear-strip-mask-bottom": `url(${BLOD_TEAR_BOTTOM_MASK_URL})`,
+              "--blod-hero-scroll-tear-mask": `url(${BLOD_HERO_SCROLL_TEAR_URL})`,
             } as CSSProperties
           }
         >
+          <div className="blod-page-shell__cap" aria-hidden />
+          <div className="blod-page-shell__hero-tear" aria-hidden />
           <BlodScrollReveal>
             <IntroSection />
             <TrailerSection />

@@ -29,6 +29,33 @@ html {
     5.5vw,
     calc(5rem * var(--blod-layout-scale))
   );
+  /* Firefox — thumb / track (after brand vars) */
+  scrollbar-width: thin;
+  scrollbar-color: var(--blod-brand-red) #141010;
+}
+
+/* WebKit (Safari, Chrome, Edge) — bespoke scrollbar; overrides system default */
+html::-webkit-scrollbar {
+  width: 11px;
+  height: 11px;
+}
+
+html::-webkit-scrollbar-track {
+  background: #141010;
+}
+
+html::-webkit-scrollbar-thumb {
+  background-color: var(--blod-brand-red);
+  border-radius: 999px;
+  border: 2px solid #141010;
+}
+
+html::-webkit-scrollbar-thumb:hover {
+  background-color: var(--blod-brand-red-hover);
+}
+
+html::-webkit-scrollbar-corner {
+  background: #141010;
 }
 
 /* Initial visit: covers the viewport until GSAP fades it out (see `cinematicCurtain.ts`). */
@@ -272,9 +299,13 @@ body {
   pointer-events: none;
 }
 
-/* Scroll column: body fill #070303; caps = bg image + simple linear fade (full image → black at seam). */
+/* Scroll column: body tint; top `--blod-hero-tear-h` is clear so hero shows through tear “holes”. */
 .blod-page-shell {
+  /* Same token as `body` / trailer — tear fill + post-tear paint stay matched. */
+  --blod-shell-body: #070303;
   --blod-shell-cap-h: clamp(18rem, 48vh, 44rem);
+  /* `svg-mask-*tear.svg` viewBox height 131.69 @ 1920 — hero→scroll stacked tear strip */
+  --blod-hero-tear-h: calc(100vw * 131.69 / 1920);
   /* Native width of `public/Images/bg.jpg` (cap avoids upscaling past this bitmap width). */
   --blod-shell-bg-master-w: 3840px;
   position: relative;
@@ -284,22 +315,30 @@ body {
   padding-inline: 0;
   box-sizing: border-box;
   pointer-events: auto;
-  background-color: #070303;
+  background: linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent var(--blod-hero-tear-h),
+    var(--blod-shell-body) var(--blod-hero-tear-h)
+  );
 }
 
-/* Top cap: top row = image at full strength; bottom row = black (overlay only; image underneath). */
-.blod-page-shell::before {
-  content: "";
+/*
+ * Parchment band starts below the hero tear strip so transparent pixels in the tear
+ * composite to the fixed hero, not a flat parchment slab.
+ */
+.blod-page-shell__cap {
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
   width: 100vw;
-  top: 0;
+  top: var(--blod-hero-tear-h);
   z-index: 0;
-  height: var(--blod-shell-cap-h);
+  height: max(0px, calc(var(--blod-shell-cap-h) - var(--blod-hero-tear-h)));
   pointer-events: none;
+  min-height: 0;
   background-image:
-    linear-gradient(to bottom, transparent, #000000),
+    linear-gradient(rgba(7, 3, 3, 0.38), rgba(7, 3, 3, 0.38)),
     var(--blod-shell-bg-image, none);
   background-repeat: no-repeat, no-repeat;
   background-position:
@@ -310,7 +349,33 @@ body {
     min(100vw, var(--blod-shell-bg-master-w)) auto;
 }
 
-/* Bottom cap: bottom row = full image; top row of cap = black — reverse of ::before. */
+/*
+ * Tear paint = `--blod-shell-body` (not #000) so it matches scroll bg exactly.
+ * SVG is luminance mask (white = paint). Same asset as when we used <img> + brightness(0).
+ */
+.blod-page-shell__hero-tear {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100vw;
+  top: 0;
+  z-index: 3;
+  height: var(--blod-hero-tear-h);
+  pointer-events: none;
+  background-color: var(--blod-shell-body);
+  -webkit-mask-image: var(--blod-hero-scroll-tear-mask, none);
+  mask-image: var(--blod-hero-scroll-tear-mask, none);
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  -webkit-mask-position: center bottom;
+  mask-position: center bottom;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-mode: luminance;
+  mask-mode: luminance;
+}
+
+/* Bottom parchment cap — footer fade + texture (tint, not pure black). */
 .blod-page-shell::after {
   content: "";
   position: absolute;
@@ -322,7 +387,7 @@ body {
   height: var(--blod-shell-cap-h);
   pointer-events: none;
   background-image:
-    linear-gradient(to top, transparent, #000000),
+    linear-gradient(to top, transparent, rgba(7, 3, 3, 0.55)),
     var(--blod-shell-bg-image, none);
   background-repeat: no-repeat, no-repeat;
   background-position:
@@ -335,12 +400,21 @@ body {
 
 .blod-page-shell > .blod-scroll-reveal {
   position: relative;
-  z-index: 1;
+  z-index: 2;
+  /* Opaque below the tear band; clear in the tear so hero reads through the SVG’s open areas. */
+  background: linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent var(--blod-hero-tear-h),
+    var(--blod-shell-body) var(--blod-hero-tear-h)
+  );
   display: flex;
   flex-direction: column;
   /* One rhythm between every major band (same as title→content and stacked paragraphs). */
   gap: var(--blod-rhythm);
-  padding-block: var(--blod-rhythm);
+  /* Reserve space for `.blod-page-shell__hero-tear` so intro copy starts below the strip. */
+  padding-top: calc(var(--blod-rhythm) + var(--blod-hero-tear-h));
+  padding-bottom: var(--blod-rhythm);
 }
 
 .blod-scroll-reveal > * {
@@ -509,15 +583,19 @@ body {
   text-decoration-color: currentColor;
 }
 
-/* Trailer band: tall static parallax bg; vertical inset 2× rhythm; horizontal = prose (same width as galleries). */
-.blod-section--trailer {
+/*
+ * Trailer + footer bands: tall static parallax bg (`Images/bg.jpg`); vertical inset 2× rhythm;
+ * horizontal = prose (same width as galleries). Tear strips match intro / hero scroll language.
+ */
+.blod-section--trailer,
+.blod-section--footer {
   position: relative;
+  isolation: isolate;
   z-index: 0;
   width: 100%;
   max-width: none;
   margin-inline: 0;
   background-color: #070303;
-  background-image: var(--blod-trailer-bg-image, none);
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
@@ -533,19 +611,92 @@ body {
   box-sizing: border-box;
 }
 
-.blod-section--trailer > .blod-section-inner--prose {
+.blod-section--trailer {
+  background-image: var(--blod-trailer-bg-image, none);
+}
+
+.blod-section--footer {
+  background-image: var(--blod-footer-bg-image, none);
+}
+
+/*
+ * Tear strips (viewBox 1920×131.69):
+ * — Top: `svg-mask-toptear.svg` via `--blod-tear-strip-mask`
+ * — Bottom: `svg-mask-bottomtear.svg` (pre-flipped art) via `--blod-tear-strip-mask-bottom`
+ * Solid black strips — luminance matches band art. Same assets as trailer.
+ * Avoid `transform` on masked pseudos — WebKit often drops the layer when combined with `-webkit-mask`.
+ */
+.blod-section--trailer::before,
+.blod-section--footer::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: auto;
+  width: 100%;
+  aspect-ratio: 1920 / 131.69;
+  pointer-events: none;
+  z-index: 1;
+  background-color: #000;
+  -webkit-mask-image: var(--blod-tear-strip-mask, none);
+  mask-image: var(--blod-tear-strip-mask, none);
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center top;
+  mask-position: center top;
+  -webkit-mask-mode: luminance;
+  mask-mode: luminance;
+}
+
+.blod-section--trailer::after,
+.blod-section--footer::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: auto;
+  bottom: 0;
+  width: 100%;
+  aspect-ratio: 1920 / 131.69;
+  pointer-events: none;
+  z-index: 1;
+  background-color: #000;
+  -webkit-mask-image: var(--blod-tear-strip-mask-bottom, none);
+  mask-image: var(--blod-tear-strip-mask-bottom, none);
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center bottom;
+  mask-position: center bottom;
+  -webkit-mask-mode: luminance;
+  mask-mode: luminance;
+}
+
+.blod-section--trailer > .blod-section-inner--prose,
+.blod-section--footer > .blod-section-inner--prose {
   /* Do not use `padding` shorthand — it was overriding prose `padding-inline` and shrinking the frame. */
   padding-block: calc(var(--blod-rhythm) * 2);
 }
 
 .blod-section-inner--trailer {
   position: relative;
-  z-index: 1;
+  z-index: 2;
+  width: 100%;
+}
+
+.blod-section-inner--footer {
+  position: relative;
+  z-index: 2;
   width: 100%;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .blod-section--trailer {
+  .blod-section--trailer,
+  .blod-section--footer {
     background-attachment: scroll;
   }
 }
@@ -1124,25 +1275,26 @@ body {
   outline-offset: 3px;
 }
 
+/* Footer: static band (see `.blod-section--footer`); stack is viewport-centered like the trailer frame. */
 .blod-footer {
   padding-block: 0;
   padding-inline: 0;
   text-align: center;
-  font-family: "Bageshron", Georgia, "Times New Roman", serif;
-  font-size: clamp(1.125rem, 2.8vw + 0.65rem, 36pt);
   color: var(--blod-brand-red);
-  background: transparent;
 }
 
-.blod-footer__inner {
+.blod-footer__frame {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-width: 0;
   gap: 0;
 }
 
 .blod-footer__logo-wrap {
-  margin-bottom: calc(var(--blod-rhythm) * 0.5);
+  margin: 0 0 calc(var(--blod-rhythm) * 1.5625);
 }
 
 .blod-footer__social {
@@ -1150,8 +1302,8 @@ body {
   flex-wrap: wrap;
   justify-content: center;
   align-items: center;
-  gap: clamp(1.5rem, 4.25vw, 2.5rem);
-  margin-bottom: var(--blod-rhythm);
+  gap: clamp(2.25rem, 6.375vw, 3.75rem);
+  margin: 0 0 calc(var(--blod-rhythm) * 0.75);
 }
 
 .blod-footer__social-link {
@@ -1176,20 +1328,22 @@ body {
 }
 
 .blod-footer__social-icon {
-  width: clamp(1.5rem, 3.5vw, 1.85rem);
-  height: clamp(1.5rem, 3.5vw, 1.85rem);
+  width: clamp(2.25rem, 5.25vw, 2.775rem);
+  height: clamp(2.25rem, 5.25vw, 2.775rem);
 }
 
 .blod-footer__logo {
   display: block;
-  width: min(500px, 100%);
+  box-sizing: border-box;
+  width: calc(485px * 0.75);
+  max-width: 100%;
   height: auto;
   margin-inline: auto;
 }
 
 .blod-footer__legal {
   width: 100%;
-  max-width: 52rem;
+  max-width: min(1200px, 100%);
   margin-inline: auto;
   text-align: center;
   font-family: "Inter", system-ui, sans-serif;
@@ -1198,10 +1352,15 @@ body {
   color: var(--blod-brand-red);
 }
 
-.blod-footer__legal p {
+/* Beat `.blod-section p` now that the footer is a section band. */
+.blod-section--footer .blod-footer__legal p {
   margin: 0;
   width: 100%;
   min-width: 0;
+  font-family: "Inter", system-ui, sans-serif;
+  font-size: clamp(0.7rem, 1.35vw, 0.875rem);
+  line-height: 1.65;
+  color: var(--blod-brand-red);
   font-kerning: none;
   font-variant-ligatures: none;
   overflow-wrap: break-word;

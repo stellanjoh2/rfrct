@@ -54,7 +54,8 @@ type Props = {
  * the container width changes (resize, orientation) or after webfonts load.
  *
  * Block fade/slide (per section): headings, gallery/staff figures, FAQ details,
- * `.blod-trailer`, `.blod-footer__legal p`, and any element with `.blod-scroll-reveal__block`.
+ * `.blod-trailer`, `.blod-footer__legal p`, and any element with `.blod-scroll-reveal__block`
+ * (footer is a `.blod-section` — same trigger path as other bands).
  * Hero teaser video uses the same motion on mount (fixed layer — see `BlodHeroTeaserVideo`).
  *
  * Gallery / staff / trailer / footer logo waits for images, video, and mask SVGs to be ready
@@ -188,10 +189,10 @@ export function BlodScrollReveal({ children }: Props) {
       };
 
       runLineReveal(".blod-section--intro p", introLineDuration, introLineStagger);
-      /* Section body copy — not intro, footer, or Story (Story uses two columns; SplitType line
-       * splits lock breaks and cause ragged “gaps”; Story paragraphs use block reveal instead). */
+      /* Section body copy — not intro, Story, or footer (footer legal uses block reveal; Story uses
+       * two columns — SplitType line splits lock breaks). */
       runLineReveal(
-        ".blod-section:not(.blod-section--intro):not(.blod-section--story) p",
+        ".blod-section:not(.blod-section--intro):not(.blod-section--story):not(.blod-section--footer) p",
         bodyLineDuration,
         bodyLineStagger,
       );
@@ -263,16 +264,6 @@ export function BlodScrollReveal({ children }: Props) {
             section,
           );
         });
-
-        const footer = root.querySelector<HTMLElement>("footer.blod-footer");
-        if (footer) {
-          revealBlocksForTrigger(
-            footer.querySelectorAll<HTMLElement>(
-              SECTION_SCROLL_REVEAL_SELECTOR,
-            ),
-            footer,
-          );
-        }
       }, root);
 
       requestAnimationFrame(() => {

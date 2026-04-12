@@ -1,4 +1,8 @@
 import { BLOD_FRAME_MASK_URL, BLOD_FRAME_MASK_PORTRAIT_URL } from "./blodFrameMask";
+import {
+  BLOD_TEAR_BOTTOM_MASK_URL,
+  BLOD_TEAR_STRIP_MASK_URL,
+} from "./blodTearMask";
 import { BLOOD_PARALLAX_URL } from "./content/bloodParallax";
 import { publicUrl } from "./publicUrl";
 
@@ -7,6 +11,8 @@ const FRAME_ASSET_URLS = [
   BLOD_FRAME_MASK_URL,
   BLOD_FRAME_MASK_PORTRAIT_URL,
   publicUrl("Images/bg.jpg"),
+  BLOD_TEAR_STRIP_MASK_URL,
+  BLOD_TEAR_BOTTOM_MASK_URL,
   BLOOD_PARALLAX_URL,
 ] as const;
 

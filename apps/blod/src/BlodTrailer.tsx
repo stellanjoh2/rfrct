@@ -10,7 +10,6 @@ import { publicUrl } from "./publicUrl";
 import { BLOD_TRAILER_MP4_URL } from "./trailerUrl";
 /** Full-bleed parallax band — `public/Images/bg.jpg` (same master as scroll shell). */
 const TRAILER_BG_IMAGE = publicUrl("Images/bg.jpg");
-
 /** Seek to start slightly before the file end to avoid native `loop` seam glitches. */
 const LOOP_TAIL_SEC = 0.05;
 
