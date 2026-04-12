@@ -5,6 +5,7 @@ import {
   useState,
   type CSSProperties,
 } from "react";
+import { BLOD_FRAME_MASK_URL } from "./blodFrameMask";
 import { publicUrl } from "./publicUrl";
 import { BLOD_TRAILER_MP4_URL } from "./trailerUrl";
 /** Full-bleed parallax band — `public/Images/bg.jpg` (same master as scroll shell). */
@@ -83,22 +84,25 @@ export function BlodTrailer() {
       style={
         {
           "--blod-trailer-bg-image": `url(${TRAILER_BG_IMAGE})`,
+          "--blod-trailer-frame-mask": `url(${BLOD_FRAME_MASK_URL})`,
         } as CSSProperties
       }
     >
       <div className="blod-section-inner blod-section-inner--prose blod-section-inner--trailer">
         <div className="blod-trailer">
           <div className="blod-trailer__frame">
-            <video
-              ref={videoRef}
-              className="blod-trailer__video"
-              src={BLOD_TRAILER_MP4_URL}
-              autoPlay
-              muted
-              playsInline
-              preload="auto"
-            />
-            <div className="blod-trailer__tint" aria-hidden />
+            <div className="blod-trailer__media">
+              <video
+                ref={videoRef}
+                className="blod-trailer__video"
+                src={BLOD_TRAILER_MP4_URL}
+                autoPlay
+                muted
+                playsInline
+                preload="auto"
+              />
+              <div className="blod-trailer__tint" aria-hidden />
+            </div>
             <button
               type="button"
               className="blod-trailer__play"
