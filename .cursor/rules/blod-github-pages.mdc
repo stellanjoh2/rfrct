@@ -1,0 +1,17 @@
+---
+description: Deploy Blod to stellanjoh2.github.io/blod after monorepo changes
+globs: apps/blod/**/*
+alwaysApply: false
+---
+
+# Blod live site (GitHub Pages)
+
+The public site is **not** only `git push origin` on this monorepo. **`stellanjoh2.github.io/blod/`** is built from the separate repo **`stellanjoh2/blod`**.
+
+After committing Blod work under `apps/blod/`, also mirror that folder to the Blod repo so Actions deploy Pages:
+
+1. From repo root: **`npm run push:blod`** (runs `scripts/push-blod-to-blod-repo.sh`), **or** the same commands manually: `git subtree split --prefix=apps/blod -b blod-standalone` then `git push blod blod-standalone:main`.
+
+2. CI: pushes to `main` that touch `apps/blod/**` also run **Sync Blod folder to stellanjoh2/blod** (`.github/workflows/sync-blod-mirror-repo.yml`) **if** secret **`BLOD_MIRROR_PUSH_TOKEN`** is set on this repo.
+
+When the user says **push** and the change includes `apps/blod`, run **`npm run push:blod`** after `git push origin` (or include both in one session).

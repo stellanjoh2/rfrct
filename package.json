@@ -15,6 +15,7 @@
     "build:editor": "npm run build -w refrct-editor",
     "build:blod": "npm run build -w blod",
     "preview:editor": "npm run preview -w refrct-editor",
-    "preview:blod": "npm run preview -w blod"
+    "preview:blod": "npm run preview -w blod",
+    "push:blod": "bash scripts/push-blod-to-blod-repo.sh"
   }
 }

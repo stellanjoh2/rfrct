@@ -69,6 +69,8 @@ git remote add blod git@github.com:stellanjoh2/blod.git   # once
 git push blod blod-standalone:main
 ```
 
+**From the monorepo root** you can use **`npm run push:blod`** (runs `scripts/push-blod-to-blod-repo.sh`) instead of the two git commands above. Pushes to `main` that change `apps/blod/**` can also auto-mirror via `.github/workflows/sync-blod-mirror-repo.yml` if the `rfrct` repo has secret **`BLOD_MIRROR_PUSH_TOKEN`** (PAT with push access to `stellanjoh2/blod`).
+
 **Important:** The first push from `subtree split` still has `"@refrct/core": "*"`, which **will not work** outside the workspace. Either:
 
 - Amend on `blod-standalone` before pushing (copy `package.standalone.json` → `package.json`, commit), or  
