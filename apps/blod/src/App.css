@@ -949,6 +949,25 @@ body {
 }
 
 /*
+ * Very wide viewports: width-only scaling makes the bitmap extremely tall; `center bottom` then
+ * frames mostly the lower crop (head clipped above the band). Cap height and center like laptop.
+ */
+@media (min-width: 1800px) {
+  .blod-section--footer {
+    background-size:
+      100% 100%,
+      auto min(72vh, 1040px),
+      auto min(72vh, 1040px),
+      auto;
+    background-position:
+      0 0,
+      center center,
+      center center,
+      var(--blod-wall-tile-position);
+  }
+}
+
+/*
  * Torn edges = SVG luminance masks only (no extra full-width “straight” bands):
  * — Top `::before`: `svg-mask-toptear.svg`; bottom `::after`: `svg-mask-bottomtear.svg`.
  * Height exactly `--blod-hero-tear-h` (no +1px bleed — that read as flat horizontal strips).
