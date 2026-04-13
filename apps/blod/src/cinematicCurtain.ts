@@ -1,11 +1,27 @@
 import gsap from "gsap";
 import { publicUrl } from "./publicUrl";
 
-const CURTAIN_ID = "blod-cinematic-curtain";
+export const BLOD_CINEMATIC_CURTAIN_ID = "blod-cinematic-curtain";
+
+/** Fired when the black loading layer is gone (fade finished or immediate dismiss). Hero flash listens. */
+export const BLOD_LOADING_CURTAIN_DONE_EVENT = "blod:loading-curtain-done";
+
+const CURTAIN_ID = BLOD_CINEMATIC_CURTAIN_ID;
+
+function dispatchLoadingCurtainDone(): void {
+  if (typeof document === "undefined") return;
+  /* After layout effects so `BlodRefractHero` can subscribe first (sync early-exit paths). */
+  queueMicrotask(() => {
+    document.dispatchEvent(new CustomEvent(BLOD_LOADING_CURTAIN_DONE_EVENT));
+  });
+}
 
 /** Target time budget for the choppy “loading” reveal */
 const REVEAL_DURATION_SEC = 2;
-const FADE_OUT_DURATION_SEC = 0.75;
+/** Black full-screen curtain fades after the bloodline bar wipes away */
+const FADE_OUT_DURATION_SEC = 0.75 * 1.5 * 1.5;
+/** Bloodline bar only: clip-out left → right when the choppy reveal finishes */
+const LOADING_BAR_WIPE_OUT_DURATION_SEC = 0.48;
 
 type RevealStep = { rightInsetPct: number; duration: number };
 
@@ -55,12 +71,15 @@ function buildChoppyLoadingSteps(totalSec: number): RevealStep[] {
 }
 
 /**
- * Entry sequence: solid black + bloodline image “loads” in choppy steps (~2s), then curtain fades.
- * Respects `prefers-reduced-motion: reduce` (short fade, no reveal animation).
+ * Entry sequence: bloodline “loads” in choppy steps (~2s), then the bar wipes off L→R while the black
+ * curtain fades out in parallel. `prefers-reduced-motion: reduce` skips the bar and uses a short fade.
  */
 export function runCinematicFadeFromBlack(): void {
   const el = document.getElementById(CURTAIN_ID);
-  if (!el) return;
+  if (!el) {
+    dispatchLoadingCurtainDone();
+    return;
+  }
 
   const prevOverflow = document.body.style.overflow;
   document.body.style.overflow = "hidden";
@@ -75,6 +94,7 @@ export function runCinematicFadeFromBlack(): void {
       duration: 0.35,
       ease: "power1.out",
       onComplete: () => {
+        dispatchLoadingCurtainDone();
         el.remove();
         document.body.style.overflow = prevOverflow;
       },
@@ -93,8 +113,10 @@ export function runCinematicFadeFromBlack(): void {
     </div>
   `;
 
+  const barTrack = el.querySelector<HTMLElement>(".blod-loading-bar__track");
   const mask = el.querySelector<HTMLElement>(".blod-loading-bar__mask");
-  if (!mask) {
+  if (!barTrack || !mask) {
+    dispatchLoadingCurtainDone();
     el.remove();
     document.body.style.overflow = prevOverflow;
     return;
@@ -106,6 +128,7 @@ export function runCinematicFadeFromBlack(): void {
 
   const tl = gsap.timeline({
     onComplete: () => {
+      dispatchLoadingCurtainDone();
       el.remove();
       document.body.style.overflow = prevOverflow;
     },
@@ -119,15 +142,33 @@ export function runCinematicFadeFromBlack(): void {
     });
   }
 
-  tl.to(el, {
-    opacity: 0,
-    duration: FADE_OUT_DURATION_SEC,
-    ease: "power2.inOut",
-  });
+  tl.fromTo(
+    barTrack,
+    { clipPath: "inset(0 0 0 0)" },
+    {
+      clipPath: "inset(0 0 0 100%)",
+      duration: LOADING_BAR_WIPE_OUT_DURATION_SEC,
+      ease: "power2.inOut",
+    },
+  );
+
+  tl.to(
+    el,
+    {
+      opacity: 0,
+      duration: FADE_OUT_DURATION_SEC,
+      ease: "power2.inOut",
+    },
+    "<",
+  );
 }
 
 /** Bootstrap / fatal errors — don’t trap the user behind the curtain */
 export function dismissCinematicCurtainImmediate(): void {
-  document.getElementById(CURTAIN_ID)?.remove();
+  const curtain = document.getElementById(CURTAIN_ID);
+  if (curtain) {
+    dispatchLoadingCurtainDone();
+    curtain.remove();
+  }
   document.body.style.overflow = "";
 }

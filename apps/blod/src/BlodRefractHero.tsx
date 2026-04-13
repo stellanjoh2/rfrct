@@ -15,6 +15,10 @@ import {
   useState,
   type PointerEvent as ReactPointerEvent,
 } from "react";
+import {
+  BLOD_CINEMATIC_CURTAIN_ID,
+  BLOD_LOADING_CURTAIN_DONE_EVENT,
+} from "./cinematicCurtain";
 import { HERO_FLASH_LOGO_URL } from "./content/heroFlashLogo";
 
 /** CSS px: shift underlay toward bottom of letterbox; scaled by canvas backing vs client size. */
@@ -75,7 +79,8 @@ export function BlodRefractHero({
 
   /**
    * Once per wall-clock second: two one-frame flashes with one blank frame between
-   * (on → off → on → off).
+   * (on → off → on → off). Waits until the black loading curtain has finished fading out
+   * so the white flash is not visible underneath it.
    */
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -83,6 +88,7 @@ export function BlodRefractHero({
 
     let rafId = 0;
     let lastSec = Math.floor(performance.now() / 1000);
+    let loopStarted = false;
 
     const tick = (now: number) => {
       if (!heroSpacerVisibleRef.current) {
@@ -119,8 +125,29 @@ export function BlodRefractHero({
       rafId = requestAnimationFrame(tick);
     };
 
-    rafId = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(rafId);
+    const startFlashLoop = () => {
+      if (loopStarted) return;
+      loopStarted = true;
+      rafId = requestAnimationFrame(tick);
+    };
+
+    const onCurtainDone = () => startFlashLoop();
+
+    if (!document.getElementById(BLOD_CINEMATIC_CURTAIN_ID)) {
+      startFlashLoop();
+    } else {
+      document.addEventListener(BLOD_LOADING_CURTAIN_DONE_EVENT, onCurtainDone, {
+        once: true,
+      });
+    }
+
+    return () => {
+      document.removeEventListener(
+        BLOD_LOADING_CURTAIN_DONE_EVENT,
+        onCurtainDone,
+      );
+      cancelAnimationFrame(rafId);
+    };
   }, []);
 
   useEffect(() => {

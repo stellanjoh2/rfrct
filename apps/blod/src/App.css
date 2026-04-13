@@ -104,6 +104,8 @@ html::-webkit-scrollbar-corner {
   display: inline-block;
   max-width: min(66vw, 100%);
   vertical-align: top;
+  overflow: hidden;
+  will-change: clip-path;
 }
 
 .blod-loading-bar__mask {
