@@ -42,10 +42,10 @@ html {
    */
   --blod-wall-tile-attachment: fixed;
   --blod-wall-tile-position: 0 0;
-  /* ~20% black veil on fixed wallpaper stacks (trailer, footer, scroll shell caps). */
+  /* ~30% black veil on fixed wallpaper stacks (trailer, footer, scroll shell caps). */
   --blod-static-wp-darken: linear-gradient(
-    rgba(0, 0, 0, 0.2),
-    rgba(0, 0, 0, 0.2)
+    rgba(0, 0, 0, 0.3),
+    rgba(0, 0, 0, 0.3)
   );
   /* Subpixel seam only — large underlaps on the hero handoff read as a ruler-straight band above the rip. */
   --blod-tear-seam-overlap: 1px;
@@ -891,8 +891,8 @@ body {
 }
 
 /*
- * Trailer + footer bands: `bg.jpg` + wall tile. Photo viewport-fixed; wall tile uses `--blod-wall-tile-*`
- * so the repeat grid matches tear strips + scroll column (avoids straight seams at tears).
+ * Trailer + footer bands: fixed photo + wall tile (trailer: `video-tile-bg.jpg`; footer: `footer-bg.jpg`).
+ * Photo viewport-fixed; wall tile uses `--blod-wall-tile-*` so the repeat grid matches tear strips + scroll column.
  */
 .blod-section--trailer,
 .blod-section--footer {
@@ -919,35 +919,29 @@ body {
   background-image: var(--blod-static-wp-darken), var(--blod-trailer-bg-image, none),
     var(--blod-tiling-texture);
   background-repeat: no-repeat, no-repeat, repeat;
-  /*
-   * Same master + rules as `.blod-page-shell__cap` / `::after`: `cover` crops `bg.jpg` and can remove
-   * the bottom of the bitmap before it reaches the tear — reads as a straight seam. Cap width, natural
-   * height, anchor bottom so the photo meets the masked strip.
-   */
-  background-position: 0 0, center bottom, var(--blod-wall-tile-position);
+  /* Fixed photo (`--blod-trailer-bg-image`): cover + center. */
+  background-position: 0 0, center center, var(--blod-wall-tile-position);
   background-size:
     100% 100%,
-    min(100vw, var(--blod-shell-bg-master-w, 3840px)) auto,
+    cover,
     auto;
   background-attachment: scroll, fixed, var(--blod-wall-tile-attachment);
 }
 
-/* Darken + two photo layers (hero over master) + wall tile — matches `--blod-footer-bg-image`. */
+/* Darken + footer photo + wall tile — `--blod-footer-bg-image` is one layer. */
 .blod-section--footer {
   background-image: var(--blod-static-wp-darken), var(--blod-footer-bg-image, none),
     var(--blod-tiling-texture);
-  background-repeat: no-repeat, no-repeat, no-repeat, repeat;
+  background-repeat: no-repeat, no-repeat, repeat;
   background-position:
     0 0,
-    center bottom,
-    center bottom,
+    center center,
     var(--blod-wall-tile-position);
   background-size:
     100% 100%,
-    min(100vw, var(--blod-shell-bg-master-w, 3840px)) auto,
-    min(100vw, var(--blod-shell-bg-master-w, 3840px)) auto,
+    cover,
     auto;
-  background-attachment: scroll, fixed, fixed, var(--blod-wall-tile-attachment);
+  background-attachment: scroll, fixed, var(--blod-wall-tile-attachment);
 }
 
 /*
@@ -1098,6 +1092,8 @@ html[data-debug-peel-tear-strips] .blod-section--footer::after,
 }
 
 .blod-trailer__video {
+  position: relative;
+  z-index: 1;
   display: block;
   width: 100%;
   height: 100%;
@@ -1114,6 +1110,7 @@ html[data-debug-peel-tear-strips] .blod-section--footer::after,
 .blod-trailer__tint {
   position: absolute;
   inset: 0;
+  z-index: 2;
   background: var(--blod-brand-red);
   mix-blend-mode: multiply;
   opacity: 0.88;

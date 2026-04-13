@@ -9,9 +9,8 @@ import {
 import type { CSSProperties } from "react";
 import { publicUrl } from "../publicUrl";
 
-/** Static parallax band: character over the same master as trailer / scroll shell. */
-const FOOTER_BG_BASE = publicUrl("Images/bg.jpg");
-const FOOTER_BG_HERO = publicUrl("Images/demonhero2.jpg");
+/** Fixed viewport footer art — wide bitmap; CSS uses cover + bottom anchor (see `.blod-section--footer`). */
+const FOOTER_BG_ART = publicUrl("Images/footer-bg.jpg");
 const LOGO_SRC = publicUrl("Images/blod-logo-footer.png");
 
 /** Replace `#` with real profile / server / hub URLs before launch. */
@@ -30,7 +29,7 @@ export function FooterSection() {
       className="blod-footer blod-section blod-section--footer"
       style={
         {
-          "--blod-footer-bg-image": `url(${FOOTER_BG_HERO}), url(${FOOTER_BG_BASE})`,
+          "--blod-footer-bg-image": `url(${FOOTER_BG_ART})`,
         } as CSSProperties
       }
     >

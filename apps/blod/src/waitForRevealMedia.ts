@@ -13,6 +13,8 @@ const FRAME_ASSET_URLS = [
   publicUrl("Images/bg.jpg"),
   publicUrl("Images/demonhero.jpg"),
   publicUrl("Images/demonhero2.jpg"),
+  publicUrl("Images/footer-bg.jpg"),
+  publicUrl("Images/video-tile-bg.jpg"),
   BLOD_TEAR_STRIP_MASK_URL,
   BLOD_TEAR_BOTTOM_MASK_URL,
   BLOOD_PARALLAX_URL,

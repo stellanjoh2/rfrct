@@ -8,8 +8,8 @@ import {
 import { BLOD_FRAME_MASK_URL } from "./blodFrameMask";
 import { publicUrl } from "./publicUrl";
 import { BLOD_TRAILER_MP4_URL } from "./trailerUrl";
-/** Full-bleed parallax band — `public/Images/bg.jpg` (same master as scroll shell). */
-const TRAILER_BG_IMAGE = publicUrl("Images/bg.jpg");
+/** Fixed viewport band for the trailer section — `public/Images/video-tile-bg.jpg`. */
+const TRAILER_BG_IMAGE = publicUrl("Images/video-tile-bg.jpg");
 /** Seek to start slightly before the file end to avoid native `loop` seam glitches. */
 const LOOP_TAIL_SEC = 0.05;
 
@@ -95,6 +95,7 @@ export function BlodTrailer() {
                 ref={videoRef}
                 className="blod-trailer__video"
                 src={BLOD_TRAILER_MP4_URL}
+                poster={TRAILER_BG_IMAGE}
                 autoPlay
                 muted
                 playsInline
