@@ -1,4 +1,3 @@
-import { BLOD_FRAME_MASK_URL, BLOD_FRAME_MASK_PORTRAIT_URL } from "./blodFrameMask";
 import {
   BLOD_TEAR_BOTTOM_MASK_URL,
   BLOD_TEAR_STRIP_MASK_URL,
@@ -6,10 +5,8 @@ import {
 import { BLOOD_PARALLAX_URL } from "./content/bloodParallax";
 import { publicUrl } from "./publicUrl";
 
-/** CSS `mask-image` SVGs, trailer band bg, blood parallax — decode before masked reveals paint. */
+/** Tear-strip masks, trailer band bg, blood parallax — decode before reveals paint. */
 const FRAME_ASSET_URLS = [
-  BLOD_FRAME_MASK_URL,
-  BLOD_FRAME_MASK_PORTRAIT_URL,
   publicUrl("Images/bg.jpg"),
   publicUrl("Images/demonhero.jpg"),
   publicUrl("Images/demonhero2.jpg"),
@@ -31,7 +28,7 @@ function preloadImageUrl(url: string): Promise<void> {
   });
 }
 
-/** One shared preload for mask SVGs + trailer background (used by CSS variables). */
+/** One shared preload for reveal imagery + tear masks (used by CSS variables). */
 export function preloadRevealFrameAssets(): Promise<void> {
   if (!frameAssetsPreload) {
     frameAssetsPreload = Promise.all(

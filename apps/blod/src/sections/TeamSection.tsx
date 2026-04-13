@@ -1,8 +1,6 @@
-import type { CSSProperties } from "react";
 import { BlodSectionBloodParallax } from "../BlodSectionBloodParallax";
 import { BLOOD_PARALLAX_URL } from "../content/bloodParallax";
 import { BlodLightboxGroup } from "../BlodLightboxGroup";
-import { staffPortraitMaskStyleVars } from "../blodFrameMask";
 import { staffMembers } from "../content/staff";
 
 export function TeamSection() {
@@ -31,12 +29,6 @@ export function TeamSection() {
                 <a
                   className="blod-staff-card__media lg-item blod-img-hover-tint"
                   href={person.portraitSrc}
-                  style={
-                    staffPortraitMaskStyleVars(
-                      person.name,
-                      person.portraitSrc,
-                    ) as CSSProperties
-                  }
                 >
                   <img
                     src={person.portraitSrc}

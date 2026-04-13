@@ -1,6 +1,3 @@
-import { galleryThumbnailMaskStyleVars } from "../blodFrameMask";
-import type { CSSProperties } from "react";
-
 type Props = {
   images: readonly string[];
 };
@@ -25,7 +22,6 @@ export function GalleryGrid({ images }: Props) {
             <a
               className="blod-gallery-card__link lg-item blod-img-hover-tint"
               href={src}
-              style={galleryThumbnailMaskStyleVars(src, i) as CSSProperties}
             >
               <img
                 src={src}

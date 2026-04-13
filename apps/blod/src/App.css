@@ -49,6 +49,8 @@ html {
   );
   /* Subpixel seam only — large underlaps on the hero handoff read as a ruler-straight band above the rip. */
   --blod-tear-seam-overlap: 1px;
+  /* Gallery / staff / trailer media — clean rounded rects (custom SVG frame masks off for now). */
+  --blod-media-frame-radius: clamp(0.45rem, 1.1vw, 0.65rem);
   /* Firefox — thumb / track (after brand vars) */
   scrollbar-width: thin;
   scrollbar-color: var(--blod-brand-red) #141010;
@@ -1072,23 +1074,16 @@ html[data-debug-peel-tear-strips] .blod-section--footer::after,
   width: 100%;
   aspect-ratio: 16 / 9;
   overflow: hidden;
+  border-radius: var(--blod-media-frame-radius);
   background: transparent;
   isolation: isolate;
 }
 
-/* SVG mask (16:9) — rough “handmade” frame; tint shares the same edge as the video. */
+/* Custom SVG frame mask disabled — rounded `.blod-trailer__frame` clips video + tint. */
 .blod-trailer__media {
   position: absolute;
   inset: 0;
   z-index: 0;
-  -webkit-mask-image: var(--blod-trailer-frame-mask);
-  mask-image: var(--blod-trailer-frame-mask);
-  -webkit-mask-size: cover;
-  mask-size: cover;
-  -webkit-mask-position: center;
-  mask-position: center;
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
 }
 
 .blod-trailer__video {
@@ -1238,21 +1233,12 @@ html[data-debug-peel-tear-strips] .blod-section--footer::after,
   display: block;
   width: 100%;
   height: 100%;
-  overflow: visible;
+  overflow: hidden;
+  border-radius: var(--blod-media-frame-radius);
   line-height: 0;
   color: inherit;
   text-decoration: none;
   isolation: isolate;
-  -webkit-mask-image: var(--blod-frame-mask, none);
-  mask-image: var(--blod-frame-mask, none);
-  -webkit-mask-size: cover;
-  mask-size: cover;
-  -webkit-mask-position: center;
-  mask-position: center;
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-  transform: scaleX(var(--blod-gallery-mask-flip-x, 1))
-    scaleY(var(--blod-gallery-mask-flip-y, 1));
   transform-origin: center center;
 }
 
@@ -1266,8 +1252,6 @@ html[data-debug-peel-tear-strips] .blod-section--footer::after,
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transform: scaleX(var(--blod-gallery-mask-flip-x, 1))
-    scaleY(var(--blod-gallery-mask-flip-y, 1));
   transform-origin: center center;
   transition:
     filter 0.45s ease,
@@ -1276,22 +1260,18 @@ html[data-debug-peel-tear-strips] .blod-section--footer::after,
 
 .blod-gallery-card__link:hover img,
 .blod-gallery-card__link:focus-visible img {
-  transform: scaleX(var(--blod-gallery-mask-flip-x, 1))
-    scaleY(var(--blod-gallery-mask-flip-y, 1))
-    scale(1.04);
+  transform: scale(1.04);
 }
 
 @media (prefers-reduced-motion: reduce) {
   .blod-gallery-card__link img {
     transition: none;
-    transform: scaleX(var(--blod-gallery-mask-flip-x, 1))
-      scaleY(var(--blod-gallery-mask-flip-y, 1));
+    transform: none;
   }
 
   .blod-gallery-card__link:hover img,
   .blod-gallery-card__link:focus-visible img {
-    transform: scaleX(var(--blod-gallery-mask-flip-x, 1))
-      scaleY(var(--blod-gallery-mask-flip-y, 1));
+    transform: none;
   }
 }
 
@@ -1356,8 +1336,7 @@ html[data-debug-peel-tear-strips] .blod-section--footer::after,
 /* Touch: no hover — show full color, no veil, no zoom, no ambilight */
 @media (hover: none) {
   .blod-gallery-card__link img {
-    transform: scaleX(var(--blod-gallery-mask-flip-x, 1))
-      scaleY(var(--blod-gallery-mask-flip-y, 1));
+    transform: none;
   }
 
   .blod-img-hover-tint img {
@@ -1409,29 +1388,19 @@ html[data-debug-peel-tear-strips] .blod-section--footer::after,
   overflow: visible;
 }
 
-/* 3:4 mask (1080×1440) on 3:4 frame — same idea as 16:9 gallery + 16:9 mask */
+/* Custom SVG portrait mask off — rounded rect matches gallery/trailer. */
 .blod-staff-card__media {
   position: relative;
   z-index: 1;
   display: block;
   width: 100%;
   height: 100%;
-  overflow: visible;
-  border-radius: 0;
+  overflow: hidden;
+  border-radius: var(--blod-media-frame-radius);
   line-height: 0;
   color: inherit;
   text-decoration: none;
   isolation: isolate;
-  -webkit-mask-image: var(--blod-staff-frame-mask, none);
-  mask-image: var(--blod-staff-frame-mask, none);
-  -webkit-mask-size: cover;
-  mask-size: cover;
-  -webkit-mask-position: center;
-  mask-position: center;
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-  transform: scaleX(var(--blod-staff-mask-flip-x, 1))
-    scaleY(var(--blod-staff-mask-flip-y, 1));
   transform-origin: center center;
 }
 
@@ -1446,9 +1415,6 @@ html[data-debug-peel-tear-strips] .blod-section--footer::after,
   height: 100%;
   object-fit: cover;
   vertical-align: middle;
-  transform: scaleX(var(--blod-staff-mask-flip-x, 1))
-    scaleY(var(--blod-staff-mask-flip-y, 1));
-  transform-origin: center center;
 }
 
 .blod-staff-card__meta {

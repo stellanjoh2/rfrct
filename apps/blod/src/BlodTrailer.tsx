@@ -5,7 +5,6 @@ import {
   useState,
   type CSSProperties,
 } from "react";
-import { BLOD_FRAME_MASK_URL } from "./blodFrameMask";
 import { publicUrl } from "./publicUrl";
 import { BLOD_TRAILER_MP4_URL } from "./trailerUrl";
 /** Fixed viewport band for the trailer section — `public/Images/video-tile-bg.jpg`. */
@@ -83,7 +82,6 @@ export function BlodTrailer() {
       style={
         {
           "--blod-trailer-bg-image": `url(${TRAILER_BG_IMAGE})`,
-          "--blod-trailer-frame-mask": `url(${BLOD_FRAME_MASK_URL})`,
         } as CSSProperties
       }
     >
