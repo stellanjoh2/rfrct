@@ -50,7 +50,7 @@ html {
   /* Subpixel seam only — large underlaps on the hero handoff read as a ruler-straight band above the rip. */
   --blod-tear-seam-overlap: 1px;
   /* Gallery / staff / trailer media — clean rounded rects (custom SVG frame masks off for now). */
-  --blod-media-frame-radius: clamp(0.45rem, 1.1vw, 0.65rem);
+  --blod-media-frame-radius: clamp(0.9rem, 2.2vw, 1.3rem);
   /* Firefox — thumb / track (after brand vars) */
   scrollbar-width: thin;
   scrollbar-color: var(--blod-brand-red) #141010;
