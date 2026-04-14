@@ -902,6 +902,167 @@ body {
   }
 }
 
+/*
+ * Feature bleed — headline + body share the text column; large image bleeds to one viewport edge.
+ */
+.blod-section--feature-bleed {
+  /* Outer edge — grows on wide viewports so copy isn’t glued to the viewport */
+  --blod-feature-bleed-edge-pad: clamp(2.35rem, 5.5vw + 1.25rem, 6.5rem);
+  position: relative;
+  z-index: 0;
+  width: 100%;
+  max-width: none;
+  margin-inline: 0;
+  overflow-x: clip;
+}
+
+/* Feature title: same font-size / line-height scale as Lore (`.blod-section--story p`) */
+.blod-section--feature-bleed .blod-feature-bleed__text h2.blod-feature-bleed__title {
+  margin-top: 0;
+  margin-bottom: 0.45em;
+  font-family: "Vintokeys", Georgia, "Times New Roman", serif;
+  font-weight: 400;
+  font-size: clamp(1.3rem, 3.15vw + 0.75rem, 42pt);
+  line-height: 1.35;
+  color: var(--blod-brand-red);
+  letter-spacing: normal;
+}
+
+.blod-feature-bleed__band {
+  width: 100vw;
+  max-width: 100vw;
+  margin-left: calc(50% - 50vw);
+  margin-right: calc(50% - 50vw);
+  box-sizing: border-box;
+  /* Full-bleed image sat flush to the band top; pad the whole row so the large inter-section gap reads */
+  padding-top: var(--blod-rhythm);
+}
+
+.blod-feature-bleed__band-inner {
+  display: grid;
+  align-items: stretch;
+  width: 100%;
+  min-width: 0;
+  min-height: clamp(26.5rem, 34vw, 38rem);
+  column-gap: var(--blod-column-gutter);
+}
+
+.blod-feature-bleed__text {
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: 0;
+  width: 100%;
+  max-width: min(36rem, 100%);
+  margin-inline: auto;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding-top: 0;
+}
+
+.blod-feature-bleed__figure {
+  margin: 0;
+  min-width: 0;
+  align-self: stretch;
+}
+
+.blod-feature-bleed__img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: clamp(24rem, 34vw, 40rem);
+  object-fit: cover;
+  object-position: center;
+}
+
+/* Image right: copy + padded start; image bleeds to the right edge. */
+.blod-feature-bleed__band-inner--image-right {
+  grid-template-columns: minmax(0, min(38rem, min(44cqi, 52vw))) minmax(12rem, 1fr);
+  padding-left: var(--blod-feature-bleed-edge-pad);
+  padding-right: 0;
+}
+
+.blod-feature-bleed__band-inner--image-right .blod-feature-bleed__figure {
+  min-height: clamp(25rem, 36vw, 42rem);
+}
+
+.blod-feature-bleed__band-inner--image-right .blod-feature-bleed__img {
+  border-radius: var(--blod-media-frame-radius) 0 0 var(--blod-media-frame-radius);
+}
+
+/* Image left: mirror; DOM keeps text then figure for reading order — grid swaps columns. */
+.blod-feature-bleed__band-inner--image-left {
+  grid-template-columns: minmax(12rem, 1fr) minmax(0, min(38rem, min(44cqi, 52vw)));
+  padding-right: var(--blod-feature-bleed-edge-pad);
+  padding-left: 0;
+}
+
+.blod-feature-bleed__band-inner--image-left .blod-feature-bleed__figure {
+  grid-column: 1;
+  grid-row: 1;
+  min-height: clamp(25rem, 36vw, 42rem);
+}
+
+.blod-feature-bleed__band-inner--image-left .blod-feature-bleed__text {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.blod-feature-bleed__band-inner--image-left .blod-feature-bleed__img {
+  border-radius: 0 var(--blod-media-frame-radius) var(--blod-media-frame-radius) 0;
+}
+
+@supports not (width: 1cqi) {
+  .blod-feature-bleed__band-inner--image-right {
+    grid-template-columns: minmax(0, min(40rem, 54vw)) minmax(12rem, 1fr);
+  }
+
+  .blod-feature-bleed__band-inner--image-left {
+    grid-template-columns: minmax(12rem, 1fr) minmax(0, min(40rem, 54vw));
+  }
+}
+
+@media (max-width: 52rem) {
+  .blod-feature-bleed__band {
+    width: 100%;
+    max-width: 100%;
+    margin-left: 0;
+    margin-right: 0;
+  }
+
+  .blod-feature-bleed__band-inner--image-right,
+  .blod-feature-bleed__band-inner--image-left {
+    grid-template-columns: 1fr;
+    padding-inline: var(--blod-feature-bleed-edge-pad);
+    min-height: unset;
+  }
+
+  .blod-feature-bleed__band-inner--image-left .blod-feature-bleed__text,
+  .blod-feature-bleed__band-inner--image-left .blod-feature-bleed__figure {
+    grid-column: auto;
+    grid-row: auto;
+  }
+
+  .blod-feature-bleed__band-inner--image-right .blod-feature-bleed__text,
+  .blod-feature-bleed__band-inner--image-left .blod-feature-bleed__text {
+    order: 1;
+  }
+
+  .blod-feature-bleed__band-inner--image-right .blod-feature-bleed__figure,
+  .blod-feature-bleed__band-inner--image-left .blod-feature-bleed__figure {
+    order: 2;
+    min-height: unset;
+  }
+
+  .blod-feature-bleed__img {
+    border-radius: var(--blod-media-frame-radius);
+    aspect-ratio: 16 / 9;
+    min-height: clamp(18rem, 74vw, 26.5rem);
+    height: auto;
+  }
+}
+
 .blod-intro-markout {
   color: var(--blod-brand-bone);
   text-decoration: line-through;
@@ -1556,13 +1717,28 @@ html[data-debug-peel-tear-strips] .blod-section--footer::after,
   text-align: center;
 }
 
-.blod-staff-card__name {
+.blod-staff-card__name,
+.blod-section--feature-bleed .blod-feature-bleed__text p.blod-feature-bleed__body {
   display: block;
   font-family: "Vintokeys", Georgia, "Times New Roman", serif;
   font-size: clamp(1.88rem, 3.85vw + 0.72rem, 2.65rem);
   color: var(--blod-brand-red);
   letter-spacing: 0.03em;
   line-height: 1.2;
+}
+
+/* After group: multi-line rag + hyphenation (must follow for line-height) */
+.blod-section--feature-bleed .blod-feature-bleed__text p.blod-feature-bleed__body {
+  margin: 0;
+  line-height: 1.3;
+  font-kerning: normal;
+  font-variant-ligatures: common-ligatures;
+  text-wrap: pretty;
+  hyphens: auto;
+  -webkit-hyphens: auto;
+  hyphenate-limit-chars: 6 3 3;
+  orphans: 3;
+  widows: 3;
 }
 
 .blod-staff-card__role {

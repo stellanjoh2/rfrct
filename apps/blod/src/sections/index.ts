@@ -1,4 +1,5 @@
 export { FaqSection } from "./FaqSection";
+export { FeatureBleedSection } from "./FeatureBleedSection";
 export { FooterSection } from "./FooterSection";
 export { GalleryGrid } from "./GalleryGrid";
 export { GallerySection } from "./GallerySection";

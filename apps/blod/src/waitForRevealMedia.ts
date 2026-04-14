@@ -85,6 +85,6 @@ export async function waitForHeavyRevealContent(el: HTMLElement): Promise<void> 
 
 export function isHeavyRevealBlock(el: HTMLElement): boolean {
   return el.matches(
-    "figure.blod-gallery-card, figure.blod-staff-card, .blod-trailer, .blod-footer__logo-wrap",
+    "figure.blod-gallery-card, figure.blod-staff-card, figure.blod-feature-bleed__figure, .blod-trailer, .blod-footer__logo-wrap",
   );
 }
