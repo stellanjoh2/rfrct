@@ -24,7 +24,7 @@ export function createDefaultHeroSync(): RendererSyncSource {
     blobSpeed: 0.45,
     waveFreq: 2,
     waveAmp: 0.47,
-    refract: 0.18,
+    refract: 0.1,
     edgeSoft: 0.14,
     frostBlur: 4.5,
     blurQuality: 1,
