@@ -7,7 +7,7 @@ const NBHY = "\u2011";
 
 export type FaqItem = {
   question: string;
-  /** Answer body copy: Bellefair + large type via `.blod-faq__answer` in CSS (questions stay Bageshron). */
+  /** Answer body copy: Bellefair + large type via `.blod-faq__answer` in CSS (questions stay Vintokeys). */
   content: ReactNode;
 };
 

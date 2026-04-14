@@ -13,7 +13,7 @@ export function FaqSection() {
       </div>
       <div className="blod-section-inner blod-section-inner--prose">
         <div className="blod-faq-band">
-          <h2>Faq</h2>
+          <h2>FAQ</h2>
           <ul className="blod-faq-list">
             {faqItems.map((item) => (
               <li key={item.question} className="blod-faq-list__item">

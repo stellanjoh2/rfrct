@@ -24,34 +24,35 @@ export type StaffMember = {
   portraitSrc: string;
 };
 
+/** Display names: first + last only (no middle names or three-part names). */
 const staffMembersBase: Omit<StaffMember, "portraitSrc">[] = [
   {
-    name: "Jonathan Michael Doe",
+    name: "Jonathan Doe",
     role: "Creative Director",
     bio: "Placeholder: leads visual direction and narrative tone for the project.",
   },
   {
-    name: "Sarah Elizabeth Mitchell",
+    name: "Sarah Mitchell",
     role: "Lead Environment Artist",
     bio: "Placeholder: owns world-building, mood boards, and in-engine set dressing.",
   },
   {
-    name: "Marcus James Chen",
+    name: "Marcus Chen",
     role: "Technical Director",
     bio: "Placeholder: pipeline, performance budgets, and renderer integration.",
   },
   {
-    name: "Elena María Vasquez",
+    name: "Elena Vasquez",
     role: "Audio Director",
     bio: "Placeholder: score, sound design, and spatial mix for key scenes.",
   },
   {
-    name: "James Obi Okonkwo",
+    name: "James Okonkwo",
     role: "Narrative Designer",
     bio: "Placeholder: characters, dialogue beats, and branching story structure.",
   },
   {
-    name: "Rachel Annika Lindström",
+    name: "Rachel Lindström",
     role: "Producer",
     bio: "Placeholder: scheduling, milestones, and coordination across disciplines.",
   },

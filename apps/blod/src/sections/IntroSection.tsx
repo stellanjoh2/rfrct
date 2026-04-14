@@ -25,7 +25,7 @@ export function IntroSection() {
           A lowborn Bloodhound, Pascale, doth ascend from the mire of debt and
           nameless obscurity into the veiled courts of the Eight—only to uncover
           that blood beareth memory, the gods are but hollow falsehoods, and the
-          hunger he once named ambition shall bind him to a dire choosing: to be
+          hunger he once named ambition shall bind him to a dire choice: to be
           wrought into an instrument of tyranny, or to stand as the wretched
           world&apos;s last and dreadful salvation.
         </p>

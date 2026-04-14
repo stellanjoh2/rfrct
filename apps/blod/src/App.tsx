@@ -161,7 +161,7 @@ export function App() {
             />
             <GallerySection
               id="concept-art"
-              title="Concept art"
+              title="Concept Art"
               images={conceptGalleryImages}
             />
             <TeamSection />

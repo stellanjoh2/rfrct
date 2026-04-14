@@ -7,8 +7,8 @@ import { publicUrl } from "./publicUrl";
  */
 export const HERO_DEFAULT_SVG_URL = publicUrl("Images/blood.svg");
 
-/** Default SVG / image zoom; not part of `RendererSyncSource` (matches refract-editor `imageScale`). */
-export const HERO_DEFAULT_IMAGE_SCALE = 0.9;
+/** Default SVG / image zoom (`0.90`); not part of `RendererSyncSource` (matches refract-editor `imageScale`). */
+export const HERO_DEFAULT_IMAGE_SCALE = 0.90;
 
 /**
  * Starting point for hero art direction (`LOCKED_HERO_SYNC`).

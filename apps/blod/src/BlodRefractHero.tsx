@@ -26,6 +26,9 @@ const HERO_FLASH_OFFSET_DOWN_CSS_PX = 50;
 /** vs default contain-fit in the shader (1.5 × 1.25) */
 const HERO_FLASH_SCALE = 1.875;
 
+/** Left/right canvas drag (pan image, move lens) — dev-only; production keeps the hero fixed. */
+const HERO_CANVAS_DRAG = import.meta.env.DEV;
+
 type Props = {
   syncSource: RendererSyncSource;
   imageScale: number;
@@ -479,6 +482,7 @@ export function BlodRefractHero({
   }, [syncSource.lensMouseInput, syncSource.fluidDensity]);
 
   const onPointerDown = (e: ReactPointerEvent<HTMLCanvasElement>) => {
+    if (!HERO_CANVAS_DRAG) return;
     if (e.button === 0) {
       dragModeRef.current = "pan";
       lastPointerRef.current = { x: e.clientX, y: e.clientY };

@@ -10,7 +10,7 @@ html {
   interpolate-size: allow-keywords;
   /* Avoid horizontal scroll from full-bleed `100vw` shell caps (scrollbar vs vw). */
   overflow-x: clip;
-  /* Bellefair: staff role lines + FAQ answer body; FAQ questions stay Bageshron */
+  /* Bellefair: staff role lines + FAQ answer body; FAQ questions stay Vintokeys */
   --blod-font-body: "Bellefair", Georgia, "Times New Roman", serif;
   /* Brand palette — set from `brandColor.ts` via `applyBlodBrandCssVars()` in main.tsx */
   --blod-brand-red: #ff0c3a;
@@ -133,9 +133,9 @@ body {
   background-position: var(--blod-wall-tile-position);
   background-attachment: var(--blod-wall-tile-attachment);
   color: var(--blod-brand-bone);
-  font-family: "Bageshron", Georgia, "Times New Roman", serif;
+  font-family: "Vintokeys", Georgia, "Times New Roman", serif;
   /* Fluid base: comfortable on mobile, caps near previous desktop size */
-  font-size: clamp(1.125rem, 2.8vw + 0.65rem, 36pt);
+  font-size: clamp(1.17rem, 2.95vw + 0.68rem, 38pt);
   line-height: 1.55;
 }
 
@@ -317,6 +317,8 @@ body {
   display: block;
   width: 100%;
   height: 100%;
+  user-select: none;
+  -webkit-user-drag: none;
 }
 
 /* Fixed top bar — shown on scroll-up only (see `BlodStickyHeader.tsx`). */
@@ -785,8 +787,8 @@ body {
 .blod-section h2 {
   margin-top: calc(var(--blod-rhythm) * 1.15);
   margin-bottom: calc(var(--blod-rhythm) * 0.55);
-  font-family: "Bageshron", Georgia, "Times New Roman", serif;
-  font-size: clamp(2rem, 5vw + 1rem, 84pt);
+  font-family: "Vintokeys", Georgia, "Times New Roman", serif;
+  font-size: clamp(2.08rem, 5.2vw + 1.04rem, 88pt);
   font-weight: 400;
   line-height: 1.12;
   color: var(--blod-brand-red);
@@ -795,10 +797,10 @@ body {
 
 .blod-section p {
   margin: 0 0 var(--blod-rhythm);
-  font-family: "Bageshron", Georgia, "Times New Roman", serif;
+  font-family: "Vintokeys", Georgia, "Times New Roman", serif;
   line-height: 1.55;
   color: var(--blod-brand-red);
-  font-size: clamp(1.125rem, 2.8vw + 0.65rem, 36pt);
+  font-size: clamp(1.17rem, 2.95vw + 0.68rem, 38pt);
   width: 100%;
   min-width: 0;
   /* SplitType: reduces glyph shift; natural word wrap on narrow screens */
@@ -823,7 +825,7 @@ body {
 }
 
 .blod-section--intro p {
-  font-size: clamp(1.5rem, 3.5vw + 1.25rem, 72pt);
+  font-size: clamp(1.72rem, 4vw + 1.4rem, 84pt);
   line-height: 1.18;
   letter-spacing: 0.02em;
 }
@@ -869,6 +871,8 @@ body {
 
 /* Normal paragraph reflow (no SplitType line locks) + softer rag: hyphenation & orphan control */
 .blod-section--story p {
+  font-size: clamp(1.3rem, 3.15vw + 0.75rem, 42pt);
+  line-height: 1.35;
   font-kerning: normal;
   font-variant-ligatures: common-ligatures;
   hyphens: auto;
@@ -1152,8 +1156,8 @@ html[data-debug-peel-tear-strips] .blod-section--footer::after,
 }
 
 .blod-trailer__play-label {
-  font-family: "Bageshron", Georgia, "Times New Roman", serif;
-  font-size: clamp(4rem, 13vw + 1.5rem, 172px);
+  font-family: "Vintokeys", Georgia, "Times New Roman", serif;
+  font-size: clamp(4.15rem, 13.5vw + 1.55rem, 180px);
   font-weight: 400;
   line-height: 1.08;
   letter-spacing: 0.04em;
@@ -1425,8 +1429,8 @@ html[data-debug-peel-tear-strips] .blod-section--footer::after,
 
 .blod-staff-card__name {
   display: block;
-  font-family: "Bageshron", Georgia, "Times New Roman", serif;
-  font-size: clamp(1.62rem, 3.35vw + 0.62rem, 2.15rem);
+  font-family: "Vintokeys", Georgia, "Times New Roman", serif;
+  font-size: clamp(1.88rem, 3.85vw + 0.72rem, 2.65rem);
   color: var(--blod-brand-red);
   letter-spacing: 0.03em;
   line-height: 1.2;
@@ -1462,7 +1466,7 @@ html[data-debug-peel-tear-strips] .blod-section--footer::after,
 }
 
 .blod-section--faq h2 {
-  font-size: clamp(2.2rem, 5.25vw + 1.05rem, 84pt);
+  font-size: clamp(2.28rem, 5.4vw + 1.1rem, 88pt);
 }
 
 .blod-faq-list {
@@ -1490,8 +1494,8 @@ html[data-debug-peel-tear-strips] .blod-section--footer::after,
   padding-inline: 0;
   cursor: pointer;
   list-style: none;
-  font-family: "Bageshron", Georgia, "Times New Roman", serif;
-  font-size: clamp(1.8rem, 3.25vw + 0.88rem, 48px);
+  font-family: "Vintokeys", Georgia, "Times New Roman", serif;
+  font-size: clamp(1.88rem, 3.4vw + 0.92rem, 50px);
   font-weight: 500;
   line-height: 1.25;
   letter-spacing: 0.02em;
