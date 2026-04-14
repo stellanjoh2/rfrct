@@ -12,31 +12,31 @@ export const HERO_DEFAULT_IMAGE_SCALE = 0.90;
 
 /**
  * Starting point for hero art direction (`LOCKED_HERO_SYNC`).
- * Sync fields match art-direction export `blodArtDirectionExportVersion: 1` (2026-04-11, 13:08Z);
+ * Sync fields match art-direction export `blodArtDirectionExportVersion: 1` (2026-04-14, 08:20Z);
  * `svgSourceUrl` stays the bundled `HERO_DEFAULT_SVG_URL`, not a dev `blob:` URL.
  * SVG: replace tint with brand red. PNG underlay (flash logo): multiply rgb by official white in shader.
  */
 export function createDefaultHeroSync(): RendererSyncSource {
   return {
     bgHex: "#000000",
-    blobSize: 0.74,
+    blobSize: 0.565,
     pauseAnimation: false,
-    blobSpeed: 0.3,
-    waveFreq: 1.5,
+    blobSpeed: 0.45,
+    waveFreq: 2,
     waveAmp: 0.47,
-    refract: 0.075,
-    edgeSoft: 0.13,
-    frostBlur: 0,
+    refract: 0.18,
+    edgeSoft: 0.14,
+    frostBlur: 4.5,
     blurQuality: 1,
-    chroma: 0.48,
+    chroma: 0,
     shapeMode: 0,
     filterMode: 3,
-    filterStrength: 0.12,
+    filterStrength: 0,
     filterScale: 0,
     filterMotionSpeed: 0.85,
-    blobCenterX: 0.72,
+    blobCenterX: 0.63,
     blobCenterY: 0,
-    bloomStrength: 2.25,
+    bloomStrength: 1.75,
     bloomRadius: 1.25,
     bloomThreshold: 0.65,
     svgSourceUrl: HERO_DEFAULT_SVG_URL,
@@ -59,11 +59,11 @@ export function createDefaultHeroSync(): RendererSyncSource {
     vjGlassNeonBHex: "#1a0055",
     vjGlassGradeIntensity: 0,
     detailDistortionEnabled: true,
-    detailDistortionStrength: 1,
-    detailDistortionScale: 5.5,
-    detailDirtStrength: 0.52,
+    detailDistortionStrength: 0.88,
+    detailDistortionScale: 5,
+    detailDirtStrength: 0.72,
     detailDirtHex: "#0f0200",
     lensMouseInput: true,
-    fluidDensity: 1,
+    fluidDensity: 0.94,
   };
 }

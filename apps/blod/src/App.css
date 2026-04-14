@@ -1262,8 +1262,8 @@ html[data-debug-peel-tear-strips] .blod-section--footer::after,
     transform 0.5s ease;
 }
 
-.blod-gallery-card__link:hover img,
-.blod-gallery-card__link:focus-visible img {
+.blod-gallery-card__link:not(.blod-img-hover-tint--liquid-warp):hover img,
+.blod-gallery-card__link:not(.blod-img-hover-tint--liquid-warp):focus-visible img {
   transform: scale(1.04);
 }
 
@@ -1273,8 +1273,8 @@ html[data-debug-peel-tear-strips] .blod-section--footer::after,
     transform: none;
   }
 
-  .blod-gallery-card__link:hover img,
-  .blod-gallery-card__link:focus-visible img {
+  .blod-gallery-card__link:not(.blod-img-hover-tint--liquid-warp):hover img,
+  .blod-gallery-card__link:not(.blod-img-hover-tint--liquid-warp):focus-visible img {
     transform: none;
   }
 }
@@ -1282,20 +1282,99 @@ html[data-debug-peel-tear-strips] .blod-section--footer::after,
 /*
  * Grayscale in neutral state (under red multiply) — screenshots, concept art, staff portraits.
  * Color restores on hover/focus together with veil lift (see .blod-img-hover-tint::after).
+ * Optional `.blod-img-hover-tint--liquid-warp`: SVG displacement on `.blod-img-hover-stack__fx`;
+ * `.blod-img-hover-stack__clear` crossfades in on hover (filter `url()` cannot interpolate).
  */
 .blod-img-hover-tint img {
   filter: grayscale(1);
-  transition: filter 0.45s ease;
+  transition:
+    filter 0.55s ease,
+    opacity 0.55s cubic-bezier(0.33, 0.86, 0.56, 1),
+    transform 0.55s cubic-bezier(0.33, 0.86, 0.56, 1);
+}
+
+.blod-liquid-warp-filter-defs {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.blod-img-hover-stack {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.blod-img-hover-stack img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform-origin: center center;
+  pointer-events: none;
+}
+
+/* FX layer: warp + grayscale; fades out while both layers ease to the same hover scale. */
+.blod-img-hover-tint--liquid-warp .blod-img-hover-stack__fx {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  opacity: 1;
+  filter: var(--blod-liquid-warp) grayscale(1) contrast(1.12);
+  transform: scale(1.32);
+}
+
+/* Clear layer: sharp image; starts hidden, matches neutral scale then eases with FX layer. */
+.blod-img-hover-tint--liquid-warp .blod-img-hover-stack__clear {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  opacity: 0;
+  filter: grayscale(1) contrast(1.12);
+  transform: scale(1.32);
+}
+
+.blod-img-hover-tint--liquid-warp:hover .blod-img-hover-stack__fx,
+.blod-img-hover-tint--liquid-warp:focus-visible .blod-img-hover-stack__fx {
+  opacity: 0;
+  filter: var(--blod-liquid-warp) grayscale(1) contrast(1.12);
+  transform: scale(1.26);
+}
+
+.blod-img-hover-tint--liquid-warp:hover .blod-img-hover-stack__clear,
+.blod-img-hover-tint--liquid-warp:focus-visible .blod-img-hover-stack__clear {
+  opacity: 1;
+  filter: grayscale(0) contrast(1);
+  transform: scale(1.26);
+}
+
+.blod-staff-card__media.blod-img-hover-tint--liquid-warp .blod-img-hover-stack__fx {
+  transform: scale(1.28);
+}
+
+.blod-staff-card__media.blod-img-hover-tint--liquid-warp .blod-img-hover-stack__clear {
+  transform: scale(1.28);
+}
+
+.blod-staff-card__media.blod-img-hover-tint--liquid-warp:hover .blod-img-hover-stack__fx,
+.blod-staff-card__media.blod-img-hover-tint--liquid-warp:focus-visible .blod-img-hover-stack__fx,
+.blod-staff-card__media.blod-img-hover-tint--liquid-warp:hover .blod-img-hover-stack__clear,
+.blod-staff-card__media.blod-img-hover-tint--liquid-warp:focus-visible .blod-img-hover-stack__clear {
+  transform: scale(1.22);
 }
 
 .blod-gallery-card__link.blod-img-hover-tint img {
   transition:
-    filter 0.45s ease,
-    transform 0.5s ease;
+    filter 0.55s ease,
+    opacity 0.55s cubic-bezier(0.33, 0.86, 0.56, 1),
+    transform 0.55s cubic-bezier(0.33, 0.86, 0.56, 1);
 }
 
-.blod-img-hover-tint:hover img,
-.blod-img-hover-tint:focus-visible img {
+.blod-img-hover-tint:hover img:not(.blod-img-hover-stack__fx):not(.blod-img-hover-stack__clear),
+.blod-img-hover-tint:focus-visible img:not(.blod-img-hover-stack__fx):not(.blod-img-hover-stack__clear) {
   filter: grayscale(0);
 }
 
@@ -1303,6 +1382,18 @@ html[data-debug-peel-tear-strips] .blod-section--footer::after,
   .blod-img-hover-tint img {
     filter: grayscale(0);
     transition: none;
+  }
+
+  .blod-img-hover-tint--liquid-warp .blod-img-hover-stack__fx {
+    opacity: 0 !important;
+    transform: none !important;
+    filter: grayscale(0) contrast(1) !important;
+  }
+
+  .blod-img-hover-tint--liquid-warp .blod-img-hover-stack__clear {
+    opacity: 1 !important;
+    transform: none !important;
+    filter: grayscale(0) contrast(1) !important;
   }
 
   .blod-img-ambilight {
@@ -1323,18 +1414,29 @@ html[data-debug-peel-tear-strips] .blod-section--footer::after,
   background: var(--blod-brand-red);
   mix-blend-mode: multiply;
   opacity: 0.5;
-  transition: opacity 0.45s ease;
+  transition: opacity 0.55s ease;
   pointer-events: none;
 }
 
 .blod-gallery-card .blod-img-hover-tint::after,
 .blod-staff-card .blod-img-hover-tint::after {
-  opacity: 1;
+  /* Slightly below full so hover-out/in is less stark and mid-transition reads less “red flash”. */
+  opacity: 0.88;
 }
 
 .blod-img-hover-tint:hover::after,
 .blod-img-hover-tint:focus-visible::after {
   opacity: 0;
+  /* Lift multiply off quickly; animating slowly with mix-blend-mode reads as solid red shining through. */
+  transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/*
+ * Let the veil lead the image crossfade by a hair so we don’t sit in a half-multiply / half-reveal state.
+ */
+.blod-img-hover-tint--liquid-warp:hover .blod-img-hover-stack img,
+.blod-img-hover-tint--liquid-warp:focus-visible .blod-img-hover-stack img {
+  transition-delay: 0.08s;
 }
 
 /* Touch: no hover — show full color, no veil, no zoom, no ambilight */
@@ -1345,6 +1447,18 @@ html[data-debug-peel-tear-strips] .blod-section--footer::after,
 
   .blod-img-hover-tint img {
     filter: grayscale(0);
+  }
+
+  .blod-img-hover-tint--liquid-warp .blod-img-hover-stack__fx {
+    opacity: 0 !important;
+    transform: none !important;
+    filter: grayscale(0) contrast(1) !important;
+  }
+
+  .blod-img-hover-tint--liquid-warp .blod-img-hover-stack__clear {
+    opacity: 1 !important;
+    transform: none !important;
+    filter: grayscale(0) contrast(1) !important;
   }
 
   .blod-img-hover-tint::after {
