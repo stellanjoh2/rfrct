@@ -75,7 +75,7 @@ export function TeamSection() {
         <BlodSectionBloodParallax imageSrc={BLOOD_PARALLAX_URL} side="left" />
       </div>
       <div className="blod-section-inner blod-section-inner--prose">
-        <h2>Team</h2>
+        <h2>Meet the Team</h2>
         <BlodLightboxGroup className="blod-staff-grid">
           {staffMembers.map((person) => (
             <StaffMemberCard

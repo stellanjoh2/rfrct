@@ -12,6 +12,7 @@ import { publicUrl } from "../publicUrl";
 /** Fixed viewport footer art — wide bitmap; CSS uses cover + bottom anchor (see `.blod-section--footer`). */
 const FOOTER_BG_ART = publicUrl("Images/footer-bg.jpg");
 const LOGO_SRC = publicUrl("Images/blod-logo-footer.png");
+const UE_LOGO_SRC = publicUrl("Images/UE-Secondary-Logo-2023-Horizontal-White.png");
 
 /** Replace `#` with real profile / server / hub URLs before launch. */
 const FOOTER_SOCIAL = {
@@ -26,7 +27,7 @@ const FOOTER_SOCIAL = {
 export function FooterSection() {
   return (
     <footer
-      className="blod-footer blod-section blod-section--footer"
+      className="blod-footer blod-section blod-section--footer blod-accent-invert"
       style={
         {
           "--blod-footer-bg-image": `url(${FOOTER_BG_ART})`,
@@ -109,15 +110,26 @@ export function FooterSection() {
 
           <div className="blod-footer__legal">
             <p>
+              © {new Date().getFullYear()} Pivot Point Games
+            </p>
+            <p>
               Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod
               tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim
               veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea
               commodo consequat. Duis aute irure dolor in reprehenderit in voluptate
               velit esse cillum dolore eu fugiat nulla pariatur.
             </p>
-            <p className="blod-footer__copyright">
-              © {new Date().getFullYear()} Pivot Point Games
-            </p>
+          </div>
+
+          <div className="blod-scroll-reveal__block blod-footer__ue-logo-wrap">
+            <img
+              className="blod-footer__ue-logo"
+              src={UE_LOGO_SRC}
+              alt="Unreal Engine"
+              width={300}
+              loading="lazy"
+              decoding="async"
+            />
           </div>
         </div>
       </div>

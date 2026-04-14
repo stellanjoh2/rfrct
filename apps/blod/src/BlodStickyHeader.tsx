@@ -23,6 +23,8 @@ const NAV_LINKS = [
 const SCROLL_TOP_HIDE_PX = 64;
 /** Ignore sub-pixel jitter when detecting direction. */
 const SCROLL_DIRECTION_THRESHOLD_PX = 2;
+/** Show bar when this close to the document bottom (footer / end of page). */
+const BOTTOM_NAV_REVEAL_PX = 120;
 
 export function BlodStickyHeader() {
   const [visible, setVisible] = useState(false);
@@ -33,8 +35,17 @@ export function BlodStickyHeader() {
     const last = lastScrollYRef.current;
     const delta = y - last;
 
+    const doc = document.documentElement;
+    const viewH = window.innerHeight;
+    const docH = doc.scrollHeight;
+    const distanceFromBottom = docH - y - viewH;
+    const nearBottom =
+      y > SCROLL_TOP_HIDE_PX && distanceFromBottom <= BOTTOM_NAV_REVEAL_PX;
+
     if (y <= SCROLL_TOP_HIDE_PX) {
       setVisible(false);
+    } else if (nearBottom) {
+      setVisible(true);
     } else if (delta < -SCROLL_DIRECTION_THRESHOLD_PX) {
       setVisible(true);
     } else if (delta > SCROLL_DIRECTION_THRESHOLD_PX) {

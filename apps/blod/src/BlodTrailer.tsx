@@ -98,13 +98,17 @@ export function BlodTrailer() {
                 muted
                 playsInline
                 preload="auto"
+                onClick={togglePlayback}
               />
               <div className="blod-trailer__tint" aria-hidden />
             </div>
             <button
               type="button"
               className="blod-trailer__play"
-              onClick={togglePlayback}
+              onClick={(e) => {
+                e.stopPropagation();
+                togglePlayback();
+              }}
               aria-label={isPlaying ? "Pause teaser" : "Play teaser"}
             >
               <span className="blod-trailer__play-label">Play Teaser</span>
