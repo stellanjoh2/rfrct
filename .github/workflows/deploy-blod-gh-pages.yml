@@ -13,6 +13,9 @@
 
 # Manual preview only: publishes Blod to THIS repo’s Pages (https://<user>.github.io/<monorepo>/).
 # The public Blod site at github.io/<user>/blod/ is deployed from the separate `blod` repo.
+#
+# Concurrency group must differ from `deploy-refract-editor-gh-pages.yml` so a manual Blod
+# preview run does not cancel the automatic Refract editor Pages deployment (same repo URL).
 name: Deploy Blod to GitHub Pages
 
 on:
@@ -25,8 +28,8 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages
-  cancel-in-progress: true
+  group: pages-blod-preview
+  cancel-in-progress: false
 
 jobs:
   build:

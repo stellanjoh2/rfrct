@@ -7,6 +7,10 @@
 #
 # Single job (upload + deploy) matches GitHub’s static Pages starter and avoids
 # cross-job artifact permission issues between build and deploy jobs.
+#
+# Use a dedicated concurrency group — do NOT share `group: pages` with
+# `deploy-blod-gh-pages.yml` (that workflow uses cancel-in-progress and would
+# cancel this run when a manual Blod Pages deploy is triggered).
 
 name: Deploy Refract editor to GitHub Pages
 
@@ -15,6 +19,7 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# Workflow-level default; job also sets permissions explicitly for clarity.
 permissions:
   contents: read
   pages: write
@@ -22,17 +27,25 @@ permissions:
   actions: write
 
 concurrency:
-  group: pages
+  group: pages-refract-editor
   cancel-in-progress: false
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+      actions: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v5
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
 
       - uses: actions/setup-node@v5
         with:
