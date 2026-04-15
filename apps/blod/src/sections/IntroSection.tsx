@@ -1,17 +1,11 @@
-import type { CSSProperties } from "react";
 import { BlodSectionBloodParallax } from "../BlodSectionBloodParallax";
 import { BLOOD_PARALLAX_URL } from "../content/bloodParallax";
-import { HERO_FLASH_LOGO_URL } from "../content/heroFlashLogo";
+import { INTRO_SYMBOL_URL } from "../content/introSymbol";
 
 /**
  * First text section below the hero; edit copy here without touching layout shell (`App.tsx`).
  */
 export function IntroSection() {
-  const signatureStyle = {
-    WebkitMaskImage: `url("${HERO_FLASH_LOGO_URL}")`,
-    maskImage: `url("${HERO_FLASH_LOGO_URL}")`,
-  } satisfies CSSProperties;
-
   return (
     <section
       id="intro"
@@ -30,11 +24,11 @@ export function IntroSection() {
           world&apos;s last and dreadful salvation.
         </p>
         <div className="blod-intro-signature-wrap">
-          <div
+          <img
             className="blod-intro-signature"
-            style={signatureStyle}
-            role="img"
-            aria-label="Crimson Sleeve mark"
+            src={INTRO_SYMBOL_URL}
+            alt=""
+            decoding="async"
           />
         </div>
       </div>

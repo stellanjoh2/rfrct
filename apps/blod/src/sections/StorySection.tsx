@@ -24,46 +24,37 @@ export function StorySection() {
           <div className="blod-story-columns__col">
             <p>
               Pascale was born beneath a guttering sky, in a quarter where even
-              the rats moved with caution, as if the stones remembered suffering.
-              He was called Bloodhound by trade—one who tracked debt, scenting
-              coin and failure alike. His youth was a slow drowning in obligation,
-              each breath borrowed, each step weighed against what he owed. Yet
-              within him stirred a hunger he could not name, colder than
-              ambition, sharper than survival.
+              rats moved with caution, as if the stones remembered suffering. A
+              Bloodhound by trade, he tracked debt—scenting coin and failure
+              alike. His youth was a slow drowning in obligation, each breath
+              borrowed, each step owed. Yet within him stirred a hunger colder
+              than ambition, sharper than survival.
             </p>
             <p>
-              Through cunning and a willingness to stain his hands deeper than
-              most, Pascale rose into the orbit of the Eight—veiled arbiters who
-              ruled not by crown, but by silence and decree. Their halls were not
-              of gold, but of shadow, where truth did not speak—it bled.
+              Through cunning and a willingness to stain his hands, Pascale rose
+              into the orbit of the Eight—veiled arbiters who ruled by silence,
+              their halls steeped in shadow where truth did not speak but bled.
             </p>
             <p>
-              There he learned blood was no mere vessel. It whispered. It
-              remembered. In its trails, Pascale saw fragments not his
-              own—lives extinguished, voices buried beneath centuries. The more
-              he listened, the more the world unraveled. The sacred became
-              suspect.
+              There he learned blood was no mere vessel; it whispered, it
+              remembered, and in its trails he saw fragments not his
+              own—extinguished lives and buried voices.
             </p>
           </div>
           <div className="blod-story-columns__col">
             <p>
-              The gods proved hollow. Their miracles rehearsed, their presence
-              constructed. The Eight did not serve the divine—they curated it.
+              The more he listened, the more the world unraveled, the sacred
+              turning suspect as the gods proved hollow and their miracles
+              rehearsed. The Eight did not serve the divine—they curated it.
             </p>
             <p>
-              With this knowing came fracture. The hunger that drove him upward
-              turned inward. Was he merely another instrument, precisely placed?
-              Or could he become something ruinous to the order that raised him?
-            </p>
-            <p>
-              As lesser debts fell away, a greater one took hold. To act was to
-              destroy. To refuse was to preserve a lie. Pascale stood at the
-              threshold—either uphold tyranny cloaked in necessity, or tear the
-              veil aside, whatever the cost.
-            </p>
-            <p>
-              And in the silence that followed, the blood waited—watching,
-              remembering, ready to speak again.
+              With this knowing came fracture, and the hunger that drove him
+              upward turned inward. Was he merely an instrument, precisely
+              placed, or something ruinous to the order that raised him? As
+              lesser debts fell away, a greater one took hold: to act was to
+              destroy, to refuse was to preserve a lie. Pascale stood at the
+              threshold, suspended between obedience and ruin, while in the
+              silence the blood waited, watching and remembering.
             </p>
           </div>
         </div>

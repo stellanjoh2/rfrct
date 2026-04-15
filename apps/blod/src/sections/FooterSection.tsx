@@ -34,6 +34,17 @@ export function FooterSection() {
         } as CSSProperties
       }
     >
+      <div className="blod-backdrop-reveal-veil" aria-hidden>
+        <img
+          className="blod-backdrop-reveal-veil__blur"
+          src={FOOTER_BG_ART}
+          alt=""
+          decoding="async"
+          width={1920}
+          height={1080}
+        />
+        <div className="blod-backdrop-reveal-veil__multiply" />
+      </div>
       <div className="blod-section-inner blod-section-inner--prose blod-section-inner--footer">
         <div className="blod-footer__frame">
           <div className="blod-scroll-reveal__block blod-footer__logo-wrap">

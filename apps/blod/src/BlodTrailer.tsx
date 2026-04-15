@@ -85,6 +85,17 @@ export function BlodTrailer() {
         } as CSSProperties
       }
     >
+      <div className="blod-backdrop-reveal-veil" aria-hidden>
+        <img
+          className="blod-backdrop-reveal-veil__blur"
+          src={TRAILER_BG_IMAGE}
+          alt=""
+          decoding="async"
+          width={1920}
+          height={1080}
+        />
+        <div className="blod-backdrop-reveal-veil__multiply" />
+      </div>
       <div className="blod-section-inner blod-section-inner--prose blod-section-inner--trailer">
         <div className="blod-trailer">
           <div className="blod-trailer__frame">

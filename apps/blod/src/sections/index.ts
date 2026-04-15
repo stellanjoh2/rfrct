@@ -4,6 +4,7 @@ export { FooterSection } from "./FooterSection";
 export { GalleryGrid } from "./GalleryGrid";
 export { GallerySection } from "./GallerySection";
 export { IntroSection } from "./IntroSection";
+export { ShowcaseStillSection } from "./ShowcaseStillSection";
 export { StorySection } from "./StorySection";
 export { TeamSection } from "./TeamSection";
 export { TrailerSection } from "./TrailerSection";

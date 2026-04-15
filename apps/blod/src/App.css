@@ -850,18 +850,13 @@ body {
   margin-bottom: clamp(1.35rem, 3.25vw, 2.25rem);
 }
 
-/* Same PNG as hero flash — full square; transparent padding in the file is layout cost, not clipped */
+/* Icon of the Eight — same frame as former masked Crimson Sleeve mark */
 .blod-intro-signature {
   display: block;
   width: min(240px, 58vw);
   aspect-ratio: 1;
-  background-color: var(--blod-brand-red);
-  -webkit-mask-size: contain;
-  mask-size: contain;
-  -webkit-mask-position: center;
-  mask-position: center;
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
+  object-fit: contain;
+  object-position: center;
 }
 
 /* Lore (Story section) — two main columns (editorial), single column on small screens */
@@ -900,6 +895,16 @@ body {
     grid-template-columns: 1fr;
     row-gap: var(--blod-rhythm);
   }
+}
+
+/*
+ * Lore → still showcase: feature-bleed rows add `padding-top: var(--blod-rhythm)` on the band (see
+ * `.blod-feature-bleed__band`) on top of the scroll `gap`, so the handoff to full-bleed imagery gets
+ * a second “breath”. Match that when the next section is showcase-only (no inner band padding).
+ */
+.blod-section--story:has(+ .blod-section--showcase-still)
+  > .blod-section-inner--story {
+  padding-bottom: var(--blod-rhythm);
 }
 
 /*
@@ -1070,11 +1075,13 @@ body {
 }
 
 /*
- * Trailer + footer bands: fixed photo + wall tile (trailer: `video-tile-bg.jpg`; footer: `footer-bg.jpg`).
+ * Trailer + footer + still-showcase bands: fixed photo + wall tile (trailer: `video-tile-bg.jpg`; footer: `footer-bg.jpg`).
  * Photo viewport-fixed; wall tile uses `--blod-wall-tile-*` so the repeat grid matches tear strips + scroll column.
+ * Still showcase uses the same geometry + tears; unpainted image stack lives on `.blod-showcase-still` (no darken layer).
  */
 .blod-section--trailer,
-.blod-section--footer {
+.blod-section--footer,
+.blod-section--showcase-still {
   position: relative;
   isolation: isolate;
   z-index: 0;
@@ -1092,6 +1099,8 @@ body {
   flex-direction: column;
   justify-content: center;
   box-sizing: border-box;
+  /* Clip composited layers (veil blur, etc.) so nothing bleeds past tear strips into adjacent bands. */
+  overflow: hidden;
 }
 
 .blod-section--trailer {
@@ -1123,6 +1132,105 @@ body {
   background-attachment: scroll, fixed, var(--blod-wall-tile-attachment);
 }
 
+/* Blurred plate + red multiply on reveal — sits above section wallpaper, below content (inner z-index 2). */
+.blod-backdrop-reveal-veil {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  /* `filter: blur` on the child paints past the box — clip so it cannot halo past tear strips. */
+  overflow: hidden;
+}
+
+.blod-backdrop-reveal-veil__blur {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center center;
+  filter: blur(18px);
+}
+
+.blod-backdrop-reveal-veil__multiply {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background-color: var(--blod-brand-red);
+  mix-blend-mode: multiply;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .blod-showcase-still__blurplate,
+  .blod-showcase-still__multiply,
+  .blod-backdrop-reveal-veil__blur,
+  .blod-backdrop-reveal-veil__multiply {
+    opacity: 0 !important;
+  }
+}
+
+.blod-section--showcase-still {
+  background-color: var(--blod-shell-body, #070303);
+}
+
+/*
+ * Still stack: sharp fixed bg on `__base`, blurred duplicate fades out on reveal (GSAP),
+ * brand red multiply fades over ~2s — do not animate `filter` on the fixed layer (tear seams).
+ */
+.blod-showcase-still {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.blod-showcase-still__base {
+  position: absolute;
+  inset: 0;
+  background-image: var(--blod-showcase-still-image, none),
+    var(--blod-tiling-texture);
+  background-repeat: no-repeat, repeat;
+  background-position: center center, var(--blod-wall-tile-position);
+  background-size:
+    cover,
+    auto;
+  background-attachment: fixed, var(--blod-wall-tile-attachment);
+}
+
+.blod-showcase-still__blurplate {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center center;
+  filter: blur(18px);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.blod-showcase-still__multiply {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background-color: var(--blod-brand-red);
+  mix-blend-mode: multiply;
+}
+
+.blod-showcase-still__preload {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 /*
  * Torn edges = SVG luminance masks only (no extra full-width “straight” bands):
  * — Top `::before`: `svg-mask-toptear.svg`; bottom `::after`: `svg-mask-bottomtear.svg`.
@@ -1130,7 +1238,8 @@ body {
  * Base `--blod-shell-body`; tile `--blod-wall-tile-*`. No `transform` on masked pseudos (WebKit).
  */
 .blod-section--trailer::before,
-.blod-section--footer::before {
+.blod-section--footer::before,
+.blod-section--showcase-still::before {
   content: "";
   position: absolute;
   left: 0;
@@ -1159,7 +1268,8 @@ body {
 }
 
 .blod-section--trailer::after,
-.blod-section--footer::after {
+.blod-section--footer::after,
+.blod-section--showcase-still::after {
   content: "";
   position: absolute;
   left: 0;
@@ -1200,11 +1310,15 @@ html[data-debug-hide-tear-masks] .blod-section--trailer::before,
 html[data-debug-hide-tear-masks] .blod-section--trailer::after,
 html[data-debug-hide-tear-masks] .blod-section--footer::before,
 html[data-debug-hide-tear-masks] .blod-section--footer::after,
+html[data-debug-hide-tear-masks] .blod-section--showcase-still::before,
+html[data-debug-hide-tear-masks] .blod-section--showcase-still::after,
 .blod-page-shell[data-debug-hide-tear-masks] .blod-page-shell__hero-tear,
 .blod-page-shell[data-debug-hide-tear-masks] .blod-section--trailer::before,
 .blod-page-shell[data-debug-hide-tear-masks] .blod-section--trailer::after,
 .blod-page-shell[data-debug-hide-tear-masks] .blod-section--footer::before,
-.blod-page-shell[data-debug-hide-tear-masks] .blod-section--footer::after {
+.blod-page-shell[data-debug-hide-tear-masks] .blod-section--footer::after,
+.blod-page-shell[data-debug-hide-tear-masks] .blod-section--showcase-still::before,
+.blod-page-shell[data-debug-hide-tear-masks] .blod-section--showcase-still::after {
   -webkit-mask: none !important;
   mask: none !important;
 }
@@ -1214,11 +1328,15 @@ html[data-debug-peel-tear-strips] .blod-section--trailer::before,
 html[data-debug-peel-tear-strips] .blod-section--trailer::after,
 html[data-debug-peel-tear-strips] .blod-section--footer::before,
 html[data-debug-peel-tear-strips] .blod-section--footer::after,
+html[data-debug-peel-tear-strips] .blod-section--showcase-still::before,
+html[data-debug-peel-tear-strips] .blod-section--showcase-still::after,
 .blod-page-shell[data-debug-peel-tear-strips] .blod-page-shell__hero-tear,
 .blod-page-shell[data-debug-peel-tear-strips] .blod-section--trailer::before,
 .blod-page-shell[data-debug-peel-tear-strips] .blod-section--trailer::after,
 .blod-page-shell[data-debug-peel-tear-strips] .blod-section--footer::before,
-.blod-page-shell[data-debug-peel-tear-strips] .blod-section--footer::after {
+.blod-page-shell[data-debug-peel-tear-strips] .blod-section--footer::after,
+.blod-page-shell[data-debug-peel-tear-strips] .blod-section--showcase-still::before,
+.blod-page-shell[data-debug-peel-tear-strips] .blod-section--showcase-still::after {
   opacity: 0 !important;
 }
 

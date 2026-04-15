@@ -3,9 +3,11 @@ import {
   BLOD_TEAR_STRIP_MASK_URL,
 } from "./blodTearMask";
 import { BLOOD_PARALLAX_URL } from "./content/bloodParallax";
+import { INTRO_SYMBOL_URL } from "./content/introSymbol";
+import { SHOWCASE_STILL } from "./content/showcaseStill";
 import { publicUrl } from "./publicUrl";
 
-/** Tear-strip masks, trailer band bg, blood parallax — decode before reveals paint. */
+/** Tear-strip masks, trailer band bg, blood parallax, intro symbol — decode before reveals paint. */
 const FRAME_ASSET_URLS = [
   publicUrl("Images/bg.jpg"),
   publicUrl("Images/demonhero.jpg"),
@@ -15,6 +17,8 @@ const FRAME_ASSET_URLS = [
   BLOD_TEAR_STRIP_MASK_URL,
   BLOD_TEAR_BOTTOM_MASK_URL,
   BLOOD_PARALLAX_URL,
+  INTRO_SYMBOL_URL,
+  SHOWCASE_STILL.imageSrc,
 ] as const;
 
 let frameAssetsPreload: Promise<void> | null = null;
@@ -85,6 +89,6 @@ export async function waitForHeavyRevealContent(el: HTMLElement): Promise<void> 
 
 export function isHeavyRevealBlock(el: HTMLElement): boolean {
   return el.matches(
-    "figure.blod-gallery-card, figure.blod-staff-card, figure.blod-feature-bleed__figure, .blod-trailer, .blod-footer__logo-wrap",
+    "figure.blod-gallery-card, figure.blod-staff-card, figure.blod-feature-bleed__figure, .blod-trailer, .blod-showcase-still, .blod-footer__logo-wrap",
   );
 }

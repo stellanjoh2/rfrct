@@ -11,7 +11,7 @@ import { DevBlobControls } from "./DevBlobControls";
 import { BlodScrollReveal } from "./BlodScrollReveal";
 import { BlodStickyHeader } from "./BlodStickyHeader";
 import { LOCKED_HERO_SYNC } from "./lockedHeroPreset";
-import { FEATURE_BLEED_IMG_B } from "./content/featureBleed";
+import { FEATURE_BLEED_BANDS } from "./content/featureBleed";
 import {
   conceptGalleryImages,
   screenshotGalleryImages,
@@ -27,6 +27,7 @@ import {
   FooterSection,
   GallerySection,
   IntroSection,
+  ShowcaseStillSection,
   StorySection,
   TeamSection,
   TrailerSection,
@@ -156,22 +157,10 @@ export function App() {
             <IntroSection />
             <TrailerSection />
             <StorySection />
-            <FeatureBleedSection
-              id="feature-map"
-              title="The bayou at dusk"
-              body="Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris. Integer posuere erat a ante venenatis dapibus posuere velit aliquet."
-              imageSrc={FEATURE_BLEED_IMG_B}
-              imageSide="right"
-              imageAlt=""
-            />
-            <FeatureBleedSection
-              id="feature-character"
-              title="Bloodhound"
-              body="Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium."
-              imageSrc={FEATURE_BLEED_IMG_B}
-              imageSide="left"
-              imageAlt=""
-            />
+            <ShowcaseStillSection />
+            {FEATURE_BLEED_BANDS.map((band) => (
+              <FeatureBleedSection key={band.id} {...band} />
+            ))}
             <GallerySection
               id="screenshots"
               title="Screenshots"

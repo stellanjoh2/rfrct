@@ -9,6 +9,12 @@ export const INTRO_LINE_SLOW_FACTOR = 1.25;
 export const BLOCK_REVEAL_DURATION = 1.32;
 export const BLOCK_REVEAL_STAGGER = 0.15;
 
+/** Full-bleed still / trailer / footer: blurred plate crossfades to sharp art beneath. */
+export const BACKDROP_BLUR_PLATE_DURATION = 1.45;
+
+/** Brand red multiply overlay — fades out so the real image reads through. */
+export const BACKDROP_RED_MULTIPLY_DURATION = 2;
+
 export const LINE_REVEAL_BLUR_PX = 14;
 export const BLOCK_REVEAL_BLUR_PX = 14;
 

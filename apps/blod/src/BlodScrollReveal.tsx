@@ -4,6 +4,8 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 import SplitType from "split-type";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
+  BACKDROP_BLUR_PLATE_DURATION,
+  BACKDROP_RED_MULTIPLY_DURATION,
   BLOCK_REVEAL_BLUR_PX,
   BLOCK_REVEAL_DURATION,
   BLOCK_REVEAL_STAGGER,
@@ -23,6 +25,23 @@ import {
 
 gsap.registerPlugin(ScrollTrigger);
 
+/** Full-bleed still stack: no root opacity/y/blur — tear seams + fixed bg stay static; overlays fade in `runShowcaseStillRevealOverlays`. */
+const SHOWCASE_STILL_BLOCK_SELECTOR = ".blod-showcase-still";
+
+/**
+ * Trailer: do not tween the `.blod-trailer` root (would blur/move fixed-aligned band vs tear strips).
+ * The 16:9 frame inner gets the shared block reveal instead.
+ */
+const TRAILER_ROOT_SELECTOR = ".blod-trailer";
+const TRAILER_FRAME_SELECTOR = ".blod-trailer__frame";
+
+/**
+ * Fixed photo + tear SVG bands: GSAP `filter` / `y` on any descendant breaks compositing with
+ * `background-attachment: fixed` and reads as a seam / light leak — use opacity-only here.
+ */
+const TEAR_BAND_TRIGGER_SELECTOR =
+  ".blod-section--trailer, .blod-section--footer";
+
 /** Elements that get the shared fade/slide-in per section (plus opt-in blocks). */
 const SECTION_SCROLL_REVEAL_SELECTOR = [
   "h1",
@@ -34,6 +53,7 @@ const SECTION_SCROLL_REVEAL_SELECTOR = [
   "details.blod-faq-item",
   // Trailer / custom bands — not matched by headings or figures
   ".blod-trailer",
+  ".blod-showcase-still",
   ".blod-scroll-reveal__block",
   // Story: block fade per paragraph (not SplitType lines — columns need normal reflow)
   ".blod-section--story p",
@@ -55,7 +75,9 @@ type Props = {
  * the container width changes (resize, orientation) or after webfonts load.
  *
  * Block fade/slide (per section): headings, gallery/staff figures, FAQ details,
- * `.blod-trailer`, `.blod-footer__legal p`, and any element with `.blod-scroll-reveal__block`
+ * `.blod-trailer` / footer UI (opacity-only in trailer & footer bands — no blur/y vs fixed tear seams),
+ * `.blod-showcase-still` (root untweened; blurred plate + red multiply fade via GSAP),
+ * `.blod-footer__legal p`, and any element with `.blod-scroll-reveal__block`
  * (footer is a `.blod-section` — same trigger path as other bands).
  * Hero teaser video uses the same motion on mount (fixed layer — see `BlodHeroTeaserVideo`).
  *
@@ -145,6 +167,89 @@ export function BlodScrollReveal({ children }: Props) {
         stagger: BLOCK_REVEAL_STAGGER,
       };
 
+      const tearBandBlockRevealInit = { opacity: 0 } as const;
+      const tearBandBlockRevealTween = {
+        opacity: 1,
+        duration: BLOCK_REVEAL_DURATION,
+        ease: "power3.out" as const,
+        stagger: BLOCK_REVEAL_STAGGER,
+      };
+
+      const tearBandTrigger = (trigger: HTMLElement) =>
+        trigger.matches(TEAR_BAND_TRIGGER_SELECTOR);
+
+      const runShowcaseStillRevealOverlays = (showcaseEls: HTMLElement[]) => {
+        if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+          return;
+        }
+        for (const el of showcaseEls) {
+          const blurplate = el.querySelector<HTMLElement>(
+            ".blod-showcase-still__blurplate",
+          );
+          const mult = el.querySelector<HTMLElement>(
+            ".blod-showcase-still__multiply",
+          );
+          if (blurplate) {
+            gsap.fromTo(
+              blurplate,
+              { opacity: 1 },
+              {
+                opacity: 0,
+                duration: BACKDROP_BLUR_PLATE_DURATION,
+                ease: "power2.out",
+              },
+            );
+          }
+          if (mult) {
+            gsap.fromTo(
+              mult,
+              { opacity: 1 },
+              {
+                opacity: 0,
+                duration: BACKDROP_RED_MULTIPLY_DURATION,
+                ease: "power1.out",
+              },
+            );
+          }
+        }
+      };
+
+      const runBackdropVeilOverlays = (trigger: HTMLElement) => {
+        if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+          return;
+        }
+        const veil = trigger.querySelector(".blod-backdrop-reveal-veil");
+        if (!veil) return;
+        const blurImg = veil.querySelector<HTMLElement>(
+          ".blod-backdrop-reveal-veil__blur",
+        );
+        const mult = veil.querySelector<HTMLElement>(
+          ".blod-backdrop-reveal-veil__multiply",
+        );
+        if (blurImg) {
+          gsap.fromTo(
+            blurImg,
+            { opacity: 1 },
+            {
+              opacity: 0,
+              duration: BACKDROP_BLUR_PLATE_DURATION,
+              ease: "power2.out",
+            },
+          );
+        }
+        if (mult) {
+          gsap.fromTo(
+            mult,
+            { opacity: 1 },
+            {
+              opacity: 0,
+              duration: BACKDROP_RED_MULTIPLY_DURATION,
+              ease: "power1.out",
+            },
+          );
+        }
+      };
+
       const runLineReveal = (
         selector: string,
         duration: number,
@@ -203,9 +308,10 @@ export function BlodScrollReveal({ children }: Props) {
         trigger: HTMLElement,
       ) => {
         if (elements.length === 0) return;
-        gsap.set(elements, blockRevealInit);
+        const band = tearBandTrigger(trigger);
+        gsap.set(elements, band ? tearBandBlockRevealInit : blockRevealInit);
         gsap.to(elements, {
-          ...blockRevealTween,
+          ...(band ? tearBandBlockRevealTween : blockRevealTween),
           scrollTrigger: {
             trigger,
             start: SCROLL_TRIGGER_START,
@@ -219,7 +325,28 @@ export function BlodScrollReveal({ children }: Props) {
         trigger: HTMLElement,
       ) => {
         if (elements.length === 0) return;
-        gsap.set(elements, blockRevealInit);
+        const showcase = elements.filter((el) =>
+          el.matches(SHOWCASE_STILL_BLOCK_SELECTOR),
+        );
+        const trailers = elements.filter((el) =>
+          el.matches(TRAILER_ROOT_SELECTOR),
+        );
+        const normal = elements.filter(
+          (el) =>
+            !el.matches(SHOWCASE_STILL_BLOCK_SELECTOR) &&
+            !el.matches(TRAILER_ROOT_SELECTOR),
+        );
+        const trailerFrames = trailers
+          .map((t) => t.querySelector<HTMLElement>(TRAILER_FRAME_SELECTOR))
+          .filter((n): n is HTMLElement => n != null);
+
+        const band = tearBandTrigger(trigger);
+        const blockInit = band ? tearBandBlockRevealInit : blockRevealInit;
+        const blockTween = band ? tearBandBlockRevealTween : blockRevealTween;
+
+        if (normal.length) gsap.set(normal, blockInit);
+        if (trailerFrames.length) gsap.set(trailerFrames, blockInit);
+
         ScrollTrigger.create({
           trigger,
           start: SCROLL_TRIGGER_START,
@@ -236,7 +363,10 @@ export function BlodScrollReveal({ children }: Props) {
             if (cancelled) return;
             requestAnimationFrame(() => {
               if (cancelled) return;
-              gsap.to(elements, blockRevealTween);
+              if (normal.length) gsap.to(normal, blockTween);
+              if (trailerFrames.length) gsap.to(trailerFrames, blockTween);
+              runShowcaseStillRevealOverlays(showcase);
+              runBackdropVeilOverlays(trigger);
             });
           },
         });
