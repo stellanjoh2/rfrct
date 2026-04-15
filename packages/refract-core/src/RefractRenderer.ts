@@ -2,7 +2,9 @@ import {
   compositeStraightAlphaOverBackground,
   cropCanvasToImageRect,
   downloadCanvasAsPng,
+  expandNormalizedRectUniform,
   removeSolidBackgroundForPng,
+  trimCanvasToAlphaBounds,
 } from "./capture";
 import type { PngExportParams } from "./pngExportSettings";
 import { BloomPipeline } from "./BloomPipeline";
@@ -672,8 +674,33 @@ export class RefractRenderer {
   }
 
   /**
+   * Extra normalized UV padding for `region: "image"` PNG export so refraction, chroma,
+   * glass filters, detail normal, and frost (which shift or widen sampling) are not clipped
+   * at the strict bitmap rect.
+   */
+  private computeImageExportBleedUv(canvasW: number, canvasH: number): number {
+    const minDim = Math.max(1, Math.min(canvasW, canvasH));
+    const refr = Math.max(0, this.blob.refractStrength);
+    let detail = 0;
+    if (this.detailNormalReady && this.detailDistortion.enabled) {
+      detail =
+        0.045 * Math.max(0, Math.min(1, this.detailDistortion.strength));
+    }
+    const fs = Math.min(1, Math.max(0, this.blob.filterStrength)) * 2.0;
+    const filterPad = 0.012 * fs;
+    const chromaPad = (Math.max(0, this.blob.chroma) * 48.0) / minDim;
+    const frostPx = Math.max(0, this.blob.frostBlur);
+    const frostPad = (frostPx * 4.0) / minDim;
+    const raw =
+      refr * 1.05 + detail + filterPad + chromaPad + frostPad + 0.004;
+    /** Cap keeps pre-trim crop sane; transparent exports are tightened via alpha trim. */
+    return Math.min(0.16, Math.max(0.003, raw));
+  }
+
+  /**
    * Renders at `params.scale`× backing-store resolution, optionally straight-alpha and/or
-   * cropped to the fitted image rect, downloads PNG, then restores size and redraws.
+   * cropped around the fitted image rect (bleed for refractive spill), then for transparent
+   * “image” exports trimmed to tight alpha bounds so dimensions match visible art.
    *
    * Opaque PNGs run the same de-matte as transparent, then composite onto the scene background;
    * edge pixels may differ slightly from a raw framebuffer read (intentional for cleaner edges).
@@ -723,7 +750,12 @@ export class RefractRenderer {
           ? dematted
           : compositeStraightAlphaOverBackground(dematted, bgRgb);
         if (useCrop) {
-          target = cropCanvasToImageRect(target, rect);
+          const bleed = this.computeImageExportBleedUv(nw, nh);
+          const cropRect = expandNormalizedRectUniform(rect, bleed);
+          target = cropCanvasToImageRect(target, cropRect);
+          if (params.transparentBackground) {
+            target = trimCanvasToAlphaBounds(target, 8, 2);
+          }
         }
 
         downloadCanvasAsPng(target, basename, () => {

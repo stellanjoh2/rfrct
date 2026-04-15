@@ -7,9 +7,11 @@ export default defineConfig(({ command }) => ({
   plugins: [react()],
   base: command === "serve" ? "/" : "./",
   server: {
-    // Avoid some browsers resolving "localhost" to IPv4 while Node only listens on IPv6.
-    host: "127.0.0.1",
+    // Listen on all interfaces so localhost / 127.0.0.1 / LAN IP all work.
+    host: true,
     port: 5173,
-    strictPort: true,
+    // If 5173 is taken, use5174+ and print the real URL — always open what Vite prints.
+    strictPort: false,
+    open: true,
   },
 }));

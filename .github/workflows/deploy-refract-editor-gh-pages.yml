@@ -1,0 +1,58 @@
+# Publishes the Refrct distortion tool (apps/refract-editor) to GitHub Pages.
+#
+# Repo → Settings → Pages → Build and deployment → Source: GitHub Actions,
+# then select this workflow (or allow it to run on push to main).
+#
+# Live URL: https://<owner>.github.io/<repo>/  (e.g. /rfrct/)
+
+name: Deploy Refract editor to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - run: npm run build:editor
+      - name: Verify production bundle
+        run: |
+          test -f apps/refract-editor/dist/index.html
+          grep -q 'assets/index-.*\.js' apps/refract-editor/dist/index.html || (echo "missing hashed JS"; exit 1)
+          ! grep -q '/src/main.tsx' apps/refract-editor/dist/index.html || (echo "dev index leaked"; exit 1)
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: apps/refract-editor/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+      actions: read
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5

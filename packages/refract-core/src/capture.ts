@@ -330,6 +330,27 @@ function triggerDownload(href: string, filename: string): void {
 }
 
 /**
+ * Expands a normalized bottom-left UV rect by `pad` on each side, clamped to the
+ * full canvas. Used for “image” PNG export so refractive / chroma / glass offsets
+ * that sample outside the strict bitmap rect are not clipped.
+ */
+export function expandNormalizedRectUniform(
+  rect: { x: number; y: number; w: number; h: number },
+  pad: number,
+): { x: number; y: number; w: number; h: number } {
+  const p = Math.max(0, pad);
+  let x0 = rect.x - p;
+  let y0 = rect.y - p;
+  let x1 = rect.x + rect.w + p;
+  let y1 = rect.y + rect.h + p;
+  x0 = Math.max(0, Math.min(1, x0));
+  y0 = Math.max(0, Math.min(1, y0));
+  x1 = Math.max(x0 + 1e-6, Math.min(1, x1));
+  y1 = Math.max(y0 + 1e-6, Math.min(1, y1));
+  return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+}
+
+/**
  * `rect` uses the same normalized bottom-left UV space as `ImageRect` in layout
  * (origin bottom-left; y increases upward). The canvas bitmap uses top-left
  * origin for 2D — this maps the rect for `drawImage`.
@@ -353,5 +374,67 @@ export function cropCanvasToImageRect(
     return source;
   }
   ctx.drawImage(source, sx, sy, sw, sh, 0, 0, sw, sh);
+  return out;
+}
+
+/**
+ * Crops to the tight bounds of pixels with alpha > `alphaThreshold`, plus `marginPx`
+ * for anti-aliased edges. Used after transparent “image” export so file dimensions match
+ * visible artwork (not the full bleed rectangle).
+ */
+export function trimCanvasToAlphaBounds(
+  source: HTMLCanvasElement,
+  alphaThreshold = 8,
+  marginPx = 2,
+): HTMLCanvasElement {
+  const w = source.width;
+  const h = source.height;
+  if (w < 1 || h < 1) {
+    return source;
+  }
+  const ctx = source.getContext("2d", { willReadFrequently: true });
+  if (!ctx) {
+    return source;
+  }
+  const img = ctx.getImageData(0, 0, w, h);
+  const d = img.data;
+  const thr = Math.max(0, Math.min(255, alphaThreshold));
+  let minX = w;
+  let minY = h;
+  let maxX = -1;
+  let maxY = -1;
+  for (let y = 0; y < h; y++) {
+    const row = y * w * 4;
+    for (let x = 0; x < w; x++) {
+      const a = d[row + x * 4 + 3];
+      if (a > thr) {
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      }
+    }
+  }
+  if (maxX < minX || maxY < minY) {
+    const empty = document.createElement("canvas");
+    empty.width = 1;
+    empty.height = 1;
+    return empty;
+  }
+  const m = Math.max(0, marginPx);
+  minX = Math.max(0, minX - m);
+  minY = Math.max(0, minY - m);
+  maxX = Math.min(w - 1, maxX + m);
+  maxY = Math.min(h - 1, maxY + m);
+  const tw = maxX - minX + 1;
+  const th = maxY - minY + 1;
+  const out = document.createElement("canvas");
+  out.width = tw;
+  out.height = th;
+  const octx = out.getContext("2d");
+  if (!octx) {
+    return source;
+  }
+  octx.drawImage(source, minX, minY, tw, th, 0, 0, tw, th);
   return out;
 }
