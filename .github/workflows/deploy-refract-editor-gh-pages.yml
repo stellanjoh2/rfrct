@@ -4,6 +4,9 @@
 # then select this workflow (or allow it to run on push to main).
 #
 # Live URL: https://<owner>.github.io/<repo>/  (e.g. /rfrct/)
+#
+# Single job (upload + deploy) matches GitHub’s static Pages starter and avoids
+# cross-job artifact permission issues between build and deploy jobs.
 
 name: Deploy Refract editor to GitHub Pages
 
@@ -12,8 +15,6 @@ on:
     branches: [main]
   workflow_dispatch:
 
-# upload-pages-artifact → upload-artifact needs `actions: write` when the repo uses
-# Settings → Actions → General → Workflow permissions: read-only (default on many repos).
 permissions:
   contents: read
   pages: write
@@ -22,40 +23,38 @@ permissions:
 
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v5
+
       - uses: actions/setup-node@v5
         with:
           node-version: "22"
           cache: npm
           cache-dependency-path: package-lock.json
+
       - run: npm ci
+
       - run: npm run build:editor
+
       - name: Verify production bundle
         run: |
           test -f apps/refract-editor/dist/index.html
           grep -q 'assets/index-.*\.js' apps/refract-editor/dist/index.html || (echo "missing hashed JS"; exit 1)
           ! grep -q '/src/main.tsx' apps/refract-editor/dist/index.html || (echo "dev index leaked"; exit 1)
-      - uses: actions/upload-pages-artifact@v3
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
         with:
           path: apps/refract-editor/dist
 
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    permissions:
-      contents: read
-      pages: write
-      id-token: write
-      actions: read
-    steps:
-      - id: deployment
+      - name: Deploy to GitHub Pages
+        id: deployment
         uses: actions/deploy-pages@v5
