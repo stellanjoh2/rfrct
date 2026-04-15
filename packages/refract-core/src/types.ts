@@ -3,9 +3,10 @@ export type ShapeMode = 0 | 1 | 2 | 3;
 
 /**
  * Full-screen glass displacement layered after the lens (screen-space UV offset).
- * 0 = none, 1 = horizontal reeds, 2 = bullseye, 3 = speckle, 4 = halftone dots, 5 = vertical reeds
+ * 0 = none, 1 = horizontal reeds, 2 = bullseye, 3 = speckle, 4 = halftone dots, 5 = vertical reeds,
+ * 6 = pixels uniform, 7 = pixels random, 8 = bubbles, 9 = dots
  */
-export type FilterMode = 0 | 1 | 2 | 3 | 4 | 5;
+export type FilterMode = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
 
 export type BlobParams = {
   centerX: number;
@@ -19,7 +20,7 @@ export type BlobParams = {
   edgeSoftness: number;
   /** Extra Gaussian blur in framebuffer pixels (lens / frost). */
   frostBlur: number;
-  /** 1 = 9 taps, 2 = 25, 3 = 49 (binomial kernels; higher = softer, heavier GPU). */
+  /** 1–5 → 25 / 49 / 121 / 225 / 529 taps (binomial; 4–5 use dense ±5s footprint like 11×11, smoother). */
   blurQuality: number;
   chroma: number;
   shapeMode: ShapeMode;

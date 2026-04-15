@@ -1,10 +1,9 @@
 import {
   compositeStraightAlphaOverBackground,
-  cropCanvasToImageRect,
   downloadCanvasAsPng,
-  expandNormalizedRectUniform,
   removeSolidBackgroundForPng,
   trimCanvasToAlphaBounds,
+  trimCanvasToNonBgBounds,
 } from "./capture";
 import type { PngExportParams } from "./pngExportSettings";
 import { BloomPipeline } from "./BloomPipeline";
@@ -161,6 +160,9 @@ export class RefractRenderer {
    */
   transparentSceneBg = false;
 
+  /** Degrees — applied after lens grade; skipped in scene pass when bloom composite applies it. */
+  globalHueShift = 0;
+
     constructor(canvas: HTMLCanvasElement) {
     const gl = canvas.getContext(
       "webgl2",
@@ -205,6 +207,7 @@ export class RefractRenderer {
       "u_edgeSoftness",
       "u_frostBlur",
       "u_blurQuality",
+      "u_globalHueShift",
       "u_chroma",
       "u_shapeMode",
       "u_filterMode",
@@ -435,7 +438,7 @@ export class RefractRenderer {
     this.bloomPipeline.releaseFramebuffers();
   }
 
-  private drawScenePass(w: number, h: number) {
+  private drawScenePass(w: number, h: number, includeGlobalHue: boolean) {
     const gl = this.gl;
     gl.useProgram(this.program);
     gl.bindVertexArray(this.vao);
@@ -495,6 +498,12 @@ export class RefractRenderer {
     gl.uniform1f(this.locs.u_edgeSoftness, this.blob.edgeSoftness);
     gl.uniform1f(this.locs.u_frostBlur, this.blob.frostBlur);
     gl.uniform1f(this.locs.u_blurQuality, this.blob.blurQuality);
+    const hue = this.globalHueShift;
+    const hueNorm = Number.isFinite(hue) ? (((hue % 360) + 360) % 360) : 0;
+    gl.uniform1f(
+      this.locs.u_globalHueShift,
+      includeGlobalHue ? hueNorm : 0,
+    );
     gl.uniform1f(this.locs.u_chroma, this.blob.chroma);
     gl.uniform1i(this.locs.u_shapeMode, this.blob.shapeMode);
     gl.uniform1i(this.locs.u_filterMode, this.blob.filterMode);
@@ -596,7 +605,7 @@ export class RefractRenderer {
       gl.viewport(0, 0, w, h);
       gl.clearColor(clear[0], clear[1], clear[2], clear[3]);
       gl.clear(gl.COLOR_BUFFER_BIT);
-      this.drawScenePass(w, h);
+      this.drawScenePass(w, h, true);
       return;
     }
 
@@ -605,10 +614,13 @@ export class RefractRenderer {
     gl.viewport(0, 0, w, h);
     gl.clearColor(clear[0], clear[1], clear[2], clear[3]);
     gl.clear(gl.COLOR_BUFFER_BIT);
-    this.drawScenePass(w, h);
+    this.drawScenePass(w, h, false);
 
+    const gh = this.globalHueShift;
+    const ghNorm = Number.isFinite(gh) ? (((gh % 360) + 360) % 360) : 0;
     this.bloomPipeline.finalizeToCanvas(this.bloom, this.vao, w, h, {
       transparentCanvas: this.transparentSceneBg,
+      globalHueShift: ghNorm,
     });
   };
 
@@ -674,33 +686,9 @@ export class RefractRenderer {
   }
 
   /**
-   * Extra normalized UV padding for `region: "image"` PNG export so refraction, chroma,
-   * glass filters, detail normal, and frost (which shift or widen sampling) are not clipped
-   * at the strict bitmap rect.
-   */
-  private computeImageExportBleedUv(canvasW: number, canvasH: number): number {
-    const minDim = Math.max(1, Math.min(canvasW, canvasH));
-    const refr = Math.max(0, this.blob.refractStrength);
-    let detail = 0;
-    if (this.detailNormalReady && this.detailDistortion.enabled) {
-      detail =
-        0.045 * Math.max(0, Math.min(1, this.detailDistortion.strength));
-    }
-    const fs = Math.min(1, Math.max(0, this.blob.filterStrength)) * 2.0;
-    const filterPad = 0.012 * fs;
-    const chromaPad = (Math.max(0, this.blob.chroma) * 48.0) / minDim;
-    const frostPx = Math.max(0, this.blob.frostBlur);
-    const frostPad = (frostPx * 4.0) / minDim;
-    const raw =
-      refr * 1.05 + detail + filterPad + chromaPad + frostPad + 0.004;
-    /** Cap keeps pre-trim crop sane; transparent exports are tightened via alpha trim. */
-    return Math.min(0.16, Math.max(0.003, raw));
-  }
-
-  /**
    * Renders at `params.scale`× backing-store resolution, optionally straight-alpha and/or
-   * cropped around the fitted image rect (bleed for refractive spill), then for transparent
-   * “image” exports trimmed to tight alpha bounds so dimensions match visible art.
+   * `region: "image"` which trims to **actual** output pixels (alpha or vs background), so
+   * extreme refraction is never clipped by fixed UV bleed — only by the framebuffer edge.
    *
    * Opaque PNGs run the same de-matte as transparent, then composite onto the scene background;
    * edge pixels may differ slightly from a raw framebuffer read (intentional for cleaner edges).
@@ -750,11 +738,10 @@ export class RefractRenderer {
           ? dematted
           : compositeStraightAlphaOverBackground(dematted, bgRgb);
         if (useCrop) {
-          const bleed = this.computeImageExportBleedUv(nw, nh);
-          const cropRect = expandNormalizedRectUniform(rect, bleed);
-          target = cropCanvasToImageRect(target, cropRect);
           if (params.transparentBackground) {
-            target = trimCanvasToAlphaBounds(target, 8, 2);
+            target = trimCanvasToAlphaBounds(target, 1, 8);
+          } else {
+            target = trimCanvasToNonBgBounds(target, bgRgb, 0.045, 8);
           }
         }
 

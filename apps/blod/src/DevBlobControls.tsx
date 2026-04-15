@@ -356,6 +356,10 @@ export function DevBlobControls({
             <option value={2}>Bullseye rings</option>
             <option value={3}>Speckle grain</option>
             <option value={4}>Halftone dots</option>
+            <option value={6}>Pixels - Uniform</option>
+            <option value={7}>Pixels - Random</option>
+            <option value={8}>Bubbles</option>
+            <option value={9}>Dots</option>
           </select>
         </label>
         <label className="blod-dev-field">
@@ -478,6 +482,19 @@ export function DevBlobControls({
       <details className="blod-dev-details" open>
         <summary>Effects</summary>
         <label className="blod-dev-field">
+          <span>Global hue {Math.round(s.globalHueShift ?? 0)}°</span>
+          <input
+            type="range"
+            min={0}
+            max={360}
+            step={1}
+            value={s.globalHueShift ?? 0}
+            onChange={(e) =>
+              onChange({ globalHueShift: Number(e.target.value) })
+            }
+          />
+        </label>
+        <label className="blod-dev-field">
           <span>Lens blur (frost) {s.frostBlur.toFixed(1)} px</span>
           <input
             type="range"
@@ -491,12 +508,20 @@ export function DevBlobControls({
         <label className="blod-dev-field">
           <span>
             Blur samples{" "}
-            {s.blurQuality === 1 ? "9" : s.blurQuality === 2 ? "25" : "49"}
+            {s.blurQuality === 1
+              ? "25"
+              : s.blurQuality === 2
+                ? "49"
+                : s.blurQuality === 3
+                  ? "121"
+                  : s.blurQuality === 4
+                    ? "225"
+                    : "529"}
           </span>
           <input
             type="range"
             min={1}
-            max={3}
+            max={5}
             step={1}
             value={s.blurQuality}
             onChange={(e) => onChange({ blurQuality: Number(e.target.value) })}

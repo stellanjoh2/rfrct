@@ -70,6 +70,7 @@ export function App() {
   const [edgeSoft, setEdgeSoft] = useState(0.012);
   const [frostBlur, setFrostBlur] = useState(2);
   const [blurQuality, setBlurQuality] = useState(1);
+  const [globalHueShift, setGlobalHueShift] = useState(0);
   const [chroma, setChroma] = useState(0);
   const [bloomStrength, setBloomStrength] = useState(0);
   const [bloomRadius, setBloomRadius] = useState(0.2);
@@ -494,6 +495,7 @@ export function App() {
         edgeSoft,
         frostBlur,
         blurQuality,
+        globalHueShift,
         chroma,
         shapeMode,
         filterMode,
@@ -543,6 +545,7 @@ export function App() {
     edgeSoft,
     frostBlur,
     blurQuality,
+    globalHueShift,
     chroma,
     shapeMode,
     filterMode,
@@ -983,6 +986,8 @@ export function App() {
         setBloomThreshold,
       },
       effects: {
+        globalHueShift,
+        setGlobalHueShift,
         frostBlur,
         setFrostBlur,
         blurQuality,
@@ -1062,6 +1067,7 @@ export function App() {
       bloomThreshold,
       frostBlur,
       blurQuality,
+      globalHueShift,
       chroma,
       exportTransparent,
       exportRegion,
@@ -1110,6 +1116,7 @@ export function App() {
     edgeSoft,
     frostBlur,
     blurQuality,
+    globalHueShift,
     chroma,
     shapeMode,
     filterMode,

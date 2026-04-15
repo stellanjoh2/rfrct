@@ -17,6 +17,7 @@ import {
   LINE_REVEAL_Y_INITIAL,
   SCROLL_TRIGGER_START,
 } from "./scrollRevealMotion";
+import { runShowcaseStillRevealOverlaysOnce } from "./runShowcaseStillRevealOverlays";
 import {
   isHeavyRevealBlock,
   preloadRevealFrameAssets,
@@ -179,38 +180,8 @@ export function BlodScrollReveal({ children }: Props) {
         trigger.matches(TEAR_BAND_TRIGGER_SELECTOR);
 
       const runShowcaseStillRevealOverlays = (showcaseEls: HTMLElement[]) => {
-        if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-          return;
-        }
         for (const el of showcaseEls) {
-          const blurplate = el.querySelector<HTMLElement>(
-            ".blod-showcase-still__blurplate",
-          );
-          const mult = el.querySelector<HTMLElement>(
-            ".blod-showcase-still__multiply",
-          );
-          if (blurplate) {
-            gsap.fromTo(
-              blurplate,
-              { opacity: 1 },
-              {
-                opacity: 0,
-                duration: BACKDROP_BLUR_PLATE_DURATION,
-                ease: "power2.out",
-              },
-            );
-          }
-          if (mult) {
-            gsap.fromTo(
-              mult,
-              { opacity: 1 },
-              {
-                opacity: 0,
-                duration: BACKDROP_RED_MULTIPLY_DURATION,
-                ease: "power1.out",
-              },
-            );
-          }
+          runShowcaseStillRevealOverlaysOnce(el);
         }
       };
 

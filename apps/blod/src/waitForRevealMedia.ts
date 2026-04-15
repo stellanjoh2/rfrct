@@ -4,10 +4,9 @@ import {
 } from "./blodTearMask";
 import { BLOOD_PARALLAX_URL } from "./content/bloodParallax";
 import { INTRO_SYMBOL_URL } from "./content/introSymbol";
-import { SHOWCASE_STILL } from "./content/showcaseStill";
 import { publicUrl } from "./publicUrl";
 
-/** Tear-strip masks, trailer band bg, blood parallax, intro symbol — decode before reveals paint. */
+/** Tear-strip masks, trailer band bg, blood parallax, intro symbol — decode before reveals paint. Showcase still is viewport-gated in `ShowcaseStillSection`. */
 const FRAME_ASSET_URLS = [
   publicUrl("Images/bg.jpg"),
   publicUrl("Images/demonhero.jpg"),
@@ -18,7 +17,6 @@ const FRAME_ASSET_URLS = [
   BLOD_TEAR_BOTTOM_MASK_URL,
   BLOOD_PARALLAX_URL,
   INTRO_SYMBOL_URL,
-  SHOWCASE_STILL.imageSrc,
 ] as const;
 
 let frameAssetsPreload: Promise<void> | null = null;

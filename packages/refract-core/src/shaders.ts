@@ -50,12 +50,14 @@ uniform float u_refractStrength;
 uniform float u_edgeSoftness;
 uniform float u_frostBlur;
 uniform float u_blurQuality;
+/** Degrees — applied to final RGB after lens grade (matches bloom composite). */
+uniform float u_globalHueShift;
 
 uniform float u_chroma;
 /** 0 = blob, 1 = rotating 3D box SDF, 2 = metaballs, 3 = water (traveling surface waves) */
 uniform int u_shapeMode;
 
-/** 0 = none, 1 = horizontal reeds, 2 = bullseye, 3 = speckle, 4 = halftone dots, 5 = vertical reeds */
+/** 0 = none, 1 = horizontal reeds, 2 = bullseye, 3 = speckle, 4 = halftone dots, 5 = vertical reeds, 6 = pixels uniform, 7 = pixels random, 8 = bubbles, 9 = dots */
 uniform int u_filterMode;
 uniform float u_filterStrength;
 /** 0 = finest features, 1 = coarsest (all modes use the same convention in filterGlass). */
@@ -89,6 +91,15 @@ const float BLUR_W5[5] = float[](
 );
 const float BLUR_W7[7] = float[](
   0.015625, 0.09375, 0.234375, 0.3125, 0.234375, 0.09375, 0.015625
+);
+const float BLUR_W11[11] = float[](
+  0.0009765625, 0.009765625, 0.0439453125, 0.1171875, 0.205078125, 0.24609375, 0.205078125, 0.1171875, 0.0439453125, 0.009765625, 0.0009765625
+);
+const float BLUR_W15[15] = float[](
+  0.00006103515625, 0.0008544921875, 0.005554199219, 0.02221679688, 0.06109619141, 0.1221923828, 0.1832885742, 0.2094726563, 0.1832885742, 0.1221923828, 0.06109619141, 0.02221679688, 0.005554199219, 0.0008544921875, 0.00006103515625
+);
+const float BLUR_W23[23] = float[](
+  0.0000002384185791, 0.0000052452087402, 0.0000550746917725, 0.0003671646118164, 0.0017440319061279, 0.0062785148620605, 0.0177891254425049, 0.0406608581542969, 0.0762391090393066, 0.1185941696166992, 0.1541724205017090, 0.1681880950927734, 0.1541724205017090, 0.1185941696166992, 0.0762391090393066, 0.0406608581542969, 0.0177891254425049, 0.0062785148620605, 0.0017440319061279, 0.0003671646118164, 0.0000550746917725, 0.0000052452087402, 0.0000002384185791
 );
 
 vec2 cmul(vec2 a, vec2 b) {
@@ -343,17 +354,32 @@ vec4 unpremulScene(vec4 p) {
   return p.a > 1e-5 ? vec4(p.rgb / p.a, p.a) : vec4(0.0);
 }
 
-vec4 blurBinomial3x3_rgba(vec2 uv, vec2 s) {
-  vec4 acc = premulScene(sampleSceneRGBA(uv)) * (4.0 / 16.0);
-  acc += premulScene(sampleSceneRGBA(uv + vec2(s.x, 0.0))) * (2.0 / 16.0);
-  acc += premulScene(sampleSceneRGBA(uv - vec2(s.x, 0.0))) * (2.0 / 16.0);
-  acc += premulScene(sampleSceneRGBA(uv + vec2(0.0, s.y))) * (2.0 / 16.0);
-  acc += premulScene(sampleSceneRGBA(uv - vec2(0.0, s.y))) * (2.0 / 16.0);
-  acc += premulScene(sampleSceneRGBA(uv + vec2(s.x, s.y))) * (1.0 / 16.0);
-  acc += premulScene(sampleSceneRGBA(uv + vec2(-s.x, s.y))) * (1.0 / 16.0);
-  acc += premulScene(sampleSceneRGBA(uv + vec2(s.x, -s.y))) * (1.0 / 16.0);
-  acc += premulScene(sampleSceneRGBA(uv + vec2(-s.x, -s.y))) * (1.0 / 16.0);
-  return unpremulScene(acc);
+/** Photoshop-style hue: only rotates chroma; S≈0 leaves white / gray / black unchanged. */
+vec3 rgb2hsv(vec3 c) {
+  vec4 K = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
+  vec4 p = mix(vec4(c.bg, K.wz), vec4(c.gb, K.xy), step(c.b, c.g));
+  vec4 q = mix(vec4(p.xyw, c.r), vec4(c.r, p.yzx), step(p.x, c.r));
+  float d = q.x - min(q.w, q.y);
+  float e = 1.0e-10;
+  return vec3(abs(q.z + (q.w - q.y) / (6.0 * d + e)), d / (q.x + e), q.x);
+}
+
+vec3 hsv2rgb(vec3 c) {
+  vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
+  vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
+  return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
+}
+
+vec3 hueShiftRgbPreserveNeutrals(vec3 rgb, float degrees) {
+  if (abs(degrees) < 0.001) {
+    return rgb;
+  }
+  vec3 hsv = rgb2hsv(clamp(rgb, 0.0, 1.0));
+  if (hsv.y < 1.0e-4) {
+    return rgb;
+  }
+  hsv.x = fract(hsv.x + degrees / 360.0);
+  return hsv2rgb(hsv);
 }
 
 vec4 blurBinomial5x5_rgba(vec2 uv, vec2 s) {
@@ -378,6 +404,43 @@ vec4 blurBinomial7x7_rgba(vec2 uv, vec2 s) {
   return unpremulScene(acc);
 }
 
+vec4 blurBinomial11x11_rgba(vec2 uv, vec2 s) {
+  vec4 acc = vec4(0.0);
+  for (int j = 0; j < 11; j++) {
+    for (int i = 0; i < 11; i++) {
+      vec2 o = vec2(float(i - 5), float(j - 5)) * s;
+      acc += premulScene(sampleSceneRGBA(uv + o)) * BLUR_W11[i] * BLUR_W11[j];
+    }
+  }
+  return unpremulScene(acc);
+}
+
+/** Same ±5s UV footprint as 11×11, 15×15 denser taps (less “ridge” banding). */
+vec4 blurBinomial15x15_rgba_dense(vec2 uv, vec2 s) {
+  float cell = 10.0 / 14.0;
+  vec4 acc = vec4(0.0);
+  for (int j = 0; j < 15; j++) {
+    for (int i = 0; i < 15; i++) {
+      vec2 o = vec2(float(i) - 7.0, float(j) - 7.0) * cell * s;
+      acc += premulScene(sampleSceneRGBA(uv + o)) * BLUR_W15[i] * BLUR_W15[j];
+    }
+  }
+  return unpremulScene(acc);
+}
+
+/** ~512 effective 2D taps; same ±5s footprint as 11×11, very smooth (heavy GPU). */
+vec4 blurBinomial23x23_rgba_dense(vec2 uv, vec2 s) {
+  float cell = 10.0 / 22.0;
+  vec4 acc = vec4(0.0);
+  for (int j = 0; j < 23; j++) {
+    for (int i = 0; i < 23; i++) {
+      vec2 o = vec2(float(i) - 11.0, float(j) - 11.0) * cell * s;
+      acc += premulScene(sampleSceneRGBA(uv + o)) * BLUR_W23[i] * BLUR_W23[j];
+    }
+  }
+  return unpremulScene(acc);
+}
+
 vec4 sampleSceneBlurredRGBA(vec2 uv, float blurPx) {
   vec4 sharp = sampleSceneRGBA(uv);
   if (blurPx < 0.001) {
@@ -386,11 +449,15 @@ vec4 sampleSceneBlurredRGBA(vec2 uv, float blurPx) {
   vec2 s = blurPx * 1.1 / u_resolution;
   vec4 blurred;
   if (u_blurQuality < 1.5) {
-    blurred = blurBinomial3x3_rgba(uv, s);
-  } else if (u_blurQuality < 2.5) {
     blurred = blurBinomial5x5_rgba(uv, s);
-  } else {
+  } else if (u_blurQuality < 2.5) {
     blurred = blurBinomial7x7_rgba(uv, s);
+  } else if (u_blurQuality < 3.5) {
+    blurred = blurBinomial11x11_rgba(uv, s);
+  } else if (u_blurQuality < 4.5) {
+    blurred = blurBinomial15x15_rgba_dense(uv, s);
+  } else {
+    blurred = blurBinomial23x23_rgba_dense(uv, s);
   }
   float t = smoothstep(0.0, 1.25, blurPx);
   return mix(sharp, blurred, t);
@@ -407,19 +474,6 @@ vec4 sampleSceneChromaRGBA(vec2 uv, float spread, float frostPx) {
   float b = sampleSceneBlurredRGBA(uv - vec2(off.x, 0.0), frostPx).b;
   float alpha = sampleSceneBlurredRGBA(uv, frostPx).a;
   return vec4(r, g, b, alpha);
-}
-
-vec3 blurBinomial3x3(vec2 uv, vec2 s) {
-  vec3 acc = sampleScene(uv) * (4.0 / 16.0);
-  acc += sampleScene(uv + vec2(s.x, 0.0)) * (2.0 / 16.0);
-  acc += sampleScene(uv - vec2(s.x, 0.0)) * (2.0 / 16.0);
-  acc += sampleScene(uv + vec2(0.0, s.y)) * (2.0 / 16.0);
-  acc += sampleScene(uv - vec2(0.0, s.y)) * (2.0 / 16.0);
-  acc += sampleScene(uv + vec2(s.x, s.y)) * (1.0 / 16.0);
-  acc += sampleScene(uv + vec2(-s.x, s.y)) * (1.0 / 16.0);
-  acc += sampleScene(uv + vec2(s.x, -s.y)) * (1.0 / 16.0);
-  acc += sampleScene(uv + vec2(-s.x, -s.y)) * (1.0 / 16.0);
-  return acc;
 }
 
 vec3 blurBinomial5x5(vec2 uv, vec2 s) {
@@ -444,7 +498,42 @@ vec3 blurBinomial7x7(vec2 uv, vec2 s) {
   return acc;
 }
 
-/** Separable binomial kernels; weights sum to 1. u_blurQuality: 1=9 taps, 2=25, 3=49 (cap for perf). */
+vec3 blurBinomial11x11(vec2 uv, vec2 s) {
+  vec3 acc = vec3(0.0);
+  for (int j = 0; j < 11; j++) {
+    for (int i = 0; i < 11; i++) {
+      vec2 o = vec2(float(i - 5), float(j - 5)) * s;
+      acc += sampleScene(uv + o) * BLUR_W11[i] * BLUR_W11[j];
+    }
+  }
+  return acc;
+}
+
+vec3 blurBinomial15x15_dense(vec2 uv, vec2 s) {
+  float cell = 10.0 / 14.0;
+  vec3 acc = vec3(0.0);
+  for (int j = 0; j < 15; j++) {
+    for (int i = 0; i < 15; i++) {
+      vec2 o = vec2(float(i) - 7.0, float(j) - 7.0) * cell * s;
+      acc += sampleScene(uv + o) * BLUR_W15[i] * BLUR_W15[j];
+    }
+  }
+  return acc;
+}
+
+vec3 blurBinomial23x23_dense(vec2 uv, vec2 s) {
+  float cell = 10.0 / 22.0;
+  vec3 acc = vec3(0.0);
+  for (int j = 0; j < 23; j++) {
+    for (int i = 0; i < 23; i++) {
+      vec2 o = vec2(float(i) - 11.0, float(j) - 11.0) * cell * s;
+      acc += sampleScene(uv + o) * BLUR_W23[i] * BLUR_W23[j];
+    }
+  }
+  return acc;
+}
+
+/** u_blurQuality: 1=25, 2=49, 3=121, 4=225 dense, 5=529 dense (~512). */
 vec3 sampleSceneBlurred(vec2 uv, float blurPx) {
   vec3 sharp = sampleScene(uv);
   if (blurPx < 0.001) {
@@ -453,11 +542,15 @@ vec3 sampleSceneBlurred(vec2 uv, float blurPx) {
   vec2 s = blurPx * 1.1 / u_resolution;
   vec3 blurred;
   if (u_blurQuality < 1.5) {
-    blurred = blurBinomial3x3(uv, s);
-  } else if (u_blurQuality < 2.5) {
     blurred = blurBinomial5x5(uv, s);
-  } else {
+  } else if (u_blurQuality < 2.5) {
     blurred = blurBinomial7x7(uv, s);
+  } else if (u_blurQuality < 3.5) {
+    blurred = blurBinomial11x11(uv, s);
+  } else if (u_blurQuality < 4.5) {
+    blurred = blurBinomial15x15_dense(uv, s);
+  } else {
+    blurred = blurBinomial23x23_dense(uv, s);
   }
   float t = smoothstep(0.0, 1.25, blurPx);
   return mix(sharp, blurred, t);
@@ -531,28 +624,80 @@ vec2 filterGlass(vec2 uv) {
     return grain * (0.0034 * fs);
   }
   if (u_filterMode == 4) {
-    // Halftone dots: wrapped grid + scroll. r/dir use aspect so dots are circular in pixels (uv is anisotropic).
-    float cells = mix(resPx, 22.0, sc);
-    vec2 uvG = fract(uv + scroll);
-    vec2 st = fract(uvG * cells);
-    vec2 local = st - 0.5;
+    // Isotropic tiling (same as bubbles) so dots sit side-by-side without aspect gaps; cap cells so “fine” isn’t microscopic.
+    float cells = mix(min(resPx, 78.0), 22.0, sc);
     float ax = u_resolution.x / max(u_resolution.y, 1.0);
-    vec2 localPx = vec2(local.x * ax, local.y);
-    float r = length(localPx);
-    vec2 dir =
-      r > 1e-4 ? normalize(vec2(local.x, local.y / (ax * ax))) : vec2(0.0);
-    float dotR = 0.44;
-    float win =
-      smoothstep(dotR + 0.05, dotR - 0.03, r) * smoothstep(0.04, 0.1, r);
-    float rosette = sin(r * 6.28318530718 * 3.0 + tf * 0.25);
+    vec2 st = fract(vec2(uvP.x * cells * ax, uvP.y * cells)) - 0.5;
+    float rp = length(st);
+    float R = 0.5 - 0.006;
+    float aaW = max(fwidth(rp) * 2.25, R * 0.005);
+    float rim = 1.0 - smoothstep(R - aaW, R + aaW, rp);
+    float inner = smoothstep(0.038, 0.1, rp);
+    float win = inner * rim;
+    vec2 dir = rp > 1e-4 ? st / rp : vec2(0.0);
+    float rosette =
+      sin((rp / max(R, 1e-4)) * 6.28318530718 * 3.0 + tf * 0.25);
     float amp = 0.0042 * fs;
-    return dir * rosette * win * amp;
+    return vec2(dir.x / ax, dir.y) * rosette * win * amp;
   }
   if (u_filterMode == 5) {
     float freq = mix(128.0, 20.0, sc);
     float amp = 0.0052 * fs;
     float ph = tf * 0.15;
     return vec2(0.0, sin(uvP.x * freq * 6.28318530718 + ph)) * amp;
+  }
+  if (u_filterMode == 6) {
+    // Square pixelate: snap UV to a uniform grid (strength blends toward full snap).
+    float cells = mix(resPx, 18.0, sc);
+    cells = max(cells, 4.0);
+    vec2 g = floor(uvP * cells);
+    vec2 center = (g + vec2(0.5)) / cells;
+    float str = clamp(u_filterStrength, 0.0, 1.0);
+    return (center - uvP) * str;
+  }
+  if (u_filterMode == 7) {
+    // Mosaic with per-tile random subdivision (mixed block sizes; motion drifts the chaos).
+    float M = mix(12.0, 4.0, sc);
+    M = max(M, 3.0);
+    vec2 c = floor(uvP * M);
+    float ta = hash12(c + vec2(1.7, 0.0));
+    float tb = hash12(c + vec2(0.0, 9.3));
+    float tj = tf * (0.07 + mot * 0.04);
+    float bx = fract(ta * 13.37 + tj * 0.71);
+    float by = fract(tb * 11.09 - tj * 0.53);
+    float nMin = mix(10.0, 3.0, sc);
+    float nMax = mix(72.0, 14.0, sc);
+    float Nx = mix(nMin, nMax, bx);
+    float Ny = mix(nMin, nMax, by);
+    vec2 fr = fract(uvP * M);
+    vec2 snap = (floor(fr * vec2(Nx, Ny)) + vec2(0.5)) / vec2(Nx, Ny);
+    vec2 center = (c + snap) / M;
+    float str = clamp(u_filterStrength, 0.0, 1.0);
+    return (center - uvP) * str;
+  }
+  if (u_filterMode == 8 || u_filterMode == 9) {
+    // Isotropic screen-space tiling: fract(uv.x*cells*ax, uv.y*cells) → square cells in pixels,
+    // so circular caps touch side-by-side on any aspect (avoids gaps when ax≠1).
+    float cells = mix(min(resPx * 0.35, 52.0), 11.0, sc);
+    float ax = u_resolution.x / max(u_resolution.y, 1.0);
+    vec2 st = fract(vec2(uvP.x * cells * ax, uvP.y * cells)) - 0.5;
+    float rp = length(st);
+    float R = 0.5 - 0.004;
+    float aaW = max(fwidth(rp) * 2.75, R * 0.006);
+    float rim = 1.0 - smoothstep(R - aaW, R + aaW, rp);
+    float t = clamp(rp / max(R, 1e-4), 0.0, 1.0);
+    vec2 dir = rp > 1e-5 ? st / rp : vec2(0.0);
+    float fsq = clamp(u_filterStrength, 0.0, 1.0) * 2.0;
+    if (u_filterMode == 8) {
+      // Convex lens without t/z blow-up at rim (that caused dark outline rings on flat bg).
+      float bell = sin(t * 1.57079632679);
+      float mag = bell * bell * (0.35 + 0.65 * t) * rim;
+      float amp = 0.0051 * fsq;
+      return vec2(dir.x / ax, dir.y) * mag * amp;
+    }
+    float mag = (1.0 - t * t) * (1.0 - t * t) * rim;
+    float amp = 0.0029 * fsq;
+    return vec2(dir.x / ax, dir.y) * mag * amp;
   }
   return vec2(0.0);
 }
@@ -622,7 +767,12 @@ void main() {
     detailHeight = pow(clamp(raw, 0.0, 1.0), 0.82);
   }
 
-  vec2 uvR = uv + distort + filterGlass(uv) + detailOff;
+  vec2 glassOff = filterGlass(uv);
+  /** Bubbles / dots: only inside the liquid lens so the lattice doesn’t print on flat background. */
+  if (u_filterMode == 8 || u_filterMode == 9) {
+    glassOff *= lens;
+  }
+  vec2 uvR = uv + distort + glassOff + detailOff;
 
   // Frost: same edgeW as silhouette, but outer ramp extends when frost is high so blur
   // feathers the transition (no second hard ring). No extra “glow” — only blurred samples.
@@ -677,6 +827,8 @@ void main() {
       col = mix(col, duo, m);
     }
   }
+
+  col = hueShiftRgbPreserveNeutrals(col, u_globalHueShift);
 
   if (u_transparentSceneBg > 0.5) {
     fragColor = vec4(col, outA);

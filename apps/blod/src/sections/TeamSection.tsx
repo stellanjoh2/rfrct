@@ -6,6 +6,7 @@ import { BLOOD_PARALLAX_URL } from "../content/bloodParallax";
 import { BlodLightboxGroup } from "../BlodLightboxGroup";
 import { staffMembers } from "../content/staff";
 
+/** Portraits use `loading="lazy"` — below-the-fold until scroll. */
 function StaffMemberCard({
   portraitSrc,
   name,

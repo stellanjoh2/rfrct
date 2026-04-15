@@ -265,6 +265,10 @@ export function LensSection({
             <option value={2}>Bullseye rings</option>
             <option value={3}>Speckle grain</option>
             <option value={4}>Halftone dots</option>
+            <option value={6}>Pixels - Uniform</option>
+            <option value={7}>Pixels - Random</option>
+            <option value={8}>Bubbles</option>
+            <option value={9}>Dots</option>
           </select>
         </div>
         <div className="field">

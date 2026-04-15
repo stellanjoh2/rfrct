@@ -28,6 +28,7 @@ export function createDefaultHeroSync(): RendererSyncSource {
     edgeSoft: 0.14,
     frostBlur: 4.5,
     blurQuality: 1,
+    globalHueShift: 0,
     chroma: 0,
     shapeMode: 0,
     filterMode: 3,

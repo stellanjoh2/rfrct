@@ -36,6 +36,8 @@ export type RendererSyncParams = {
   detailDistortion: DetailDistortionParams;
   /** Multiply hero underlay (PNG) rgb in shader; default white = no change. */
   underlayTintRgb: [number, number, number];
+  /** Degrees — post-process hue rotation on final composite (scene + bloom). */
+  globalHueShift: number;
 };
 
 /** Mutable renderer fields the app syncs each frame (avoids importing `RefractRenderer` here). */
@@ -52,6 +54,7 @@ export type RendererStateTarget = {
   glassGrade: GlassGradeParams;
   detailDistortion: DetailDistortionParams;
   underlayTintRgb: [number, number, number];
+  globalHueShift: number;
 };
 
 export function applyRendererState(
@@ -92,6 +95,7 @@ export function applyRendererState(
     p.underlayTintRgb[1],
     p.underlayTintRgb[2],
   ];
+  r.globalHueShift = p.globalHueShift;
 }
 
 export type RendererSyncSource = {
@@ -105,6 +109,8 @@ export type RendererSyncSource = {
   edgeSoft: number;
   frostBlur: number;
   blurQuality: number;
+  /** 0–360 — global output hue (export-friendly). */
+  globalHueShift: number;
   chroma: number;
   shapeMode: ShapeMode;
   filterMode: FilterMode;
@@ -228,7 +234,7 @@ export function buildRendererSyncParams(
     refractStrength,
     edgeSoftness: s.edgeSoft,
     frostBlur: s.frostBlur,
-    blurQuality: s.blurQuality,
+    blurQuality: Math.min(5, Math.max(1, s.blurQuality)),
     chroma: s.chroma,
     shapeMode: s.shapeMode,
     filterMode: s.filterMode,
@@ -302,5 +308,10 @@ export function buildRendererSyncParams(
       })(),
     },
     underlayTintRgb,
+    globalHueShift: (() => {
+      const x = Number(s.globalHueShift);
+      if (!Number.isFinite(x)) return 0;
+      return ((x % 360) + 360) % 360;
+    })(),
   };
 }

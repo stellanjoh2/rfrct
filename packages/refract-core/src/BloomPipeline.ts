@@ -62,6 +62,7 @@ export class BloomPipeline {
       "u_resolution",
       "u_strength",
       "u_opaqueOutput",
+      "u_globalHueShift",
     ] as const) {
       this.compositeLocs[n] = gl.getUniformLocation(this.progComposite, n);
     }
@@ -181,7 +182,7 @@ export class BloomPipeline {
     vao: WebGLVertexArrayObject,
     canvasW: number,
     canvasH: number,
-    options?: { transparentCanvas?: boolean },
+    options?: { transparentCanvas?: boolean; globalHueShift?: number },
   ): void {
     const gl = this.gl;
     const bw = this.bloomW;
@@ -243,6 +244,10 @@ export class BloomPipeline {
     gl.uniform1f(
       this.compositeLocs.u_opaqueOutput!,
       transparentCanvas ? 0 : 1,
+    );
+    gl.uniform1f(
+      this.compositeLocs.u_globalHueShift!,
+      options?.globalHueShift ?? 0,
     );
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, sceneTex);
