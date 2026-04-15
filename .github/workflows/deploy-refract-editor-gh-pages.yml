@@ -12,10 +12,13 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# upload-pages-artifact → upload-artifact needs `actions: write` when the repo uses
+# Settings → Actions → General → Workflow permissions: read-only (default on many repos).
 permissions:
   contents: read
   pages: write
   id-token: write
+  actions: write
 
 concurrency:
   group: pages

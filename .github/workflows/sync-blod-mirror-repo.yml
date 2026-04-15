@@ -2,7 +2,8 @@
 # so GitHub Pages (https://stellanjoh2.github.io/blod/) rebuilds — same end result as
 # `bash scripts/push-blod-to-blod-repo.sh` locally.
 #
-# One-time: add repo secret BLOD_MIRROR_PUSH_TOKEN
+# Optional: add BLOD_MIRROR_PUSH_TOKEN (Settings → Secrets and variables → Actions) to push the subtree
+# to https://github.com/stellanjoh2/blod . If unset, the workflow still succeeds and only skips the push.
 #   • Fine-grained PAT: Contents read+write on stellanjoh2/blod only, or classic `repo` scope.
 name: Sync Blod folder to stellanjoh2/blod
 
@@ -22,7 +23,7 @@ jobs:
   mirror:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -43,7 +44,7 @@ jobs:
         run: |
           set -euo pipefail
           if [ -z "${TOKEN:-}" ]; then
-            echo "::error::Secret BLOD_MIRROR_PUSH_TOKEN is not set. Add a PAT with push access to stellanjoh2/blod (Settings → Secrets → Actions in this repo)."
-            exit 1
+            echo "::warning::BLOD_MIRROR_PUSH_TOKEN not set — skipping push to stellanjoh2/blod (mirror is optional)."
+            exit 0
           fi
           git push "https://x-access-token:${TOKEN}@github.com/stellanjoh2/blod.git" blod-standalone:main
