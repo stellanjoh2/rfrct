@@ -1551,9 +1551,6 @@ export function App() {
               aria-hidden
             />
           )}
-          <div className="hello-placeholder" aria-hidden>
-            hello
-          </div>
           <canvas
             ref={canvasRef}
             tabIndex={-1}
