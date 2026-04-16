@@ -13,7 +13,9 @@ export function MouseInputSection({
 }: MouseInputSectionProps) {
   return (
     <>
-      <h2>Mouse input</h2>
+      <h2 title="Pointer-driven lens position with fluid lag">
+        Mouse input
+      </h2>
       <section>
         <div className="field field--checkbox field--audio-toggles">
           <button
@@ -50,13 +52,6 @@ export function MouseInputSection({
             aria-label="Fluid density for mouse-driven lens"
           />
         </div>
-        <p className="field-hint">
-          <strong>Mouse input</strong> pulls the distortion center with a damped spring
-          toward the cursor over the canvas, plus a little idle swirl. It overrides{" "}
-          <strong>VJ path</strong> for lens position when both are on (VJ dup / neon
-          still apply). <strong>Right-drag</strong> to move the lens is disabled while
-          this is on.
-        </p>
       </section>
     </>
   );

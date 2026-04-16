@@ -66,14 +66,12 @@ export function VideoBackdropSection({
 
   return (
     <>
-      <h2>Video backdrop</h2>
+      <h2 title="YouTube background layering, blend modes, and overlay controls">
+        Video backdrop
+      </h2>
       <section>
         <div className="field">
           <label htmlFor="youtube-bg-url">YouTube URL</label>
-          <p className="field-hint">
-            Fullscreen embed behind the canvas (not sampled in WebGL). Loop; no
-            controls. Audio is always off (muted + forced mute).
-          </p>
           <input
             id="youtube-bg-url"
             type="url"
@@ -102,11 +100,6 @@ export function VideoBackdropSection({
         </div>
         <div className="field">
           <label htmlFor="canvas-backdrop-blend">Blend on backdrop</label>
-          <p className="field-hint">
-            How the SVG + lens composite mixes with the layer behind the canvas
-            (video or solid background). Uses CSS{" "}
-            <code className="field-hint-code">mix-blend-mode</code>.
-          </p>
           <select
             id="canvas-backdrop-blend"
             className="field-select"
@@ -125,10 +118,6 @@ export function VideoBackdropSection({
         </div>
         <div className="field">
           <label>Solid overlay (above video, below lens)</label>
-          <p className="field-hint">
-            Full-screen colour between the YouTube layer and the SVG / distortion
-            canvas. Use opacity + blend to grade the picture (e.g. overlay, screen).
-          </p>
           <div className="row">
             <input
               type="color"
@@ -163,10 +152,6 @@ export function VideoBackdropSection({
         </div>
         <div className="field">
           <label htmlFor="solid-overlay-blend">Overlay blend</label>
-          <p className="field-hint">
-            How the solid colour mixes with the video (or the page background if
-            there is no video).
-          </p>
           <select
             id="solid-overlay-blend"
             className="field-select"
@@ -233,14 +218,6 @@ export function VideoBackdropSection({
             </button>
           </ClickBlockedHint>
         </div>
-        {solidOverlayVjHueShift && vjMode && (
-          <p className="field-hint">
-            Base colour still sets the family;{" "}
-            <strong>VJ hue shift</strong> spins the hue slowly.{" "}
-            <strong>Hue + audio</strong> adds envelope when audio is running (more
-            dynamic when loud).
-          </p>
-        )}
       </section>
     </>
   );

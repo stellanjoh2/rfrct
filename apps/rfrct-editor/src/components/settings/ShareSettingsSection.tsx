@@ -15,12 +15,10 @@ export function ShareSettingsSection({
 }: ShareSettingsSectionProps) {
   return (
     <>
-      <h2>Share settings</h2>
+      <h2 title="Copy and apply JSON snapshots of current settings">
+        Share settings
+      </h2>
       <section>
-        <p className="field-hint">
-          Copy all tweakable values as JSON (no uploaded image). Paste into the box
-          below (or type) and apply — useful for bug reports.
-        </p>
         <div className="share-settings-row">
           <button
             type="button"

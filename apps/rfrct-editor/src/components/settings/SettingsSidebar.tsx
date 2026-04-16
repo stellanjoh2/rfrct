@@ -95,25 +95,6 @@ export function SettingsSidebar({
       <MouseInputSection {...mouseInput} />
       <ShareSettingsSection {...shareSettings} />
       <ExportSection {...exportSection} />
-      <div className="shortcut-hint">
-        <p className="shortcut-hint__title">Mouse (canvas)</p>
-        <p className="shortcut-hint__line">
-          <strong>Left-drag</strong> — pan image · <strong>Right-drag</strong> — move
-          lens · <strong>Wheel</strong> — zoom. <strong>Mouse input</strong> follows the
-          pointer with fluid delay when enabled (right-drag off).
-        </p>
-        <p className="shortcut-hint__title">Keyboard</p>
-        <p className="shortcut-hint__line">
-          <kbd>1</kbd> blob · <kbd>2</kbd> cube · <kbd>3</kbd> metaballs ·{" "}
-          <kbd>4</kbd> water ·{" "}
-          <kbd>Space</kbd> pause animation · <kbd>P</kbd> toggle panel ·{" "}
-          <kbd>F</kbd> FPS · <kbd>Shift</kbd>+<kbd>F</kbd> focus (reset pan & scale) ·{" "}
-          <kbd>C</kbd> PNG (2×, export options)
-        </p>
-        <p className="shortcut-hint__note">
-          Shortcuts don&apos;t apply while a text field or dropdown is focused.
-        </p>
-      </div>
     </aside>
   );
 }

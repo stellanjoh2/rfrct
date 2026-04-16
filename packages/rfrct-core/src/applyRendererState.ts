@@ -365,6 +365,12 @@ export function buildRendererSyncParams(
     };
   })();
 
+  const detailStrength = Math.max(
+    0,
+    Math.min(1, s.detailDistortionStrength ?? 0),
+  );
+  const detailEnabled = detailStrength > 1e-6;
+
   return {
     bgColor: [bg[0], bg[1], bg[2], bg[3]],
     transparentSceneBg,
@@ -380,16 +386,13 @@ export function buildRendererSyncParams(
       vjTex && s.vjDupVertical ? Math.max(0, s.vjDupScrollSpeed) : 0,
     glassGrade,
     detailDistortion: {
-      enabled: Boolean(s.detailDistortionEnabled),
-      strength: Math.max(
-        0,
-        Math.min(1, s.detailDistortionStrength ?? 0),
-      ),
+      enabled: detailEnabled,
+      strength: detailStrength,
       scale: Math.max(
         0.25,
         Math.min(14, s.detailDistortionScale ?? 3.2),
       ),
-      dirtStrength: s.detailDistortionEnabled
+      dirtStrength: detailEnabled
         ? Math.max(0, Math.min(1, s.detailDirtStrength ?? 0))
         : 0,
       dirtRgb: (() => {

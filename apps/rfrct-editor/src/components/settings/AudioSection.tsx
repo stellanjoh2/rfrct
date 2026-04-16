@@ -78,7 +78,9 @@ export function AudioSection({
   const dupSlidersNeedDup = vjControlsEnabled && !vjDupVertical;
   return (
     <>
-      <h2>Audio</h2>
+      <h2 title="Live audio input and loudness-driven modulation">
+        Audio
+      </h2>
       <section>
         <div className="field">
           <label htmlFor="audio-input-mode">Source</label>
@@ -130,26 +132,11 @@ export function AudioSection({
             {micError}
           </p>
         )}
-        <p className="field-hint">
-          When audio is on, glass filter strength follows loudness (0–1), scaled
-          by the Lens “Filter strength” slider as the maximum.
-        </p>
-        <p className="field-hint">
-          Privacy: nothing is recorded, saved, or uploaded. The lens only uses a
-          live loudness value from the stream.
-        </p>
-        <p className="field-hint">
-          The browser may show a screen-share prompt because that is how it
-          routes tab or system audio into the page. Video is discarded right
-          away (visualizer-style, not a screen recorder).
-        </p>
-        <p className="field-hint">
-          For music in another tab, pick that tab in the dialog and enable
-          “Share tab audio” in Chrome. Requires https:// or localhost.
-        </p>
       </section>
 
-      <h2>VJ</h2>
+      <h2 title="Audio-driven automation, path motion, and stacked logo controls">
+        VJ
+      </h2>
       <section>
         <div className="field field--checkbox field--audio-toggles">
           <ClickBlockedHint
@@ -267,11 +254,6 @@ export function AudioSection({
         </div>
         <div className="field">
           <label htmlFor="vj-glass-grade-mode">Glass neon (VJ)</label>
-          <p className="field-hint">
-            Hard neon colour grade <strong>inside the lens only</strong>, separate from
-            SVG tint. Louder audio pushes the effect when audio is on. Duotone maps
-            shadows → highlights between the two colours.
-          </p>
           <ClickBlockedHint
             blocked={!vjControlsEnabled}
             hint={HINT_NEED_VJ_CHAIN}
@@ -465,21 +447,6 @@ export function AudioSection({
             />
           </ClickBlockedHint>
         </div>
-        <p className="field-hint">
-          <strong>VJ mode</strong> moves the lens clockwise on a squircle path.{" "}
-          <strong>VJ path scale</strong> is the orbit radius;{" "}
-          <strong>VJ path speed</strong> is how fast it runs that loop (not the
-          Lens blob ripple — that stays on “Animation speed”). At high scales the
-          lens may sit partly or fully off-canvas; it does not slide along edges.
-        </p>
-        <p className="field-hint">
-          <strong>Dup stack</strong> repeats your SVG at the same size as the fitted
-          image across the full canvas (scroll up/down). The stair pattern resets every
-          eight rows so placement stays on screen. Use vertical / horizontal spacing to
-          tune gaps and the sideways step between rows. <strong>Dup scroll speed</strong>{" "}
-          is separate from Lens blob speed (pause blob animation and the stack still
-          scrolls).
-        </p>
       </section>
     </>
   );

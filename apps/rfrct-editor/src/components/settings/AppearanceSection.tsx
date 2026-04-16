@@ -59,19 +59,15 @@ export function AppearanceSection({
 }: AppearanceSectionProps) {
   return (
     <>
-      <h2>Appearance</h2>
+      <h2 title="Background colour, image scale, and SVG colour controls">
+        Appearance
+      </h2>
       <section>
         <div className="field">
           <label>
             Background
             <span className="val">{bgHex}</span>
           </label>
-          {youtubeActive ? (
-            <p className="field-hint">
-              Hidden while Video backdrop / YouTube is active (canvas is
-              transparent outside the logo).
-            </p>
-          ) : null}
           <div className="row">
             <input
               type="color"
