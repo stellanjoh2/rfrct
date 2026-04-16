@@ -20,6 +20,12 @@ name: Deploy Rfrct editor to GitHub Pages
 on:
   push:
     branches: [main]
+    paths:
+      - "apps/rfrct-editor/**"
+      - "packages/rfrct-core/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/deploy-rfrct-editor-gh-pages.yml"
   workflow_dispatch:
 
 permissions:

@@ -11,9 +11,10 @@
     "dev": "npm run dev -w rfrct-editor",
     "dev:editor": "npm run dev -w rfrct-editor",
     "dev:blod": "npm run dev -w blod",
-    "build": "npm run build -w rfrct-editor && npm run build -w blod",
+    "build": "npm run build -w rfrct-editor",
     "build:editor": "npm run build -w rfrct-editor",
     "build:blod": "npm run build -w blod",
+    "build:all": "npm run build -w rfrct-editor && npm run build -w blod",
     "preview:editor": "npm run preview -w rfrct-editor",
     "preview:blod": "npm run preview -w blod",
     "push:blod": "bash scripts/push-blod-to-blod-repo.sh"

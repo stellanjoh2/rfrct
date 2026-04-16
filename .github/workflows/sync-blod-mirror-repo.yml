@@ -8,11 +8,6 @@
 name: Sync Blod folder to stellanjoh2/blod
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "apps/blod/**"
-      - ".github/workflows/sync-blod-mirror-repo.yml"
   workflow_dispatch:
 
 concurrency:

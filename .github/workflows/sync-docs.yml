@@ -24,7 +24,7 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
       - run: npm ci
-      - run: npm run build
+      - run: npm run build:editor
       - name: Copy dist to docs (include dotfiles like .nojekyll)
         run: |
           rm -rf docs
