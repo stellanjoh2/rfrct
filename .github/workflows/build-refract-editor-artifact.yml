@@ -39,9 +39,11 @@ jobs:
           cache-dependency-path: package-lock.json
       - run: npm ci
       - name: Typecheck editor (tsc)
-        run: npm exec -w refrct-editor -- tsc --noEmit
+        working-directory: apps/refract-editor
+        run: npx tsc --noEmit
       - name: Build editor bundle (Vite)
-        run: npm exec -w refrct-editor -- vite build
+        working-directory: apps/refract-editor
+        run: npx vite build
       - name: Verify production bundle (not dev index)
         run: |
           test -f apps/refract-editor/dist/index.html

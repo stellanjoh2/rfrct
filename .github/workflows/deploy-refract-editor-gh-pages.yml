@@ -61,10 +61,12 @@ jobs:
           uname -a
 
       - name: Typecheck editor (tsc)
-        run: npm exec -w refract-editor -- tsc --noEmit
+        working-directory: apps/refract-editor
+        run: npx tsc --noEmit
 
       - name: Build editor bundle (Vite)
-        run: npm exec -w refract-editor -- vite build
+        working-directory: apps/refract-editor
+        run: npx vite build
 
       # Pages rejects artifacts without o+rx on dirs / o+r on files (deployment_perms_error on deploy).
       - name: Normalize dist permissions for Pages
