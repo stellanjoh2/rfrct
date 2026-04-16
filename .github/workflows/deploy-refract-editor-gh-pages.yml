@@ -12,8 +12,7 @@
 # `deploy-blod-gh-pages.yml` (that workflow uses cancel-in-progress and would
 # cancel this run when a manual Blod Pages deploy is triggered).
 #
-# `configure-pages` runs after the Vite build so the TypeScript/Vite steps are
-# not interleaved with Pages setup (easier to read logs; build has no SSG to configure).
+# Order matches GitHub’s static Pages starter: configure-pages → build → upload → deploy.
 
 name: Deploy Refract editor to GitHub Pages
 
@@ -47,6 +46,9 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
       - uses: actions/setup-node@v5
         with:
           node-version: "22"
@@ -68,8 +70,9 @@ jobs:
       - name: Build editor bundle (Vite)
         run: npm exec -w refrct-editor -- vite build
 
-      - name: Configure GitHub Pages
-        uses: actions/configure-pages@v5
+      # Pages rejects artifacts without o+rx on dirs / o+r on files (deployment_perms_error on deploy).
+      - name: Normalize dist permissions for Pages
+        run: chmod -R +rX apps/refract-editor/dist
 
       - name: Verify production bundle
         run: |
