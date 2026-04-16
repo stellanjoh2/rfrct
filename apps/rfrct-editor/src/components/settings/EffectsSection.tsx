@@ -7,6 +7,8 @@ export type EffectsSectionProps = {
   setBlurQuality: (v: number) => void;
   chroma: number;
   setChroma: (v: number) => void;
+  grainStrength: number;
+  setGrainStrength: (v: number) => void;
 };
 
 export function EffectsSection({
@@ -18,6 +20,8 @@ export function EffectsSection({
   setBlurQuality,
   chroma,
   setChroma,
+  grainStrength,
+  setGrainStrength,
 }: EffectsSectionProps) {
   return (
     <>
@@ -89,6 +93,21 @@ export function EffectsSection({
             step={0.01}
             value={chroma}
             onChange={(e) => setChroma(Number(e.target.value))}
+          />
+        </div>
+        <div className="field">
+          <label>
+            Grain
+            <span className="val">{grainStrength.toFixed(2)}</span>
+          </label>
+          <input
+            type="range"
+            min={0}
+            max={1}
+            step={0.01}
+            value={grainStrength}
+            onChange={(e) => setGrainStrength(Number(e.target.value))}
+            aria-label="Film grain overlay strength"
           />
         </div>
       </section>

@@ -155,9 +155,10 @@ export function DevBlobControls({
                 <option value="original">Original</option>
                 <option value="multiply">Tint (multiply)</option>
                 <option value="replace">Fill (replace)</option>
+                <option value="gradient">Gradient</option>
               </select>
             </label>
-            {s.svgTintMode !== "original" ? (
+            {s.svgTintMode !== "original" && s.svgTintMode !== "gradient" ? (
               <label className="blod-dev-field">
                 <span>Tint {s.svgTintHex}</span>
                 <div className="blod-dev-row">
@@ -175,6 +176,150 @@ export function DevBlobControls({
                   />
                 </div>
               </label>
+            ) : null}
+            {s.svgTintMode === "gradient" ? (
+              <>
+                <label className="blod-dev-field">
+                  <span>Gradient blend</span>
+                  <select
+                    value={s.svgGradientBlend ?? "replace"}
+                    onChange={(e) =>
+                      onChange({
+                        svgGradientBlend: e.target.value as
+                          | "multiply"
+                          | "replace",
+                      })
+                    }
+                  >
+                    <option value="multiply">Tint (multiply)</option>
+                    <option value="replace">Fill (replace)</option>
+                  </select>
+                </label>
+                <label className="blod-dev-field">
+                  <span>Colour 1 {s.svgTintHex}</span>
+                  <div className="blod-dev-row">
+                    <input
+                      type="color"
+                      value={s.svgTintHex}
+                      onChange={(e) => onChange({ svgTintHex: e.target.value })}
+                    />
+                    <input
+                      type="text"
+                      value={s.svgTintHex}
+                      spellCheck={false}
+                      onChange={(e) => onChange({ svgTintHex: e.target.value })}
+                      aria-label="SVG gradient colour 1"
+                    />
+                  </div>
+                </label>
+                <label className="blod-dev-field">
+                  <span>Colour 2 {s.svgGradientHex2 ?? "#000000"}</span>
+                  <div className="blod-dev-row">
+                    <input
+                      type="color"
+                      value={s.svgGradientHex2 ?? "#000000"}
+                      onChange={(e) =>
+                        onChange({ svgGradientHex2: e.target.value })
+                      }
+                    />
+                    <input
+                      type="text"
+                      value={s.svgGradientHex2 ?? "#000000"}
+                      spellCheck={false}
+                      onChange={(e) =>
+                        onChange({ svgGradientHex2: e.target.value })
+                      }
+                      aria-label="SVG gradient colour 2"
+                    />
+                  </div>
+                </label>
+                <label className="blod-dev-field">
+                  <span>
+                    <input
+                      type="checkbox"
+                      checked={Boolean(s.svgGradientThreeStops)}
+                      onChange={(e) =>
+                        onChange({ svgGradientThreeStops: e.target.checked })
+                      }
+                    />{" "}
+                    Third colour
+                  </span>
+                </label>
+                {s.svgGradientThreeStops ? (
+                  <label className="blod-dev-field">
+                    <span>Colour 3 {s.svgGradientHex3 ?? "#ffffff"}</span>
+                    <div className="blod-dev-row">
+                      <input
+                        type="color"
+                        value={s.svgGradientHex3 ?? "#ffffff"}
+                        onChange={(e) =>
+                          onChange({ svgGradientHex3: e.target.value })
+                        }
+                      />
+                      <input
+                        type="text"
+                        value={s.svgGradientHex3 ?? "#ffffff"}
+                        spellCheck={false}
+                        onChange={(e) =>
+                          onChange({ svgGradientHex3: e.target.value })
+                        }
+                        aria-label="SVG gradient colour 3"
+                      />
+                    </div>
+                  </label>
+                ) : null}
+                <label className="blod-dev-field">
+                  <span>
+                    Angle {(s.svgGradientAngleDeg ?? 90).toFixed(0)}°
+                  </span>
+                  <input
+                    type="range"
+                    min={0}
+                    max={360}
+                    step={1}
+                    value={s.svgGradientAngleDeg ?? 90}
+                    onChange={(e) =>
+                      onChange({
+                        svgGradientAngleDeg: Number(e.target.value),
+                      })
+                    }
+                  />
+                </label>
+                <label className="blod-dev-field">
+                  <span>
+                    Position {(s.svgGradientPosition ?? 0).toFixed(2)}
+                  </span>
+                  <input
+                    type="range"
+                    min={-3}
+                    max={3}
+                    step={0.01}
+                    value={s.svgGradientPosition ?? 0}
+                    onChange={(e) =>
+                      onChange({
+                        svgGradientPosition: Number(e.target.value),
+                      })
+                    }
+                  />
+                </label>
+                <label className="blod-dev-field">
+                  <span>
+                    Scale {(s.svgGradientScale ?? 1).toFixed(2)}×
+                  </span>
+                  <input
+                    type="range"
+                    min={0.15}
+                    max={6}
+                    step={0.01}
+                    value={s.svgGradientScale ?? 1}
+                    onChange={(e) =>
+                      onChange({
+                        svgGradientScale: Number(e.target.value),
+                      })
+                    }
+                  />
+                </label>
+              </>
             ) : null}
           </>
         ) : null}
@@ -558,7 +703,7 @@ export function DevBlobControls({
           <input
             type="range"
             min={0.05}
-            max={2}
+            max={8}
             step={0.05}
             value={s.bloomRadius}
             onChange={(e) => onChange({ bloomRadius: Number(e.target.value) })}

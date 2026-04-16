@@ -25,12 +25,12 @@ import {
 } from "./audio/micAnalyzer";
 import type { BackdropBlendMode } from "./videoBackdrop";
 import { postYoutubeMute } from "./youtube/forceMuteIframe";
-import { buildYoutubeEmbedSrc, parseYoutubeVideoId } from "./youtube/embedUrl";
 import {
   createSettingsSnapshot,
   parseSettingsSnapshot,
   serializeSettingsSnapshot,
 } from "./settingsSnapshot";
+import { buildYoutubeEmbedSrc, parseYoutubeVideoId } from "./youtube/embedUrl";
 
 /** Pause lens shader time while scroll-zooming; resume after last wheel event. */
 const ZOOM_ANIM_RESUME_MS = 120;
@@ -45,9 +45,18 @@ export function App() {
   const [imgDims, setImgDims] = useState<{ w: number; h: number } | null>(null);
   const [svgSourceUrl, setSvgSourceUrl] = useState<string | null>(null);
   const [svgTintMode, setSvgTintMode] = useState<
-    "original" | "multiply" | "replace"
+    "original" | "multiply" | "replace" | "gradient"
   >("original");
   const [svgTintHex, setSvgTintHex] = useState("#ffffff");
+  const [svgGradientBlend, setSvgGradientBlend] = useState<
+    "multiply" | "replace"
+  >("replace");
+  const [svgGradientHex2, setSvgGradientHex2] = useState("#000000");
+  const [svgGradientHex3, setSvgGradientHex3] = useState("#ffffff");
+  const [svgGradientThreeStops, setSvgGradientThreeStops] = useState(false);
+  const [svgGradientAngleDeg, setSvgGradientAngleDeg] = useState(90);
+  const [svgGradientScale, setSvgGradientScale] = useState(1);
+  const [svgGradientPosition, setSvgGradientPosition] = useState(0);
   const [viewportPx, setViewportPx] = useState({ w: 0, h: 0 });
 
   const [bgHex, setBgHex] = useState("#ffffff");
@@ -76,6 +85,7 @@ export function App() {
   const [frostBlur, setFrostBlur] = useState(2);
   const [blurQuality, setBlurQuality] = useState(1);
   const [globalHueShift, setGlobalHueShift] = useState(0);
+  const [grainStrength, setGrainStrength] = useState(0);
   const [chroma, setChroma] = useState(0);
   const [bloomStrength, setBloomStrength] = useState(0);
   const [bloomRadius, setBloomRadius] = useState(0.2);
@@ -90,7 +100,7 @@ export function App() {
   const [detailDistortionStrength, setDetailDistortionStrength] =
     useState(0.55);
   const [detailDistortionScale, setDetailDistortionScale] = useState(3.2);
-  const [detailDirtStrength, setDetailDirtStrength] = useState(0.4);
+  const [detailDirtStrength, setDetailDirtStrength] = useState(0);
   const [detailDirtHex, setDetailDirtHex] = useState("#665648");
   const [lensMouseInput, setLensMouseInput] = useState(false);
   /** 0 = light / snappy follow, 1 = heavy / sluggish liquid. */
@@ -102,6 +112,9 @@ export function App() {
   const [pointerDrag, setPointerDrag] = useState<"pan" | "fx" | null>(null);
 
   const [uiVisible, setUiVisible] = useState(true);
+  /** Hidden HUD — toggle with F (not listed in UI chrome). */
+  const [fpsHudVisible, setFpsHudVisible] = useState(false);
+  const [fpsHudValue, setFpsHudValue] = useState(0);
   const [webglError, setWebglError] = useState<string | null>(null);
 
   const [exportTransparent, setExportTransparent] = useState(false);
@@ -175,6 +188,7 @@ export function App() {
   const [vjGlassGradeIntensity, setVjGlassGradeIntensity] = useState(0);
   const [micError, setMicError] = useState<string | null>(null);
   const [featureHint, setFeatureHint] = useState<string | null>(null);
+  /** JSON buffer for Share settings — literal paste (Cmd/Ctrl+V) into the textarea. */
   const [settingsPasteDraft, setSettingsPasteDraft] = useState("");
   const micAnalyzerRef = useRef<MicAnalyzer | null>(null);
   const micEnvelopeRef = useRef(0);
@@ -274,7 +288,7 @@ export function App() {
           transparentBackground: exportTransparent,
           region: imgDims && exportRegion === "image" ? "image" : "full",
         }),
-        "rfrct",
+        "refrct",
         () => {
           syncLayout();
         },
@@ -308,6 +322,25 @@ export function App() {
     setYoutubeVideoId(null);
     setYoutubeError(null);
   }, []);
+
+  useEffect(() => {
+    if (!fpsHudVisible) return;
+    let raf = 0;
+    let frames = 0;
+    let lastT = performance.now();
+    const loop = (t: number) => {
+      frames++;
+      const elapsed = t - lastT;
+      if (elapsed >= 500) {
+        setFpsHudValue(Math.round((frames / elapsed) * 1000));
+        frames = 0;
+        lastT = t;
+      }
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, [fpsHudVisible]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -344,7 +377,11 @@ export function App() {
       }
       if (e.key === "f" || e.key === "F") {
         e.preventDefault();
-        focusImage();
+        if (e.shiftKey) {
+          focusImage();
+        } else {
+          setFpsHudVisible((v) => !v);
+        }
         return;
       }
       if (e.key === "c" || e.key === "C") {
@@ -502,6 +539,7 @@ export function App() {
         frostBlur,
         blurQuality,
         globalHueShift,
+        grainStrength,
         chroma,
         shapeMode,
         filterMode,
@@ -516,6 +554,13 @@ export function App() {
         svgSourceUrl,
         svgTintMode,
         svgTintHex,
+        svgGradientBlend,
+        svgGradientHex2,
+        svgGradientHex3,
+        svgGradientThreeStops,
+        svgGradientAngleDeg,
+        svgGradientScale,
+        svgGradientPosition,
         micDrivingRefraction,
         micRefractBoost,
         micEnvelope: 0,
@@ -552,6 +597,7 @@ export function App() {
     frostBlur,
     blurQuality,
     globalHueShift,
+    grainStrength,
     chroma,
     shapeMode,
     filterMode,
@@ -562,8 +608,16 @@ export function App() {
     bloomRadius,
     bloomThreshold,
     svgSourceUrl,
+    imgDims,
     svgTintMode,
     svgTintHex,
+    svgGradientBlend,
+    svgGradientHex2,
+    svgGradientHex3,
+    svgGradientThreeStops,
+    svgGradientAngleDeg,
+    svgGradientScale,
+    svgGradientPosition,
     micDrivingRefraction,
     micRefractBoost,
     vjMode,
@@ -907,14 +961,20 @@ export function App() {
     }
   }, [micDrivingRefraction, audioInputMode]);
 
-  const onCopySettings = useCallback(async () => {
-    const snapshot = createSettingsSnapshot({
+  const settingsSnapshotPayload = useMemo(
+    () => ({
       bgHex,
       imageScale,
       imagePan,
       svgTintMode,
       svgTintHex,
-      blobCenter: blobCenterRef.current,
+      svgGradientBlend,
+      svgGradientHex2,
+      svgGradientHex3,
+      svgGradientThreeStops,
+      svgGradientAngleDeg,
+      svgGradientScale,
+      svgGradientPosition,
       blobSize,
       pauseAnimation,
       blobSpeed,
@@ -925,6 +985,7 @@ export function App() {
       frostBlur,
       blurQuality,
       globalHueShift,
+      grainStrength,
       chroma,
       bloomStrength,
       bloomRadius,
@@ -964,138 +1025,186 @@ export function App() {
       vjGlassNeonAHex,
       vjGlassNeonBHex,
       vjGlassGradeIntensity,
+    }),
+    [
+      bgHex,
+      imageScale,
+      imagePan,
+      svgTintMode,
+      svgTintHex,
+      svgGradientBlend,
+      svgGradientHex2,
+      svgGradientHex3,
+      svgGradientThreeStops,
+      svgGradientAngleDeg,
+      svgGradientScale,
+      svgGradientPosition,
+      blobSize,
+      pauseAnimation,
+      blobSpeed,
+      waveFreq,
+      waveAmp,
+      refract,
+      edgeSoft,
+      frostBlur,
+      blurQuality,
+      globalHueShift,
+      grainStrength,
+      chroma,
+      bloomStrength,
+      bloomRadius,
+      bloomThreshold,
+      shapeMode,
+      filterMode,
+      filterStrength,
+      filterScale,
+      filterMotionSpeed,
+      detailDistortionEnabled,
+      detailDistortionStrength,
+      detailDistortionScale,
+      detailDirtStrength,
+      detailDirtHex,
+      lensMouseInput,
+      fluidDensity,
+      exportTransparent,
+      exportRegion,
+      youtubeVideoId,
+      youtubeUrlDraft,
+      canvasBackdropBlend,
+      solidOverlayHex,
+      solidOverlayOpacity,
+      solidOverlayBlend,
+      solidOverlayVjHueShift,
+      solidOverlayHueAudio,
+      audioInputMode,
+      micRefractBoost,
+      vjMode,
+      vjDupVertical,
+      vjDupGap,
+      vjDupHorizStep,
+      vjDupScrollSpeed,
+      vjPathScale,
+      vjPathSpeed,
+      vjGlassGradeMode,
+      vjGlassNeonAHex,
+      vjGlassNeonBHex,
+      vjGlassGradeIntensity,
+    ],
+  );
+
+  const copySettingsToClipboard = useCallback(async () => {
+    const snap = createSettingsSnapshot({
+      ...settingsSnapshotPayload,
+      blobCenter: {
+        x: blobCenterRef.current.x,
+        y: blobCenterRef.current.y,
+      },
     });
-
-    const text = serializeSettingsSnapshot(snapshot);
-    setSettingsPasteDraft(text);
     try {
-      await navigator.clipboard.writeText(text);
-      showFeatureHint("Settings copied as JSON.");
+      await navigator.clipboard.writeText(serializeSettingsSnapshot(snap));
+      setFeatureHint("Settings copied to clipboard.");
     } catch {
-      showFeatureHint("Settings JSON generated (copy from the paste box).");
+      setFeatureHint("Copy failed — clipboard blocked or unavailable.");
     }
-  }, [
-    audioInputMode,
-    bgHex,
-    blobSize,
-    blobSpeed,
-    bloomRadius,
-    bloomStrength,
-    bloomThreshold,
-    canvasBackdropBlend,
-    chroma,
-    detailDirtHex,
-    detailDirtStrength,
-    detailDistortionEnabled,
-    detailDistortionScale,
-    detailDistortionStrength,
-    edgeSoft,
-    exportRegion,
-    exportTransparent,
-    filterMode,
-    filterMotionSpeed,
-    filterScale,
-    filterStrength,
-    fluidDensity,
-    frostBlur,
-    globalHueShift,
-    imagePan,
-    imageScale,
-    lensMouseInput,
-    micRefractBoost,
-    pauseAnimation,
-    refract,
-    shapeMode,
-    showFeatureHint,
-    solidOverlayBlend,
-    solidOverlayHex,
-    solidOverlayHueAudio,
-    solidOverlayOpacity,
-    solidOverlayVjHueShift,
-    svgTintHex,
-    svgTintMode,
-    vjDupGap,
-    vjDupHorizStep,
-    vjDupScrollSpeed,
-    vjDupVertical,
-    vjGlassGradeIntensity,
-    vjGlassGradeMode,
-    vjGlassNeonAHex,
-    vjGlassNeonBHex,
-    vjMode,
-    vjPathScale,
-    vjPathSpeed,
-    waveAmp,
-    waveFreq,
-    youtubeUrlDraft,
-    youtubeVideoId,
-    blurQuality,
-  ]);
+  }, [settingsSnapshotPayload]);
 
-  const onApplyPastedSettings = useCallback(() => {
-    const parsed = parseSettingsSnapshot(settingsPasteDraft);
-    if (!parsed.ok) {
-      showFeatureHint(parsed.error);
+  const applyPastedSettingsFromDraft = useCallback(() => {
+    const raw = settingsPasteDraft.trim();
+    if (!raw) {
+      setFeatureHint("Paste JSON into the box first (or copy from Copy settings).");
       return;
     }
-    const s = parsed.data;
-    setBgHex(s.bgHex);
-    setImageScale(s.imageScale);
-    setImagePan(s.imagePan);
-    setSvgTintMode(s.svgTintMode);
-    setSvgTintHex(s.svgTintHex);
-    blobCenterRef.current = s.blobCenter;
-    setBlobSize(s.blobSize);
-    setPauseAnimation(s.pauseAnimation);
-    setBlobSpeed(s.blobSpeed);
-    setWaveFreq(s.waveFreq);
-    setWaveAmp(s.waveAmp);
-    setRefract(s.refract);
-    setEdgeSoft(s.edgeSoft);
-    setFrostBlur(s.frostBlur);
-    setBlurQuality(s.blurQuality);
-    setGlobalHueShift(s.globalHueShift);
-    setChroma(s.chroma);
-    setBloomStrength(s.bloomStrength);
-    setBloomRadius(s.bloomRadius);
-    setBloomThreshold(s.bloomThreshold);
-    setShapeMode(s.shapeMode);
-    setFilterMode(s.filterMode);
-    setFilterStrength(s.filterStrength);
-    setFilterScale(s.filterScale);
-    setFilterMotionSpeed(s.filterMotionSpeed);
-    setDetailDistortionEnabled(s.detailDistortionEnabled);
-    setDetailDistortionStrength(s.detailDistortionStrength);
-    setDetailDistortionScale(s.detailDistortionScale);
-    setDetailDirtStrength(s.detailDirtStrength);
-    setDetailDirtHex(s.detailDirtHex);
-    setLensMouseInput(s.lensMouseInput);
-    setFluidDensity(s.fluidDensity);
-    setExportTransparent(s.exportTransparent);
-    setExportRegion(s.exportRegion);
-    setYoutubeVideoId(s.youtubeVideoId);
-    setYoutubeUrlDraft(s.youtubeUrlDraft);
-    setCanvasBackdropBlend(s.canvasBackdropBlend);
-    setSolidOverlayHex(s.solidOverlayHex);
-    setSolidOverlayOpacity(s.solidOverlayOpacity);
-    setSolidOverlayBlend(s.solidOverlayBlend);
-    setSolidOverlayVjHueShift(s.solidOverlayVjHueShift);
-    setSolidOverlayHueAudio(s.solidOverlayHueAudio);
-    setAudioInputMode(s.audioInputMode);
-    setMicRefractBoost(s.micRefractBoost);
-    setVjMode(s.vjMode);
-    setVjDupVertical(s.vjDupVertical);
-    setVjDupGap(s.vjDupGap);
-    setVjDupHorizStep(s.vjDupHorizStep);
-    setVjDupScrollSpeed(s.vjDupScrollSpeed);
-    setVjPathScale(s.vjPathScale);
-    setVjPathSpeed(s.vjPathSpeed);
-    setVjGlassGradeMode(s.vjGlassGradeMode);
-    setVjGlassNeonAHex(s.vjGlassNeonAHex);
-    setVjGlassNeonBHex(s.vjGlassNeonBHex);
-    setVjGlassGradeIntensity(s.vjGlassGradeIntensity);
-    showFeatureHint("Settings applied.");
-  }, [settingsPasteDraft, showFeatureHint]);
+    const parsed = parseSettingsSnapshot(raw);
+    if (!parsed.ok) {
+      setFeatureHint(parsed.error);
+      return;
+    }
+    const d = parsed.data;
+
+    micAnalyzerRef.current?.stop();
+    micAnalyzerRef.current = null;
+    micEnvelopeRef.current = 0;
+    setMicDrivingRefraction(false);
+    setMicError(null);
+
+    blobCenterRef.current = { ...d.blobCenter };
+    mouseLensTargetRef.current = { ...d.blobCenter };
+    mouseFluidPosRef.current = { ...d.blobCenter };
+    mouseFluidVelRef.current = { x: 0, y: 0 };
+
+    setBgHex(d.bgHex);
+    setImageScale(d.imageScale);
+    setImagePan(d.imagePan);
+    setSvgTintMode(d.svgTintMode);
+    setSvgTintHex(d.svgTintHex);
+    setSvgGradientBlend(d.svgGradientBlend);
+    setSvgGradientHex2(d.svgGradientHex2);
+    setSvgGradientHex3(d.svgGradientHex3);
+    setSvgGradientThreeStops(d.svgGradientThreeStops);
+    setSvgGradientAngleDeg(d.svgGradientAngleDeg);
+    setSvgGradientScale(d.svgGradientScale);
+    setSvgGradientPosition(d.svgGradientPosition);
+    setBlobSize(d.blobSize);
+    setPauseAnimation(d.pauseAnimation);
+    setBlobSpeed(d.blobSpeed);
+    setWaveFreq(d.waveFreq);
+    setWaveAmp(d.waveAmp);
+    setRefract(d.refract);
+    setEdgeSoft(d.edgeSoft);
+    setFrostBlur(d.frostBlur);
+    setBlurQuality(Math.round(Math.min(5, Math.max(1, d.blurQuality))));
+    setGlobalHueShift(d.globalHueShift);
+    setGrainStrength(d.grainStrength);
+    setChroma(d.chroma);
+    setBloomStrength(d.bloomStrength);
+    setBloomRadius(d.bloomRadius);
+    setBloomThreshold(d.bloomThreshold);
+    setShapeMode(d.shapeMode);
+    setFilterMode(d.filterMode);
+    setFilterStrength(d.filterStrength);
+    setFilterScale(d.filterScale);
+    setFilterMotionSpeed(d.filterMotionSpeed);
+    setDetailDistortionEnabled(d.detailDistortionEnabled);
+    setDetailDistortionStrength(d.detailDistortionStrength);
+    setDetailDistortionScale(d.detailDistortionScale);
+    setDetailDirtStrength(d.detailDirtStrength);
+    setDetailDirtHex(d.detailDirtHex);
+    setLensMouseInput(d.lensMouseInput);
+    setFluidDensity(d.fluidDensity);
+    setExportTransparent(d.exportTransparent);
+    setExportRegion(d.exportRegion);
+    setYoutubeVideoId(d.youtubeVideoId);
+    setYoutubeUrlDraft(d.youtubeUrlDraft);
+    setYoutubeError(null);
+    setCanvasBackdropBlend(d.canvasBackdropBlend);
+    setSolidOverlayHex(d.solidOverlayHex);
+    setSolidOverlayOpacity(d.solidOverlayOpacity);
+    setSolidOverlayBlend(d.solidOverlayBlend);
+    setSolidOverlayVjHueShift(d.solidOverlayVjHueShift);
+    setSolidOverlayHueAudio(d.solidOverlayHueAudio);
+    setAudioInputMode(d.audioInputMode);
+    setMicRefractBoost(d.micRefractBoost);
+    setVjMode(d.vjMode);
+    setVjDupVertical(d.vjDupVertical);
+    setVjDupGap(d.vjDupGap);
+    setVjDupHorizStep(d.vjDupHorizStep);
+    setVjDupScrollSpeed(d.vjDupScrollSpeed);
+    setVjPathScale(d.vjPathScale);
+    setVjPathSpeed(d.vjPathSpeed);
+    setVjGlassGradeMode(d.vjGlassGradeMode);
+    setVjGlassNeonAHex(d.vjGlassNeonAHex);
+    setVjGlassNeonBHex(d.vjGlassNeonBHex);
+    setVjGlassGradeIntensity(d.vjGlassGradeIntensity);
+
+    const r = rendererRef.current;
+    if (r) {
+      r.blob.centerX = d.blobCenter.x;
+      r.blob.centerY = d.blobCenter.y;
+    }
+
+    setSettingsPasteDraft("");
+    setFeatureHint("Settings applied.");
+  }, [settingsPasteDraft, setFeatureHint]);
 
   const sidebar = useMemo(
     () => ({
@@ -1109,6 +1218,20 @@ export function App() {
         setSvgTintMode,
         svgTintHex,
         setSvgTintHex,
+        svgGradientBlend,
+        setSvgGradientBlend,
+        svgGradientHex2,
+        setSvgGradientHex2,
+        svgGradientHex3,
+        setSvgGradientHex3,
+        svgGradientThreeStops,
+        setSvgGradientThreeStops,
+        svgGradientAngleDeg,
+        setSvgGradientAngleDeg,
+        svgGradientScale,
+        setSvgGradientScale,
+        svgGradientPosition,
+        setSvgGradientPosition,
         youtubeActive: youtubeEmbedActive,
       },
       videoBackdrop: {
@@ -1168,6 +1291,8 @@ export function App() {
         setDetailDirtStrength,
         detailDirtHex,
         setDetailDirtHex,
+      },
+      mouseInput: {
         lensMouseInput,
         setLensMouseInput,
         fluidDensity,
@@ -1190,6 +1315,8 @@ export function App() {
         setBlurQuality,
         chroma,
         setChroma,
+        grainStrength,
+        setGrainStrength,
       },
       audio: {
         micDrivingRefraction,
@@ -1223,12 +1350,6 @@ export function App() {
         setVjGlassGradeIntensity,
         onFeatureBlockedHint: showFeatureHint,
       },
-      shareSection: {
-        onCopySettings,
-        pasteDraft: settingsPasteDraft,
-        onPasteDraftChange: setSettingsPasteDraft,
-        onApplyPastedSettings,
-      },
       exportSection: {
         transparentBackground: exportTransparent,
         setTransparentBackground: setExportTransparent,
@@ -1238,6 +1359,12 @@ export function App() {
         onExport1x: () => runPngExport(1),
         onExport2x: () => runPngExport(2),
       },
+      shareSettings: {
+        onCopySettings: copySettingsToClipboard,
+        pasteDraft: settingsPasteDraft,
+        onPasteDraftChange: setSettingsPasteDraft,
+        onApplyPastedSettings: applyPastedSettingsFromDraft,
+      },
     }),
     [
       bgHex,
@@ -1245,6 +1372,13 @@ export function App() {
       svgSourceUrl,
       svgTintMode,
       svgTintHex,
+      svgGradientBlend,
+      svgGradientHex2,
+      svgGradientHex3,
+      svgGradientThreeStops,
+      svgGradientAngleDeg,
+      svgGradientScale,
+      svgGradientPosition,
       shapeMode,
       blobSize,
       pauseAnimation,
@@ -1270,6 +1404,7 @@ export function App() {
       frostBlur,
       blurQuality,
       globalHueShift,
+      grainStrength,
       chroma,
       exportTransparent,
       exportRegion,
@@ -1280,9 +1415,6 @@ export function App() {
       micRefractBoost,
       toggleMicRefraction,
       micError,
-      onApplyPastedSettings,
-      onCopySettings,
-      settingsPasteDraft,
       vjMode,
       vjDupVertical,
       vjDupGap,
@@ -1307,6 +1439,9 @@ export function App() {
       solidOverlayVjHueShift,
       solidOverlayHueAudio,
       showFeatureHint,
+      copySettingsToClipboard,
+      settingsPasteDraft,
+      applyPastedSettingsFromDraft,
     ],
   );
 
@@ -1322,6 +1457,7 @@ export function App() {
     frostBlur,
     blurQuality,
     globalHueShift,
+    grainStrength,
     chroma,
     shapeMode,
     filterMode,
@@ -1336,6 +1472,13 @@ export function App() {
     svgSourceUrl,
     svgTintMode,
     svgTintHex,
+    svgGradientBlend,
+    svgGradientHex2,
+    svgGradientHex3,
+    svgGradientThreeStops,
+    svgGradientAngleDeg,
+    svgGradientScale,
+    svgGradientPosition,
     micDrivingRefraction,
     micRefractBoost,
     micEnvelope: micDrivingRefraction ? micEnvelopeRef.current : 0,
@@ -1388,6 +1531,12 @@ export function App() {
               />
             </div>
           )}
+          {fpsHudVisible ? (
+            <div className="fps-hud" aria-hidden>
+              {fpsHudValue}
+              <span className="fps-hud__unit"> fps</span>
+            </div>
+          ) : null}
           {solidOverlayOpacity > 0 && (
             <div
               ref={solidOverlayRef}
@@ -1434,7 +1583,8 @@ export function App() {
           effects={sidebar.effects}
           audio={sidebar.audio}
           videoBackdrop={sidebar.videoBackdrop}
-          shareSection={sidebar.shareSection}
+          mouseInput={sidebar.mouseInput}
+          shareSettings={sidebar.shareSettings}
           exportSection={sidebar.exportSection}
         />
       </div>

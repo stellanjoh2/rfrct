@@ -64,9 +64,22 @@ uniform float u_filterStrength;
 uniform float u_filterScale;
 uniform float u_filterMotionSpeed;
 
-/** 0 = none, 1 = multiply tex.rgb by tint, 2 = replace with tint (uses alpha only). SVG uploads only. */
+/**
+ * 0 = none, 1 = multiply solid, 2 = replace solid, 3 = multiply gradient, 4 = replace gradient.
+ * SVG uploads only.
+ */
 uniform float u_svgTintMode;
 uniform vec3 u_svgTintRgb;
+uniform vec3 u_svgGradientRgb2;
+uniform vec3 u_svgGradientRgb3;
+/** 2 or 3 stops. */
+uniform float u_svgGradientStops;
+/** Radians — 0 = up (+v), π/2 = right (+u), CSS linear-gradient angles. */
+uniform float u_svgGradientAngle;
+/** 1 = default; values below 1 pinch toward centre; above 1 softer / wider (Photoshop-like). */
+uniform float u_svgGradientScale;
+/** Slide along gradient axis (logo UV space). */
+uniform float u_svgGradientOffset;
 
 /** 0 = off, 1 = hard neon tint on glass, 2 = duotone (rgbB → rgbA by luma). */
 uniform int u_glassGradeMode;
@@ -257,6 +270,26 @@ vec2 sdfGradient(vec2 p) {
   return vec2(gx, gy) / (2.0 * e);
 }
 
+/** Linear gradient in logo UV [0,1]²; full span across the bbox (CSS-like). */
+vec3 svgGradientRgb(vec2 uvTex) {
+  float ang = u_svgGradientAngle;
+  vec2 d = vec2(sin(ang), cos(ang));
+  float proj = dot(uvTex, d) + u_svgGradientOffset;
+  float tMin = min(0.0, min(d.x, min(d.y, d.x + d.y)));
+  float tMax = max(0.0, max(d.x, max(d.y, d.x + d.y)));
+  float t = (proj - tMin) / max(tMax - tMin, 1e-5);
+  t = clamp(t, 0.0, 1.0);
+  float gs = max(u_svgGradientScale, 1e-4);
+  t = clamp(0.5 + (t - 0.5) / gs, 0.0, 1.0);
+  if (u_svgGradientStops > 2.5) {
+    if (t < 0.5) {
+      return mix(u_svgTintRgb, u_svgGradientRgb2, t * 2.0);
+    }
+    return mix(u_svgGradientRgb2, u_svgGradientRgb3, (t - 0.5) * 2.0);
+  }
+  return mix(u_svgTintRgb, u_svgGradientRgb2, t);
+}
+
 /** Straight RGBA from the image (no background); alpha 0 outside the image rect or if no image. */
 vec4 sampleSceneTex(vec2 uv) {
   if (u_hasImage < 0.5) {
@@ -294,8 +327,12 @@ vec4 sampleSceneTex(vec2 uv) {
   if (u_svgTintMode > 0.5) {
     if (u_svgTintMode < 1.5) {
       rgb = rgb * u_svgTintRgb;
-    } else {
+    } else if (u_svgTintMode < 2.5) {
       rgb = u_svgTintRgb;
+    } else if (u_svgTintMode < 3.5) {
+      rgb = rgb * svgGradientRgb(uvTex);
+    } else {
+      rgb = svgGradientRgb(uvTex);
     }
   }
   return vec4(rgb, tex.a);

@@ -48,13 +48,31 @@ export type BloomParams = {
   softKnee: number;
 };
 
-/** 0 = original, 1 = multiply by tint, 2 = replace rgb with tint (alpha preserved). */
-export type SvgTintMode = 0 | 1 | 2;
+/**
+ * 0 = original, 1 = multiply by solid tint, 2 = replace rgb with solid tint (alpha preserved),
+ * 3 = multiply by linear gradient, 4 = replace rgb with linear gradient.
+ */
+export type SvgTintMode = 0 | 1 | 2 | 3 | 4;
 
 export type SvgTintParams = {
   mode: SvgTintMode;
-  /** sRGB 0–1 channels (same as CSS hex). */
+  /** sRGB 0–1 — stop 1 for gradients; solid tint when mode is 1 or 2. */
   rgb: [number, number, number];
+  /** Gradient stop 2 (modes 3–4). */
+  gradientRgb2: [number, number, number];
+  /** Gradient stop 3 — middle when `gradientStops` is 3 (modes 3–4). */
+  gradientRgb3: [number, number, number];
+  /** 2 = rgb ↔ rgb2; 3 = rgb → rgb2 → rgb3. */
+  gradientStops: 2 | 3;
+  /** Radians — CSS convention: 0 = toward +v (up in texture space), π/2 = +u (right). */
+  gradientAngleRad: number;
+  /**
+   * Spread of the gradient along its axis (modes 3–4). 1 = default.
+   * Values below 1 pinch transitions toward the centre; above 1 soften and widen the blend.
+   */
+  gradientScale: number;
+  /** Slide along gradient direction (logo UV); added to projection before normalizing to t. */
+  gradientOffset: number;
 };
 
 /** 0 = off, 1 = neon tint (screen-ish), 2 = duotone (shadows → highlights). Lens only; independent of SVG tint. */

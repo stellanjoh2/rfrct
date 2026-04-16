@@ -38,6 +38,8 @@ export type RendererSyncParams = {
   underlayTintRgb: [number, number, number];
   /** Degrees — post-process hue rotation on final composite (scene + bloom). */
   globalHueShift: number;
+  /** 0–1 — overlay film grain on final composite (after bloom). */
+  grainStrength: number;
 };
 
 /** Mutable renderer fields the app syncs each frame (avoids importing `RfrctRenderer` here). */
@@ -55,6 +57,7 @@ export type RendererStateTarget = {
   detailDistortion: DetailDistortionParams;
   underlayTintRgb: [number, number, number];
   globalHueShift: number;
+  grainStrength: number;
 };
 
 export function applyRendererState(
@@ -68,6 +71,20 @@ export function applyRendererState(
   r.svgTint = {
     mode: p.svgTint.mode,
     rgb: [p.svgTint.rgb[0], p.svgTint.rgb[1], p.svgTint.rgb[2]],
+    gradientRgb2: [
+      p.svgTint.gradientRgb2[0],
+      p.svgTint.gradientRgb2[1],
+      p.svgTint.gradientRgb2[2],
+    ],
+    gradientRgb3: [
+      p.svgTint.gradientRgb3[0],
+      p.svgTint.gradientRgb3[1],
+      p.svgTint.gradientRgb3[2],
+    ],
+    gradientStops: p.svgTint.gradientStops,
+    gradientAngleRad: p.svgTint.gradientAngleRad,
+    gradientScale: p.svgTint.gradientScale,
+    gradientOffset: p.svgTint.gradientOffset,
   };
   r.vjDupVertical = p.vjDupVertical;
   r.vjDupGap = p.vjDupGap;
@@ -96,6 +113,7 @@ export function applyRendererState(
     p.underlayTintRgb[2],
   ];
   r.globalHueShift = p.globalHueShift;
+  r.grainStrength = p.grainStrength;
 }
 
 export type RendererSyncSource = {
@@ -111,6 +129,8 @@ export type RendererSyncSource = {
   blurQuality: number;
   /** 0–360 — global output hue (export-friendly). */
   globalHueShift: number;
+  /** 0–1 — film grain overlay on final output. */
+  grainStrength?: number;
   chroma: number;
   shapeMode: ShapeMode;
   filterMode: FilterMode;
@@ -123,8 +143,31 @@ export type RendererSyncSource = {
   bloomRadius: number;
   bloomThreshold: number;
   svgSourceUrl: string | null;
-  svgTintMode: "original" | "multiply" | "replace";
+  svgTintMode: "original" | "multiply" | "replace" | "gradient";
   svgTintHex: string;
+  /**
+   * When `svgTintMode` is `"gradient"`: multiply vs replace (same meaning as Tint / Fill).
+   * @default "replace"
+   */
+  svgGradientBlend?: "multiply" | "replace";
+  /** Second stop (hex). */
+  svgGradientHex2?: string;
+  /** Third stop — middle colour when `svgGradientThreeStops` is true. */
+  svgGradientHex3?: string;
+  /** When true, use three stops along the gradient line. */
+  svgGradientThreeStops?: boolean;
+  /**
+   * Degrees — CSS `linear-gradient` convention: 0 = up, 90 = right, 180 = down, 270 = left.
+   * @default 90
+   */
+  svgGradientAngleDeg?: number;
+  /**
+   * Gradient spread along the colour axis (gradient mode only). 1 = default.
+   * Lower pinches transitions toward the centre; higher softens and widens the blend.
+   */
+  svgGradientScale?: number;
+  /** Slide gradient along its axis (logo UV); default 0. */
+  svgGradientPosition?: number;
   /** When true, refraction adds micEnvelope × micRefractBoost × scale (clamped to max refraction). */
   micDrivingRefraction: boolean;
   micRefractBoost: number;
@@ -183,20 +226,67 @@ export function buildRendererSyncParams(
     ? ([0, 0, 0, 0] as [number, number, number, number])
     : parseHexColor(s.bgHex);
 
+  const svgTintIdle: SvgTintParams = {
+    mode: 0,
+    rgb: [1, 1, 1],
+    gradientRgb2: [1, 1, 1],
+    gradientRgb3: [1, 1, 1],
+    gradientStops: 2,
+    gradientAngleRad: 0,
+    gradientScale: 1,
+    gradientOffset: 0,
+  };
+
   const svgTint: SvgTintParams = !s.svgSourceUrl
-    ? { mode: 0, rgb: [1, 1, 1] }
-    : {
-        mode:
-          s.svgTintMode === "original"
-            ? 0
-            : s.svgTintMode === "multiply"
-              ? 1
-              : 2,
-        rgb: (() => {
-          const c = parseHexColor(s.svgTintHex);
-          return [c[0], c[1], c[2]] as [number, number, number];
-        })(),
-      };
+    ? svgTintIdle
+    : s.svgTintMode === "gradient"
+      ? (() => {
+          const c1 = parseHexColor(s.svgTintHex);
+          const c2 = parseHexColor(s.svgGradientHex2 ?? "#000000");
+          const c3 = parseHexColor(s.svgGradientHex3 ?? "#ffffff");
+          const three = Boolean(s.svgGradientThreeStops);
+          const angleDeg = Number.isFinite(s.svgGradientAngleDeg ?? NaN)
+            ? (s.svgGradientAngleDeg as number)
+            : 90;
+          const angleRad = (angleDeg * Math.PI) / 180;
+          const rawScale = Number(s.svgGradientScale ?? 1);
+          const gradientScale = Number.isFinite(rawScale)
+            ? Math.min(10, Math.max(0.05, rawScale))
+            : 1;
+          const rawPos = Number(s.svgGradientPosition ?? 0);
+          const gradientOffset = Number.isFinite(rawPos)
+            ? Math.min(3, Math.max(-3, rawPos))
+            : 0;
+          const gradMult = s.svgGradientBlend === "multiply";
+          return {
+            mode: (gradMult ? 3 : 4) as SvgTintParams["mode"],
+            rgb: [c1[0], c1[1], c1[2]] as [number, number, number],
+            gradientRgb2: [c2[0], c2[1], c2[2]] as [number, number, number],
+            gradientRgb3: [c3[0], c3[1], c3[2]] as [number, number, number],
+            gradientStops: (three ? 3 : 2) as 2 | 3,
+            gradientAngleRad: angleRad,
+            gradientScale,
+            gradientOffset,
+          };
+        })()
+      : {
+          mode:
+            s.svgTintMode === "original"
+              ? 0
+              : s.svgTintMode === "multiply"
+                ? 1
+                : 2,
+          rgb: (() => {
+            const c = parseHexColor(s.svgTintHex);
+            return [c[0], c[1], c[2]] as [number, number, number];
+          })(),
+          gradientRgb2: [1, 1, 1],
+          gradientRgb3: [1, 1, 1],
+          gradientStops: 2,
+          gradientAngleRad: 0,
+          gradientScale: 1,
+          gradientOffset: 0,
+        };
 
   const underlayTintRgb = (() => {
     const h = s.underlayTintHex?.trim();
@@ -312,6 +402,11 @@ export function buildRendererSyncParams(
       const x = Number(s.globalHueShift);
       if (!Number.isFinite(x)) return 0;
       return ((x % 360) + 360) % 360;
+    })(),
+    grainStrength: (() => {
+      const x = Number(s.grainStrength ?? 0);
+      if (!Number.isFinite(x)) return 0;
+      return Math.max(0, Math.min(1, x));
     })(),
   };
 }

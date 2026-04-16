@@ -178,6 +178,10 @@ export function compositeStraightAlphaOverBackground(
  *
  * Light bg (dark art): luminance + channel α; dark bg (light art): α from (V−B)/(1−B) so
  * white-on-black exports do not collapse to transparent.
+ *
+ * **Dark foreground on dark B** (e.g. black ink on black `#000000`): both luminance and channel
+ * estimates collapse to near-zero alpha; callers that need those pixels should de-matte against a lighter
+ * sentinel background instead (see transparent PNG export in `RfrctRenderer.exportPng`).
  */
 export function removeSolidBackgroundForPng(
   source: HTMLCanvasElement,

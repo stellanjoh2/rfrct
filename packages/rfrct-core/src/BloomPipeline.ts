@@ -3,6 +3,7 @@ import {
   BLOOM_FRAG_COMPOSITE,
   BLOOM_FRAG_KAWASE,
   BLOOM_VERT,
+  GRAIN_FRAG_FROM_SCENE,
 } from "./bloomShaders";
 import type { BloomParams } from "./types";
 import { compileShader, linkProgram } from "./webgl";
@@ -19,6 +20,8 @@ export class BloomPipeline {
   private readonly brightLocs: Record<string, WebGLUniformLocation | null>;
   private readonly kawaseLocs: Record<string, WebGLUniformLocation | null>;
   private readonly compositeLocs: Record<string, WebGLUniformLocation | null>;
+  private readonly progGrain: WebGLProgram;
+  private readonly grainLocs: Record<string, WebGLUniformLocation | null>;
 
   private sceneTex: WebGLTexture | null = null;
   private sceneFbo: WebGLFramebuffer | null = null;
@@ -39,13 +42,16 @@ export class BloomPipeline {
     const bBright = compileShader(gl, gl.FRAGMENT_SHADER, BLOOM_FRAG_BRIGHT);
     const bKawase = compileShader(gl, gl.FRAGMENT_SHADER, BLOOM_FRAG_KAWASE);
     const bComp = compileShader(gl, gl.FRAGMENT_SHADER, BLOOM_FRAG_COMPOSITE);
+    const bGrain = compileShader(gl, gl.FRAGMENT_SHADER, GRAIN_FRAG_FROM_SCENE);
     this.progBright = linkProgram(gl, bv, bBright);
     this.progKawase = linkProgram(gl, bv, bKawase);
     this.progComposite = linkProgram(gl, bv, bComp);
+    this.progGrain = linkProgram(gl, bv, bGrain);
     gl.deleteShader(bv);
     gl.deleteShader(bBright);
     gl.deleteShader(bKawase);
     gl.deleteShader(bComp);
+    gl.deleteShader(bGrain);
 
     this.brightLocs = {};
     this.kawaseLocs = {};
@@ -63,12 +69,26 @@ export class BloomPipeline {
       "u_strength",
       "u_opaqueOutput",
       "u_globalHueShift",
+      "u_grainStrength",
+      "u_grainTime",
     ] as const) {
       this.compositeLocs[n] = gl.getUniformLocation(this.progComposite, n);
+    }
+    this.grainLocs = {};
+    for (const n of [
+      "u_scene",
+      "u_resolution",
+      "u_grainStrength",
+      "u_grainTime",
+      "u_opaqueOutput",
+    ] as const) {
+      this.grainLocs[n] = gl.getUniformLocation(this.progGrain, n);
     }
     gl.useProgram(this.progComposite);
     gl.uniform1i(this.compositeLocs.u_scene, 0);
     gl.uniform1i(this.compositeLocs.u_bloom, 1);
+    gl.useProgram(this.progGrain);
+    gl.uniform1i(this.grainLocs.u_scene, 0);
     gl.useProgram(this.progBright);
     gl.uniform1i(this.brightLocs.u_scene, 0);
     gl.useProgram(this.progKawase);
@@ -81,6 +101,7 @@ export class BloomPipeline {
     gl.deleteProgram(this.progBright);
     gl.deleteProgram(this.progKawase);
     gl.deleteProgram(this.progComposite);
+    gl.deleteProgram(this.progGrain);
   }
 
   /** Call when canvas backing size changes (same as renderer resize). */
@@ -182,7 +203,12 @@ export class BloomPipeline {
     vao: WebGLVertexArrayObject,
     canvasW: number,
     canvasH: number,
-    options?: { transparentCanvas?: boolean; globalHueShift?: number },
+    options?: {
+      transparentCanvas?: boolean;
+      globalHueShift?: number;
+      grainStrength?: number;
+      grainTime?: number;
+    },
   ): void {
     const gl = this.gl;
     const bw = this.bloomW;
@@ -200,8 +226,9 @@ export class BloomPipeline {
     gl.uniform1f(this.brightLocs.u_softKnee!, bloom.softKnee);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
 
+    /** More passes at large radius keeps Kawase blur smooth (UI allows radius up to ~8). */
     const numPasses = Math.min(
-      14,
+      24,
       Math.max(5, Math.round(4 + bloom.radius * 5.5)),
     );
 
@@ -249,6 +276,11 @@ export class BloomPipeline {
       this.compositeLocs.u_globalHueShift!,
       options?.globalHueShift ?? 0,
     );
+    gl.uniform1f(
+      this.compositeLocs.u_grainStrength!,
+      Math.max(0, options?.grainStrength ?? 0),
+    );
+    gl.uniform1f(this.compositeLocs.u_grainTime!, options?.grainTime ?? 0);
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, sceneTex);
     gl.activeTexture(gl.TEXTURE1);
@@ -257,5 +289,47 @@ export class BloomPipeline {
     gl.activeTexture(gl.TEXTURE1);
     gl.bindTexture(gl.TEXTURE_2D, null);
     gl.activeTexture(gl.TEXTURE0);
+  }
+
+  /**
+   * Fullscreen overlay grain on top of the scene texture (bloom off). Caller binds framebuffer null.
+   */
+  drawGrainFromSceneTexture(
+    vao: WebGLVertexArrayObject,
+    canvasW: number,
+    canvasH: number,
+    options: {
+      grainStrength: number;
+      grainTime: number;
+      transparentCanvas: boolean;
+    },
+  ): void {
+    const gl = this.gl;
+    const sceneTex = this.sceneTex!;
+    gl.useProgram(this.progGrain);
+    gl.bindVertexArray(vao);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.viewport(0, 0, canvasW, canvasH);
+    const transparentCanvas = options.transparentCanvas;
+    if (transparentCanvas) {
+      gl.clearColor(0, 0, 0, 0);
+    } else {
+      gl.clearColor(0, 0, 0, 1);
+    }
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.uniform2f(this.grainLocs.u_resolution!, canvasW, canvasH);
+    gl.uniform1f(
+      this.grainLocs.u_grainStrength!,
+      Math.max(0, options.grainStrength),
+    );
+    gl.uniform1f(this.grainLocs.u_grainTime!, options.grainTime);
+    gl.uniform1f(
+      this.grainLocs.u_opaqueOutput!,
+      transparentCanvas ? 0 : 1,
+    );
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, sceneTex);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+    gl.bindTexture(gl.TEXTURE_2D, null);
   }
 }

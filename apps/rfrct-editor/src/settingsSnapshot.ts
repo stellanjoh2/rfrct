@@ -1,11 +1,16 @@
 import { DEFAULT_VJ_PATH_SPEED, type FilterMode, type ShapeMode } from "@rfrct/core";
 import type { AudioInputMode } from "./audio/micAnalyzer";
-import { BACKDROP_BLEND_OPTIONS, type BackdropBlendMode } from "./videoBackdrop";
+import {
+  BACKDROP_BLEND_OPTIONS,
+  type BackdropBlendMode,
+} from "./videoBackdrop";
 
 export const SETTINGS_SNAPSHOT_SCHEMA = "rfrct-editor-settings" as const;
 export const SETTINGS_SNAPSHOT_VERSION = 1 as const;
 
-const BLEND_VALUES = new Set(BACKDROP_BLEND_OPTIONS.map((o) => o.value)) as Set<BackdropBlendMode>;
+const BLEND_VALUES = new Set(
+  BACKDROP_BLEND_OPTIONS.map((o) => o.value),
+) as Set<BackdropBlendMode>;
 
 function blendMode(v: unknown, fallback: BackdropBlendMode): BackdropBlendMode {
   return typeof v === "string" && BLEND_VALUES.has(v as BackdropBlendMode)
@@ -13,14 +18,22 @@ function blendMode(v: unknown, fallback: BackdropBlendMode): BackdropBlendMode {
     : fallback;
 }
 
+/** Serializable app settings (no image / SVG file data). */
 export type RfrctEditorSettingsSnapshotV1 = {
   schema: typeof SETTINGS_SNAPSHOT_SCHEMA;
   version: typeof SETTINGS_SNAPSHOT_VERSION;
   bgHex: string;
   imageScale: number;
   imagePan: { x: number; y: number };
-  svgTintMode: "original" | "multiply" | "replace";
+  svgTintMode: "original" | "multiply" | "replace" | "gradient";
   svgTintHex: string;
+  svgGradientBlend: "multiply" | "replace";
+  svgGradientHex2: string;
+  svgGradientHex3: string;
+  svgGradientThreeStops: boolean;
+  svgGradientAngleDeg: number;
+  svgGradientScale: number;
+  svgGradientPosition: number;
   blobCenter: { x: number; y: number };
   blobSize: number;
   pauseAnimation: boolean;
@@ -32,6 +45,8 @@ export type RfrctEditorSettingsSnapshotV1 = {
   frostBlur: number;
   blurQuality: number;
   globalHueShift: number;
+  /** 0–1 film grain overlay; omitted in older snapshots → 0. */
+  grainStrength: number;
   chroma: number;
   bloomStrength: number;
   bloomRadius: number;
@@ -58,6 +73,7 @@ export type RfrctEditorSettingsSnapshotV1 = {
   solidOverlayBlend: BackdropBlendMode;
   solidOverlayVjHueShift: boolean;
   solidOverlayHueAudio: boolean;
+  /** Stored for repro; paste does not auto-start the mic. */
   audioInputMode: AudioInputMode;
   micRefractBoost: number;
   vjMode: boolean;
@@ -73,10 +89,13 @@ export type RfrctEditorSettingsSnapshotV1 = {
   vjGlassGradeIntensity: number;
 };
 
-export function serializeSettingsSnapshot(s: RfrctEditorSettingsSnapshotV1): string {
+export function serializeSettingsSnapshot(
+  s: RfrctEditorSettingsSnapshotV1,
+): string {
   return JSON.stringify(s, null, 2);
 }
 
+/** Build a snapshot object with schema/version (for copy). */
 export function createSettingsSnapshot(
   rest: Omit<RfrctEditorSettingsSnapshotV1, "schema" | "version">,
 ): RfrctEditorSettingsSnapshotV1 {
@@ -113,14 +132,13 @@ export function parseSettingsSnapshot(
   } catch {
     return { ok: false, error: "Not valid JSON." };
   }
-
   if (!isRecord(parsed)) {
     return { ok: false, error: "Root must be a JSON object." };
   }
   if (parsed.schema !== SETTINGS_SNAPSHOT_SCHEMA) {
     return {
       ok: false,
-      error: `Unknown schema (expected \"${SETTINGS_SNAPSHOT_SCHEMA}\").`,
+      error: `Unknown schema (expected "${SETTINGS_SNAPSHOT_SCHEMA}").`,
     };
   }
   if (parsed.version !== SETTINGS_SNAPSHOT_VERSION) {
@@ -140,17 +158,31 @@ export function parseSettingsSnapshot(
 
   const svgTintMode = p.svgTintMode;
   const stm =
-    svgTintMode === "multiply" || svgTintMode === "replace" ? svgTintMode : "original";
+    svgTintMode === "multiply" ||
+    svgTintMode === "replace" ||
+    svgTintMode === "gradient"
+      ? svgTintMode
+      : "original";
+
+  const svgGradientBlend: RfrctEditorSettingsSnapshotV1["svgGradientBlend"] =
+    p.svgGradientBlend === "multiply" ? "multiply" : "replace";
 
   const exportRegion = p.exportRegion === "image" ? "image" : "full";
-  const audioInputMode: AudioInputMode = p.audioInputMode === "display" ? "display" : "mic";
+
+  const audioInputMode: AudioInputMode =
+    p.audioInputMode === "display" ? "display" : "mic";
+
   const vjGlassGradeMode =
     p.vjGlassGradeMode === "tint" || p.vjGlassGradeMode === "duotone"
       ? p.vjGlassGradeMode
       : "off";
 
-  const shapeMode = Math.round(num(p.shapeMode, 0)) as ShapeMode;
-  const filterMode = Math.round(num(p.filterMode, 0)) as FilterMode;
+  const shapeMode = Math.round(
+    num(p.shapeMode, 0),
+  ) as RfrctEditorSettingsSnapshotV1["shapeMode"];
+  const filterMode = Math.round(
+    num(p.filterMode, 0),
+  ) as RfrctEditorSettingsSnapshotV1["filterMode"];
 
   const data: RfrctEditorSettingsSnapshotV1 = {
     schema: SETTINGS_SNAPSHOT_SCHEMA,
@@ -160,6 +192,13 @@ export function parseSettingsSnapshot(
     imagePan: pan,
     svgTintMode: stm,
     svgTintHex: str(p.svgTintHex, "#ffffff"),
+    svgGradientBlend,
+    svgGradientHex2: str(p.svgGradientHex2, "#000000"),
+    svgGradientHex3: str(p.svgGradientHex3, "#ffffff"),
+    svgGradientThreeStops: bool(p.svgGradientThreeStops, false),
+    svgGradientAngleDeg: num(p.svgGradientAngleDeg, 90),
+    svgGradientScale: num(p.svgGradientScale, 1),
+    svgGradientPosition: num(p.svgGradientPosition, 0),
     blobCenter: bc,
     blobSize: num(p.blobSize, 0.22),
     pauseAnimation: bool(p.pauseAnimation, false),
@@ -171,6 +210,7 @@ export function parseSettingsSnapshot(
     frostBlur: num(p.frostBlur, 2),
     blurQuality: num(p.blurQuality, 1),
     globalHueShift: num(p.globalHueShift, 0),
+    grainStrength: num(p.grainStrength, 0),
     chroma: num(p.chroma, 0),
     bloomStrength: num(p.bloomStrength, 0),
     bloomRadius: num(p.bloomRadius, 0.2),
@@ -183,14 +223,16 @@ export function parseSettingsSnapshot(
     detailDistortionEnabled: bool(p.detailDistortionEnabled, false),
     detailDistortionStrength: num(p.detailDistortionStrength, 0.55),
     detailDistortionScale: num(p.detailDistortionScale, 3.2),
-    detailDirtStrength: num(p.detailDirtStrength, 0.4),
+    detailDirtStrength: num(p.detailDirtStrength, 0),
     detailDirtHex: str(p.detailDirtHex, "#665648"),
     lensMouseInput: bool(p.lensMouseInput, false),
     fluidDensity: num(p.fluidDensity, 0.45),
     exportTransparent: bool(p.exportTransparent, false),
     exportRegion,
     youtubeVideoId:
-      p.youtubeVideoId === null || typeof p.youtubeVideoId === "string" ? p.youtubeVideoId : null,
+      p.youtubeVideoId === null || typeof p.youtubeVideoId === "string"
+        ? p.youtubeVideoId
+        : null,
     youtubeUrlDraft: str(p.youtubeUrlDraft, ""),
     canvasBackdropBlend: blendMode(p.canvasBackdropBlend, "normal"),
     solidOverlayHex: str(p.solidOverlayHex, "#000000"),

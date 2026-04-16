@@ -44,7 +44,7 @@ export function BloomSection({
           <input
             type="range"
             min={0.05}
-            max={2}
+            max={8}
             step={0.05}
             value={bloomRadius}
             onChange={(e) => setBloomRadius(Number(e.target.value))}

@@ -117,6 +117,12 @@ export class RfrctRenderer {
   svgTint: SvgTintParams = {
     mode: 0,
     rgb: [1, 1, 1],
+    gradientRgb2: [1, 1, 1],
+    gradientRgb3: [1, 1, 1],
+    gradientStops: 2,
+    gradientAngleRad: 0,
+    gradientScale: 1,
+    gradientOffset: 0,
   };
 
   /** VJ neon grade on the glass (lens interior); independent of SVG tint. */
@@ -162,6 +168,9 @@ export class RfrctRenderer {
 
   /** Degrees — applied after lens grade; skipped in scene pass when bloom composite applies it. */
   globalHueShift = 0;
+
+  /** 0–1 — overlay film grain on final composite (Photoshop-style Overlay; neutral at ~50% grain). */
+  grainStrength = 0;
 
     constructor(canvas: HTMLCanvasElement) {
     const gl = canvas.getContext(
@@ -216,6 +225,12 @@ export class RfrctRenderer {
       "u_filterMotionSpeed",
       "u_svgTintMode",
       "u_svgTintRgb",
+      "u_svgGradientRgb2",
+      "u_svgGradientRgb3",
+      "u_svgGradientStops",
+      "u_svgGradientAngle",
+      "u_svgGradientScale",
+      "u_svgGradientOffset",
       "u_glassGradeMode",
       "u_glassNeonA",
       "u_glassNeonB",
@@ -517,6 +532,22 @@ export class RfrctRenderer {
       this.svgTint.rgb[1],
       this.svgTint.rgb[2],
     );
+    gl.uniform3f(
+      this.locs.u_svgGradientRgb2,
+      this.svgTint.gradientRgb2[0],
+      this.svgTint.gradientRgb2[1],
+      this.svgTint.gradientRgb2[2],
+    );
+    gl.uniform3f(
+      this.locs.u_svgGradientRgb3,
+      this.svgTint.gradientRgb3[0],
+      this.svgTint.gradientRgb3[1],
+      this.svgTint.gradientRgb3[2],
+    );
+    gl.uniform1f(this.locs.u_svgGradientStops, this.svgTint.gradientStops);
+    gl.uniform1f(this.locs.u_svgGradientAngle, this.svgTint.gradientAngleRad);
+    gl.uniform1f(this.locs.u_svgGradientScale, this.svgTint.gradientScale);
+    gl.uniform1f(this.locs.u_svgGradientOffset, this.svgTint.gradientOffset);
 
     gl.uniform1i(this.locs.u_glassGradeMode, this.glassGrade.mode);
     gl.uniform3f(
@@ -590,6 +621,8 @@ export class RfrctRenderer {
     this.vjDupScrollTime += dt * Math.max(0, this.vjDupScrollSpeed);
 
     const bloomOn = this.bloom.strength > 1e-4;
+    const grainOn = this.grainStrength > 1e-4;
+    const grainTime = now * 0.001;
 
     const clear: [number, number, number, number] = this.bgColor;
 
@@ -600,7 +633,7 @@ export class RfrctRenderer {
       gl.disable(gl.BLEND);
     }
 
-    if (!bloomOn) {
+    if (!bloomOn && !grainOn) {
       gl.bindFramebuffer(gl.FRAMEBUFFER, null);
       gl.viewport(0, 0, w, h);
       gl.clearColor(clear[0], clear[1], clear[2], clear[3]);
@@ -614,14 +647,25 @@ export class RfrctRenderer {
     gl.viewport(0, 0, w, h);
     gl.clearColor(clear[0], clear[1], clear[2], clear[3]);
     gl.clear(gl.COLOR_BUFFER_BIT);
-    this.drawScenePass(w, h, false);
+    this.drawScenePass(w, h, bloomOn ? false : true);
 
     const gh = this.globalHueShift;
     const ghNorm = Number.isFinite(gh) ? (((gh % 360) + 360) % 360) : 0;
-    this.bloomPipeline.finalizeToCanvas(this.bloom, this.vao, w, h, {
-      transparentCanvas: this.transparentSceneBg,
-      globalHueShift: ghNorm,
-    });
+
+    if (bloomOn) {
+      this.bloomPipeline.finalizeToCanvas(this.bloom, this.vao, w, h, {
+        transparentCanvas: this.transparentSceneBg,
+        globalHueShift: ghNorm,
+        grainStrength: grainOn ? this.grainStrength : 0,
+        grainTime,
+      });
+    } else {
+      this.bloomPipeline.drawGrainFromSceneTexture(this.vao, w, h, {
+        grainStrength: this.grainStrength,
+        grainTime,
+        transparentCanvas: this.transparentSceneBg,
+      });
+    }
   };
 
   startLoop() {
@@ -692,6 +736,12 @@ export class RfrctRenderer {
    *
    * Opaque PNGs run the same de-matte as transparent, then composite onto the scene background;
    * edge pixels may differ slightly from a raw framebuffer read (intentional for cleaner edges).
+   *
+   * Transparent PNGs against a **dark** scene background: black (or matching) foreground is
+   * indistinguishable from the backdrop in {@link removeSolidBackgroundForPng}'s dark-bg path
+   * (α collapses to 0). We render that export pass on a **white** sentinel background so dark
+   * fills and gradient stops recover correct alpha; the on-screen preview background is restored
+   * after the download (skipped when `transparentSceneBg` already drives real framebuffer alpha).
    */
   exportPng(params: PngExportParams, basename = "rfrct", onComplete?: () => void): void {
     if (this.disposed || this.exportInProgress) {
@@ -706,6 +756,27 @@ export class RfrctRenderer {
     const scale = params.scale === 2 ? 2 : 1;
     const nw = Math.max(1, Math.floor(w0 * scale));
     const nh = Math.max(1, Math.floor(h0 * scale));
+
+    const savedBg = this.bgColor.slice() as [
+      number,
+      number,
+      number,
+      number,
+    ];
+    const displayBgRgb: [number, number, number] = [
+      savedBg[0],
+      savedBg[1],
+      savedBg[2],
+    ];
+    const useWhiteDematteBg =
+      params.transparentBackground && !this.transparentSceneBg;
+    const dematteBgRgb: [number, number, number] = useWhiteDematteBg
+      ? [1, 1, 1]
+      : displayBgRgb;
+
+    if (useWhiteDematteBg) {
+      this.bgColor = [1, 1, 1, 1];
+    }
 
     this.suppressAnimationDraw = true;
 
@@ -728,25 +799,23 @@ export class RfrctRenderer {
           rect &&
           (this.imageLayout?.naturalWidth ?? 0) > 0;
 
-        const bgRgb: [number, number, number] = [
-          this.bgColor[0],
-          this.bgColor[1],
-          this.bgColor[2],
-        ];
-        const dematted = removeSolidBackgroundForPng(canvas, bgRgb);
+        const dematted = removeSolidBackgroundForPng(canvas, dematteBgRgb);
         let target: HTMLCanvasElement = params.transparentBackground
           ? dematted
-          : compositeStraightAlphaOverBackground(dematted, bgRgb);
+          : compositeStraightAlphaOverBackground(dematted, displayBgRgb);
         if (useCrop) {
           if (params.transparentBackground) {
             target = trimCanvasToAlphaBounds(target, 1, 8);
           } else {
-            target = trimCanvasToNonBgBounds(target, bgRgb, 0.045, 8);
+            target = trimCanvasToNonBgBounds(target, displayBgRgb, 0.045, 8);
           }
         }
 
         downloadCanvasAsPng(target, basename, () => {
           try {
+            if (useWhiteDematteBg) {
+              this.bgColor = savedBg;
+            }
             this.suppressAnimationDraw = false;
             canvas.width = w0;
             canvas.height = h0;
@@ -761,6 +830,9 @@ export class RfrctRenderer {
           }
         });
       } catch (e) {
+        if (useWhiteDematteBg) {
+          this.bgColor = savedBg;
+        }
         this.exportInProgress = false;
         this.suppressAnimationDraw = false;
         canvas.width = w0;

@@ -5,6 +5,7 @@ import { BloomSection } from "./BloomSection";
 import { EffectsSection } from "./EffectsSection";
 import { ExportSection } from "./ExportSection";
 import { LensSection } from "./LensSection";
+import { MouseInputSection } from "./MouseInputSection";
 import { UploadBlock } from "./UploadBlock";
 import type { AppearanceSectionProps } from "./AppearanceSection";
 import type { AudioSectionProps } from "./AudioSection";
@@ -12,10 +13,11 @@ import type { BloomSectionProps } from "./BloomSection";
 import type { EffectsSectionProps } from "./EffectsSection";
 import type { ExportSectionProps } from "./ExportSection";
 import type { LensSectionProps } from "./LensSection";
-import { VideoBackdropSection } from "./VideoBackdropSection";
-import type { VideoBackdropSectionProps } from "./VideoBackdropSection";
+import type { MouseInputSectionProps } from "./MouseInputSection";
 import { ShareSettingsSection } from "./ShareSettingsSection";
 import type { ShareSettingsSectionProps } from "./ShareSettingsSection";
+import { VideoBackdropSection } from "./VideoBackdropSection";
+import type { VideoBackdropSectionProps } from "./VideoBackdropSection";
 
 export type SettingsSidebarProps = {
   uiVisible: boolean;
@@ -27,7 +29,8 @@ export type SettingsSidebarProps = {
   effects: EffectsSectionProps;
   audio: AudioSectionProps;
   videoBackdrop: VideoBackdropSectionProps;
-  shareSection: ShareSettingsSectionProps;
+  mouseInput: MouseInputSectionProps;
+  shareSettings: ShareSettingsSectionProps;
   exportSection: ExportSectionProps;
 };
 
@@ -41,7 +44,8 @@ export function SettingsSidebar({
   effects,
   audio,
   videoBackdrop,
-  shareSection,
+  mouseInput,
+  shareSettings,
   exportSection,
 }: SettingsSidebarProps) {
   useEffect(() => {
@@ -88,21 +92,23 @@ export function SettingsSidebar({
       <EffectsSection {...effects} />
       <AudioSection {...audio} />
       <VideoBackdropSection {...videoBackdrop} />
-      <ShareSettingsSection {...shareSection} />
+      <MouseInputSection {...mouseInput} />
+      <ShareSettingsSection {...shareSettings} />
       <ExportSection {...exportSection} />
       <div className="shortcut-hint">
         <p className="shortcut-hint__title">Mouse (canvas)</p>
         <p className="shortcut-hint__line">
           <strong>Left-drag</strong> — pan image · <strong>Right-drag</strong> — move
-          lens · <strong>Wheel</strong> — zoom. Lens → <strong>Mouse input</strong>{" "}
-          follows the pointer with fluid delay (right-drag off).
+          lens · <strong>Wheel</strong> — zoom. <strong>Mouse input</strong> follows the
+          pointer with fluid delay when enabled (right-drag off).
         </p>
         <p className="shortcut-hint__title">Keyboard</p>
         <p className="shortcut-hint__line">
           <kbd>1</kbd> blob · <kbd>2</kbd> cube · <kbd>3</kbd> metaballs ·{" "}
           <kbd>4</kbd> water ·{" "}
           <kbd>Space</kbd> pause animation · <kbd>P</kbd> toggle panel ·{" "}
-          <kbd>F</kbd> focus (reset pan & scale) · <kbd>C</kbd> PNG (2×, export options)
+          <kbd>F</kbd> FPS · <kbd>Shift</kbd>+<kbd>F</kbd> focus (reset pan & scale) ·{" "}
+          <kbd>C</kbd> PNG (2×, export options)
         </p>
         <p className="shortcut-hint__note">
           Shortcuts don&apos;t apply while a text field or dropdown is focused.
