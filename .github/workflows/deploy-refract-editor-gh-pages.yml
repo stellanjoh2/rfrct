@@ -11,6 +11,9 @@
 # Use a dedicated concurrency group — do NOT share `group: pages` with
 # `deploy-blod-gh-pages.yml` (that workflow uses cancel-in-progress and would
 # cancel this run when a manual Blod Pages deploy is triggered).
+#
+# `configure-pages` runs after the Vite build so the TypeScript/Vite steps are
+# not interleaved with Pages setup (easier to read logs; build has no SSG to configure).
 
 name: Deploy Refract editor to GitHub Pages
 
@@ -44,9 +47,6 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Configure GitHub Pages
-        uses: actions/configure-pages@v5
-
       - uses: actions/setup-node@v5
         with:
           node-version: "22"
@@ -55,7 +55,21 @@ jobs:
 
       - run: npm ci
 
-      - run: npm run build:editor
+      # Split so logs show whether tsc or Vite failed (single `npm run build` hides the boundary).
+      - name: Diagnostics
+        run: |
+          node -v
+          npm -v
+          uname -a
+
+      - name: Typecheck editor (tsc)
+        run: npm exec -w refrct-editor -- tsc --noEmit
+
+      - name: Build editor bundle (Vite)
+        run: npm exec -w refrct-editor -- vite build
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
 
       - name: Verify production bundle
         run: |
