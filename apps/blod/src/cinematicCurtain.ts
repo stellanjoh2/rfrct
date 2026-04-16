@@ -10,7 +10,7 @@ const CURTAIN_ID = BLOD_CINEMATIC_CURTAIN_ID;
 
 function dispatchLoadingCurtainDone(): void {
   if (typeof document === "undefined") return;
-  /* After layout effects so `BlodRefractHero` can subscribe first (sync early-exit paths). */
+  /* After layout effects so `BlodRfrctHero` can subscribe first (sync early-exit paths). */
   queueMicrotask(() => {
     document.dispatchEvent(new CustomEvent(BLOD_LOADING_CURTAIN_DONE_EVENT));
   });

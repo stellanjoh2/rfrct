@@ -281,7 +281,7 @@ export function removeSolidBackgroundForPng(
  */
 export function downloadCanvasAsPng(
   canvas: HTMLCanvasElement,
-  basename = "refrct",
+  basename = "rfrct",
   onComplete?: () => void,
 ): void {
   const name = `${basename}-${Date.now()}.png`;

@@ -223,7 +223,7 @@ body {
   background: transparent;
 }
 
-/* Hero flash is GPU underlay (see RefractRenderer) — composited behind SVG with same refraction + filter. */
+/* Hero flash is GPU underlay (see RfrctRenderer) — composited behind SVG with same refraction + filter. */
 
 /* Full-viewport GIF — fixed to the viewport. Two stacked phases crossfade (multiply+red ↔ screen);
    blend mode lives on each phase so we can opacity-animate between them. */

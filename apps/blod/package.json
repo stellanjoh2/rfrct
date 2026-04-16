@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",
-    "@refrct/core": "file:../../packages/refract-core",
+    "@rfrct/core": "file:../../packages/rfrct-core",
     "gsap": "^3.14.2",
     "lightgallery": "^2.9.0",
     "react": "^18.3.1",

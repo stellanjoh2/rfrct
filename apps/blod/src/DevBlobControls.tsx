@@ -1,4 +1,4 @@
-import type { FilterMode, RendererSyncSource, ShapeMode } from "@refrct/core";
+import type { FilterMode, RendererSyncSource, ShapeMode } from "@rfrct/core";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   createDefaultHeroSync,
@@ -29,7 +29,7 @@ type Props = {
   open: boolean;
 };
 
-/** Dev-only: mirrors refrct-editor panels except mic, VJ, and video backdrop. */
+/** Dev-only: mirrors rfrct-editor panels except mic, VJ, and video backdrop. */
 export function DevBlobControls({
   sync,
   onChange,

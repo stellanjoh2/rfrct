@@ -1,4 +1,4 @@
-import type { RendererSyncSource } from "@refrct/core";
+import type { RendererSyncSource } from "@rfrct/core";
 import { createDefaultHeroSync } from "./createDefaultHeroSync";
 
 /**

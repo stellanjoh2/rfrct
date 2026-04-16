@@ -11,13 +11,13 @@ import {
   DEFAULT_VJ_PATH_SPEED,
   isSvgFile,
   mergePngExportParams,
-  rasterizeSvgForRefract,
-  RefractRenderer,
+  rasterizeSvgForRfrct,
+  RfrctRenderer,
   type FilterMode,
   type RendererSyncSource,
   type ShapeMode,
   stepLensMouseFluid,
-} from "@refrct/core";
+} from "@rfrct/core";
 import {
   MicAnalyzer,
   type AudioInputMode,
@@ -35,7 +35,7 @@ const SVG_RASTER_DEBOUNCE_MS = 320;
 export function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
-  const rendererRef = useRef<RefractRenderer | null>(null);
+  const rendererRef = useRef<RfrctRenderer | null>(null);
 
   const [imgDims, setImgDims] = useState<{ w: number; h: number } | null>(null);
   const [svgSourceUrl, setSvgSourceUrl] = useState<string | null>(null);
@@ -268,7 +268,7 @@ export function App() {
           transparentBackground: exportTransparent,
           region: imgDims && exportRegion === "image" ? "image" : "full",
         }),
-        "refrct",
+        "rfrct",
         () => {
           syncLayout();
         },
@@ -439,9 +439,9 @@ export function App() {
     const wrap = wrapRef.current;
     if (!canvas || !wrap) return;
 
-    let renderer: RefractRenderer;
+    let renderer: RfrctRenderer;
     try {
-      renderer = new RefractRenderer(canvas);
+      renderer = new RfrctRenderer(canvas);
     } catch (e) {
       setWebglError(
         e instanceof Error ? e.message : "WebGL2 is required for this demo.",
@@ -704,7 +704,7 @@ export function App() {
       if (!r || !canvas) return;
       const bw = Math.max(1, canvas.width);
       const bh = Math.max(1, canvas.height);
-      const raster = rasterizeSvgForRefract(
+      const raster = rasterizeSvgForRfrct(
         img,
         bw,
         bh,

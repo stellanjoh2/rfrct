@@ -11,7 +11,7 @@ export type {
   SvgTintParams,
 } from "./types";
 
-export { RefractRenderer } from "./RefractRenderer";
+export { RfrctRenderer } from "./RfrctRenderer";
 export type { PngExportParams } from "./pngExportSettings";
 
 export {
@@ -33,7 +33,7 @@ export {
 export {
   computeSvgRasterDimensions,
   isSvgFile,
-  rasterizeSvgForRefract,
+  rasterizeSvgForRfrct,
   rasterizeToCanvas,
 } from "./svgRaster";
 

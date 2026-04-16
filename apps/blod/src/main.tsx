@@ -40,7 +40,7 @@ class RootErrorBoundary extends Component<
           <h1 style={{ fontSize: "1.1rem", marginTop: 0 }}>Blod failed to render</h1>
           <p style={{ opacity: 0.85 }}>
             Open the browser devtools console (⌥⌘J / F12). Source:{" "}
-            <code>apps/blod/src/</code> in the refrct monorepo.
+            <code>apps/blod/src/</code> in the rfrct monorepo.
           </p>
           <code style={{ fontSize: "0.75rem", display: "block", marginTop: "1rem" }}>
             {this.state.error.message}
@@ -67,7 +67,7 @@ function showFatalError(rootEl: HTMLElement, err: unknown) {
   const p = document.createElement("p");
   p.style.cssText = "opacity:0.9;font-size:0.85rem;margin:0 0 1rem";
   p.textContent =
-    "Use the Vite dev server: from the refrct repo root run npm run dev:blod, then open the http://localhost URL shown in the terminal (not a file:// path).";
+    "Use the Vite dev server: from the rfrct repo root run npm run dev:blod, then open the http://localhost URL shown in the terminal (not a file:// path).";
   const pre = document.createElement("pre");
   pre.style.cssText =
     "font-size:0.72rem;overflow:auto;white-space:pre-wrap;word-break:break-word";

@@ -1,51 +1,51 @@
-# Running Blod outside the refrct monorepo
+# Running Blod outside the rfrct monorepo
 
-> **Day-to-day:** use the standalone **[`blod`](https://github.com/stellanjoh2/blod)** repo and [README.md](./README.md). You do not need `refrct`. This file is **optional** reference (history, extracting `@refrct/core`, CI).
+> **Day-to-day:** use the standalone **[`blod`](https://github.com/stellanjoh2/blod)** repo and [README.md](./README.md). You do not need `rfrct`. This file is **optional** reference (history, extracting `@rfrct/core`, CI).
 
-Blod depends on `@refrct/core`. In the old monorepo that was satisfied by npm workspaces (`"@refrct/core": "*"`). In the **standalone** `blod` repo you point at `@refrct/core` in one of these ways:
+Blod depends on `@rfrct/core`. In the old monorepo that was satisfied by npm workspaces (`"@rfrct/core": "*"`). In the **standalone** `blod` repo you point at `@rfrct/core` in one of these ways:
 
 | Approach | Pros | Cons |
 |----------|------|------|
-| **A. `refract-core` as its own GitHub repo** | `npm install` works everywhere; clean CI | One-time extract + push |
-| **B. Git submodule** (`packages/refract-core`) | No second package on npm/GitHub | Submodule UX; CI must `submodule update` |
+| **A. `rfrct-core` as its own GitHub repo** | `npm install` works everywhere; clean CI | One-time extract + push |
+| **B. Git submodule** (`packages/rfrct-core`) | No second package on npm/GitHub | Submodule UX; CI must `submodule update` |
 
 Below: **A** (recommended) + **git subtree** so Blod keeps history from this folder.
 
 ---
 
-## 1. Publish `@refrct/core` as its own repo (one-time)
+## 1. Publish `@rfrct/core` as its own repo (one-time)
 
-From the **refrct** repo root:
+From the **rfrct** repo root:
 
-**Fast path (already prepared in this monorepo):** the folder `refrct/.export/refract-core` is a ready git repo. Create the empty GitHub repo, then either run `cd .export/refract-core && git push -u origin main` or use `scripts/publish-refract-core.sh` (optional `GITHUB_TOKEN` to create the repo via API).
+**Fast path (already prepared in this monorepo):** the folder `rfrct/.export/rfrct-core` is a ready git repo. Create the empty GitHub repo, then either run `cd .export/rfrct-core && git push -u origin main` or use `scripts/publish-rfrct-core.sh` (optional `GITHUB_TOKEN` to create the repo via API).
 
 ```bash
 # Manual copy (if you are not using .export/)
-# From refrct repo root — copy the package, then turn it into its own repo.
-cp -a packages/refract-core /tmp/refract-core-export
-cd /tmp/refract-core-export
+# From rfrct repo root — copy the package, then turn it into its own repo.
+cp -a packages/rfrct-core /tmp/rfrct-core-export
+cd /tmp/rfrct-core-export
 git init
 git add .
-git commit -m "chore: extract @refrct/core from refrct monorepo"
+git commit -m "chore: extract @rfrct/core from rfrct monorepo"
 git branch -M main
-git remote add origin git@github.com:stellanjoh2/refract-core.git
+git remote add origin git@github.com:stellanjoh2/rfrct-core.git
 git push -u origin main
 ```
 
 Or mirror the folder without `git archive` (if you prefer a plain copy without history):
 
 ```bash
-cp -R packages/refract-core /tmp/refract-core-export
+cp -R packages/rfrct-core /tmp/rfrct-core-export
 # then git init / commit / push as above
 ```
 
-Ensure `packages/refract-core/package.json` has `"private": false` if you ever publish to npm; for Git-only installs, private is fine.
+Ensure `packages/rfrct-core/package.json` has `"private": false` if you ever publish to npm; for Git-only installs, private is fine.
 
 ---
 
 ## 2. Export Blod into `github.com/stellanjoh2/blod`
 
-Still from **refrct** repo root:
+Still from **rfrct** repo root:
 
 ```bash
 # Split history so the root of the new branch = former apps/blod/
@@ -55,7 +55,7 @@ git subtree split --prefix=apps/blod -b blod-standalone
 git worktree add ../blod-checkout blod-standalone
 cd ../blod-checkout
 # Replace package.json dependency (see package.standalone.json in this folder)
-cp /path/to/refrct/apps/blod/package.standalone.json ./package.json
+cp /path/to/rfrct/apps/blod/package.standalone.json ./package.json
 npm install
 npm run build
 cd ..
@@ -71,12 +71,12 @@ git push blod blod-standalone:main
 
 **From the monorepo root** you can use **`npm run push:blod`** (runs `scripts/push-blod-to-blod-repo.sh`) instead of the two git commands above. Pushes to `main` that change `apps/blod/**` can also auto-mirror via `.github/workflows/sync-blod-mirror-repo.yml` if the `rfrct` repo has secret **`BLOD_MIRROR_PUSH_TOKEN`** (PAT with push access to `stellanjoh2/blod`).
 
-**Important:** The first push from `subtree split` still has `"@refrct/core": "*"`, which **will not work** outside the workspace. Either:
+**Important:** The first push from `subtree split` still has `"@rfrct/core": "*"`, which **will not work** outside the workspace. Either:
 
 - Amend on `blod-standalone` before pushing (copy `package.standalone.json` → `package.json`, commit), or  
 - Push, then clone `blod`, replace `package.json`, commit, push again.
 
-Use `package.standalone.json` in this directory as the template (set `REFRCT_CORE_GIT_URL` to your `refract-core` repo).
+Use `package.standalone.json` in this directory as the template (set `REFRCT_CORE_GIT_URL` to your `rfrct-core` repo).
 
 ---
 
@@ -84,16 +84,16 @@ Use `package.standalone.json` in this directory as the template (set `REFRCT_COR
 
 After checkout of the `blod` repo:
 
-1. Copy `package.standalone.json` → `package.json` (edit the `@refrct/core` URL if needed).
+1. Copy `package.standalone.json` → `package.json` (edit the `@rfrct/core` URL if needed).
 2. `npm install`
 3. `npm run dev` (Vite serves on port **5174** per `vite.config.ts`).
 
-**SSH (deploy keys on the `blod` repo):** use the same key for both `blod` and `refract-core` if both are private, or HTTPS + PAT for npm install from GitHub.
+**SSH (deploy keys on the `blod` repo):** use the same key for both `blod` and `rfrct-core` if both are private, or HTTPS + PAT for npm install from GitHub.
 
 Example dependency:
 
 ```json
-"@refrct/core": "git+ssh://git@github.com/stellanjoh2/refract-core.git#main"
+"@rfrct/core": "git+ssh://git@github.com/stellanjoh2/rfrct-core.git#main"
 ```
 
 ---
@@ -109,18 +109,18 @@ Example dependency:
 
 **`https://<you>.github.io/blod/`** is built from the **`blod`** repository (`main`), via `.github/workflows/deploy-pages.yml` there.
 
-**Workflow:** work in **`blod`**, **`git push origin main`** — done. Ignore `refrct` unless you still keep a copy of `apps/blod` there and merge by hand (§2).
+**Workflow:** work in **`blod`**, **`git push origin main`** — done. Ignore `rfrct` unless you still keep a copy of `apps/blod` there and merge by hand (§2).
 
 ---
 
-## 6. Optional: remove `apps/blod` from refrct
+## 6. Optional: remove `apps/blod` from rfrct
 
-After `blod` and `refract-core` remotes are healthy:
+After `blod` and `rfrct-core` remotes are healthy:
 
 ```bash
-# In refrct monorepo — destructive; only when you are sure
+# In rfrct monorepo — destructive; only when you are sure
 git rm -r apps/blod
 # Adjust root package.json workspaces / scripts (dev:blod, build:blod)
 ```
 
-Keep `packages/refract-core` in refrct for **refract-editor**, or replace it with a **git submodule** pointing at `stellanjoh2/refract-core` so both apps share one source of truth.
+Keep `packages/rfrct-core` in rfrct for **rfrct-editor**, or replace it with a **git submodule** pointing at `stellanjoh2/rfrct-core` so both apps share one source of truth.

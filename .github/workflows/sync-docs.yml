@@ -1,4 +1,4 @@
-# Copies refract-editor dist into docs/ and commits to main — for the *legacy* Pages mode
+# Copies rfrct-editor dist into docs/ and commits to main — for the *legacy* Pages mode
 # "Deploy from a branch" → /docs (not for Actions-based Blod deploy).
 #
 # Not run on every push: direct pushes to protected main often fail with 403 from
@@ -29,7 +29,7 @@ jobs:
         run: |
           rm -rf docs
           mkdir -p docs
-          cp -a apps/refract-editor/dist/. docs/
+          cp -a apps/rfrct-editor/dist/. docs/
       - name: Commit and push docs
         run: |
           git config user.name "github-actions[bot]"

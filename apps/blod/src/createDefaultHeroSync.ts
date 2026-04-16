@@ -1,4 +1,4 @@
-import type { RendererSyncSource } from "@refrct/core";
+import type { RendererSyncSource } from "@rfrct/core";
 import { BLOD_BRAND_BONE, BLOD_BRAND_RED } from "./brandColor";
 import { publicUrl } from "./publicUrl";
 
@@ -7,7 +7,7 @@ import { publicUrl } from "./publicUrl";
  */
 export const HERO_DEFAULT_SVG_URL = publicUrl("Images/blood.svg");
 
-/** Default SVG / image zoom (`0.90`); not part of `RendererSyncSource` (matches refract-editor `imageScale`). */
+/** Default SVG / image zoom (`0.90`); not part of `RendererSyncSource` (matches rfrct-editor `imageScale`). */
 export const HERO_DEFAULT_IMAGE_SCALE = 0.90;
 
 /**

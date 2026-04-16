@@ -194,7 +194,7 @@ function rasterizeSubRect(
  * only occupies a small part of the intrinsic bitmap, re-rasterizes that region at full
  * resolution so zoom still has enough texels.
  */
-export function rasterizeSvgForRefract(
+export function rasterizeSvgForRfrct(
   img: HTMLImageElement,
   bufferW: number,
   bufferH: number,

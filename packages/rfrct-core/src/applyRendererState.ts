@@ -40,7 +40,7 @@ export type RendererSyncParams = {
   globalHueShift: number;
 };
 
-/** Mutable renderer fields the app syncs each frame (avoids importing `RefractRenderer` here). */
+/** Mutable renderer fields the app syncs each frame (avoids importing `RfrctRenderer` here). */
 export type RendererStateTarget = {
   bgColor: [number, number, number, number];
   transparentSceneBg: boolean;

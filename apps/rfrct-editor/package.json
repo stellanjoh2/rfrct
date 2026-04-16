@@ -1,5 +1,5 @@
 {
-  "name": "refrct-editor",
+  "name": "rfrct-editor",
   "private": true,
   "version": "0.0.1",
   "type": "module",
@@ -9,7 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@refrct/core": "*",
+    "@rfrct/core": "*",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },

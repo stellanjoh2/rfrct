@@ -57,7 +57,7 @@ function isPowerOfTwo(n: number): boolean {
   return n > 0 && (n & (n - 1)) === 0;
 }
 
-export class RefractRenderer {
+export class RfrctRenderer {
   private readonly gl: WebGL2RenderingContext;
   private readonly program: WebGLProgram;
   private readonly bloomPipeline: BloomPipeline;
@@ -329,7 +329,7 @@ export class RefractRenderer {
     };
     img.onerror = () => {
       console.warn(
-        "[refrct] Detail normal map missing or blocked — add public/Dist/14487-normal.jpg",
+        "[rfrct] Detail normal map missing or blocked — add public/Dist/14487-normal.jpg",
       );
     };
     img.src = `${import.meta.env.BASE_URL}Dist/14487-normal.jpg`;
@@ -693,7 +693,7 @@ export class RefractRenderer {
    * Opaque PNGs run the same de-matte as transparent, then composite onto the scene background;
    * edge pixels may differ slightly from a raw framebuffer read (intentional for cleaner edges).
    */
-  exportPng(params: PngExportParams, basename = "refrct", onComplete?: () => void): void {
+  exportPng(params: PngExportParams, basename = "rfrct", onComplete?: () => void): void {
     if (this.disposed || this.exportInProgress) {
       return;
     }
@@ -775,7 +775,7 @@ export class RefractRenderer {
   }
 
   /** @deprecated Use {@link exportPng} with `{ scale: 2, transparentBackground: false, region: "full" }`. */
-  capturePng2x(basename = "refrct"): void {
+  capturePng2x(basename = "rfrct"): void {
     this.exportPng(
       { scale: 2, transparentBackground: false, region: "full" },
       basename,

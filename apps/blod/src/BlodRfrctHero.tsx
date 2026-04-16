@@ -3,11 +3,11 @@ import {
   applyRendererState,
   buildRendererSyncParams,
   computeImageRect,
-  rasterizeSvgForRefract,
-  RefractRenderer,
+  rasterizeSvgForRfrct,
+  RfrctRenderer,
   stepLensMouseFluid,
   type RendererSyncSource,
-} from "@refrct/core";
+} from "@rfrct/core";
 import {
   useCallback,
   useEffect,
@@ -37,16 +37,16 @@ type Props = {
 };
 
 /**
- * Full-viewport WebGL hero: same renderer stack as refrct-editor (minus mic / VJ drive).
+ * Full-viewport WebGL hero: same renderer stack as rfrct-editor (minus mic / VJ drive).
  */
-export function BlodRefractHero({
+export function BlodRfrctHero({
   syncSource,
   imageScale,
   onPatchSync,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
-  const rendererRef = useRef<RefractRenderer | null>(null);
+  const rendererRef = useRef<RfrctRenderer | null>(null);
   const [imgDims, setImgDims] = useState<{ w: number; h: number } | null>(null);
   /** Natural size of hero flash PNG (GPU underlay, same distorted UV as SVG). */
   const underlayDimsRef = useRef<{ w: number; h: number } | null>(null);
@@ -211,9 +211,9 @@ export function BlodRefractHero({
     const wrap = wrapRef.current;
     if (!canvas || !wrap) return;
 
-    let renderer: RefractRenderer;
+    let renderer: RfrctRenderer;
     try {
-      renderer = new RefractRenderer(canvas);
+      renderer = new RfrctRenderer(canvas);
     } catch {
       return;
     }
@@ -352,7 +352,7 @@ export function BlodRefractHero({
       if (!r || !canvas) return;
       const bw = Math.max(1, canvas.width);
       const bh = Math.max(1, canvas.height);
-      const raster = rasterizeSvgForRefract(
+      const raster = rasterizeSvgForRfrct(
         img,
         bw,
         bh,

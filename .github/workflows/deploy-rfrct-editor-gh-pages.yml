@@ -1,4 +1,4 @@
-# Publishes the Refrct distortion tool (apps/refract-editor) to GitHub Pages.
+# Publishes the Rfrct distortion tool (apps/rfrct-editor) to GitHub Pages.
 #
 # Repo → Settings → Pages → Build and deployment → Source: GitHub Actions,
 # then select this workflow (or allow it to run on push to main).
@@ -15,7 +15,7 @@
 #
 # Order: configure-pages → build → upload artifact → deploy job fetches artifact.
 
-name: Deploy Refract editor to GitHub Pages
+name: Deploy Rfrct editor to GitHub Pages
 
 on:
   push:
@@ -28,7 +28,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages-refract-editor
+  group: pages-rfrct-editor
   cancel-in-progress: false
 
 jobs:
@@ -61,27 +61,27 @@ jobs:
           uname -a
 
       - name: Typecheck editor (tsc)
-        working-directory: apps/refract-editor
+        working-directory: apps/rfrct-editor
         run: npx tsc --noEmit
 
       - name: Build editor bundle (Vite)
-        working-directory: apps/refract-editor
+        working-directory: apps/rfrct-editor
         run: npx vite build
 
       # Pages rejects artifacts without o+rx on dirs / o+r on files (deployment_perms_error on deploy).
       - name: Normalize dist permissions for Pages
-        run: chmod -R +rX apps/refract-editor/dist
+        run: chmod -R +rX apps/rfrct-editor/dist
 
       - name: Verify production bundle
         run: |
-          test -f apps/refract-editor/dist/index.html
-          grep -q 'assets/index-.*\.js' apps/refract-editor/dist/index.html || (echo "missing hashed JS"; exit 1)
-          ! grep -q '/src/main.tsx' apps/refract-editor/dist/index.html || (echo "dev index leaked"; exit 1)
+          test -f apps/rfrct-editor/dist/index.html
+          grep -q 'assets/index-.*\.js' apps/rfrct-editor/dist/index.html || (echo "missing hashed JS"; exit 1)
+          ! grep -q '/src/main.tsx' apps/rfrct-editor/dist/index.html || (echo "dev index leaked"; exit 1)
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v5
         with:
-          path: apps/refract-editor/dist
+          path: apps/rfrct-editor/dist
 
   deploy:
     runs-on: ubuntu-latest

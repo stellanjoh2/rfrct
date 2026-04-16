@@ -15,7 +15,7 @@ export default defineConfig(({ command }) => ({
   server: {
     // Listen on all interfaces so http://localhost:5174 and http://127.0.0.1:5174 both work.
     host: true,
-    // 5173 = refrct-editor; Blod prefers 5174 so both can run at once.
+    // 5173 = rfrct-editor; Blod prefers 5174 so both can run at once.
     port: 5174,
     strictPort: false,
   },

@@ -1,26 +1,26 @@
-# Builds refract-editor and uploads dist/ as a downloadable Actions artifact.
+# Builds rfrct-editor and uploads dist/ as a downloadable Actions artifact.
 # Does NOT publish to GitHub Pages — only "Deploy Blod to GitHub Pages" should use
 # upload-pages-artifact for this repo (one live URL: https://<user>.github.io/<repo>/).
 
-name: Build refract-editor (artifact)
+name: Build rfrct-editor (artifact)
 
 on:
   push:
     branches: [main]
     paths:
-      - "apps/refract-editor/**"
-      - "packages/refract-core/**"
+      - "apps/rfrct-editor/**"
+      - "packages/rfrct-core/**"
       - "package.json"
       - "package-lock.json"
-      - ".github/workflows/build-refract-editor-artifact.yml"
+      - ".github/workflows/build-rfrct-editor-artifact.yml"
   pull_request:
     branches: [main]
     paths:
-      - "apps/refract-editor/**"
-      - "packages/refract-core/**"
+      - "apps/rfrct-editor/**"
+      - "packages/rfrct-core/**"
       - "package.json"
       - "package-lock.json"
-      - ".github/workflows/build-refract-editor-artifact.yml"
+      - ".github/workflows/build-rfrct-editor-artifact.yml"
   workflow_dispatch:
 
 permissions:
@@ -39,17 +39,17 @@ jobs:
           cache-dependency-path: package-lock.json
       - run: npm ci
       - name: Typecheck editor (tsc)
-        working-directory: apps/refract-editor
+        working-directory: apps/rfrct-editor
         run: npx tsc --noEmit
       - name: Build editor bundle (Vite)
-        working-directory: apps/refract-editor
+        working-directory: apps/rfrct-editor
         run: npx vite build
       - name: Verify production bundle (not dev index)
         run: |
-          test -f apps/refract-editor/dist/index.html
-          grep -q 'assets/index-.*\.js' apps/refract-editor/dist/index.html || (echo "dist/index.html missing hashed JS bundle — check vite build"; exit 1)
-          ! grep -q '/src/main.tsx' apps/refract-editor/dist/index.html || (echo "dev index leaked into dist"; exit 1)
+          test -f apps/rfrct-editor/dist/index.html
+          grep -q 'assets/index-.*\.js' apps/rfrct-editor/dist/index.html || (echo "dist/index.html missing hashed JS bundle — check vite build"; exit 1)
+          ! grep -q '/src/main.tsx' apps/rfrct-editor/dist/index.html || (echo "dev index leaked into dist"; exit 1)
       - uses: actions/upload-artifact@v4
         with:
-          name: refract-editor-dist
-          path: apps/refract-editor/dist
+          name: rfrct-editor-dist
+          path: apps/rfrct-editor/dist

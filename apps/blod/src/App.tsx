@@ -1,8 +1,8 @@
-import type { RendererSyncSource } from "@refrct/core";
+import type { RendererSyncSource } from "@rfrct/core";
 import { useCallback, useEffect, useState, type CSSProperties } from "react";
 import { BlodGifOverlay } from "./BlodGifOverlay";
 import { BlodHeroTeaserVideo } from "./BlodHeroTeaserVideo";
-import { BlodRefractHero } from "./BlodRefractHero";
+import { BlodRfrctHero } from "./BlodRfrctHero";
 import {
   createDefaultHeroSync,
   HERO_DEFAULT_IMAGE_SCALE,
@@ -128,7 +128,7 @@ export function App() {
 
       <div className="blod-hero-fixed">
         <BlodHeroTeaserVideo />
-        <BlodRefractHero
+        <BlodRfrctHero
           syncSource={activeSync}
           imageScale={heroImageScale}
           onPatchSync={import.meta.env.DEV ? patchDevSync : undefined}
