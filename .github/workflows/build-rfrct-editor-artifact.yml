@@ -41,9 +41,16 @@ jobs:
       # Workaround for npm optional-deps bug that can skip Rollup's Linux binary on runners.
       - name: Ensure Rollup Linux binary is present
         if: runner.os == 'Linux'
-        run: npm i --no-save @rollup/rollup-linux-x64-gnu
+        run: |
+          node -e "require('\@rollup/rollup-linux-x64-gnu')" 2>/dev/null || npm i --no-save @rollup/rollup-linux-x64-gnu
+          node -e "require('\@rollup/rollup-linux-x64-gnu'); console.log('rollup linux binary: ok')"
       - name: Build editor (tsc + Vite via workspace script)
-        run: npm run build -w rfrct-editor
+        run: |
+          npm run build -w rfrct-editor || (
+            echo "first build failed, reinstalling Rollup Linux binary and retrying once" &&
+            npm i --no-save @rollup/rollup-linux-x64-gnu &&
+            npm run build -w rfrct-editor
+          )
       - name: Verify production bundle (not dev index)
         run: |
           test -f apps/rfrct-editor/dist/index.html

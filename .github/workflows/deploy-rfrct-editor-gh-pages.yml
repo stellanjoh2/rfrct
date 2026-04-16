@@ -55,7 +55,9 @@ jobs:
       # Workaround for npm optional-deps bug that can skip Rollup's Linux binary on runners.
       - name: Ensure Rollup Linux binary is present
         if: runner.os == 'Linux'
-        run: npm i --no-save @rollup/rollup-linux-x64-gnu
+        run: |
+          node -e "require('\@rollup/rollup-linux-x64-gnu')" 2>/dev/null || npm i --no-save @rollup/rollup-linux-x64-gnu
+          node -e "require('\@rollup/rollup-linux-x64-gnu'); console.log('rollup linux binary: ok')"
 
       # Split so logs show whether tsc or Vite failed (single `npm run build` hides the boundary).
       - name: Diagnostics
@@ -65,7 +67,12 @@ jobs:
           uname -a
 
       - name: Build editor (tsc + Vite via workspace script)
-        run: npm run build -w rfrct-editor
+        run: |
+          npm run build -w rfrct-editor || (
+            echo "first build failed, reinstalling Rollup Linux binary and retrying once" &&
+            npm i --no-save @rollup/rollup-linux-x64-gnu &&
+            npm run build -w rfrct-editor
+          )
 
       # Pages rejects artifacts without o+rx on dirs / o+r on files (deployment_perms_error on deploy).
       - name: Normalize dist permissions for Pages
