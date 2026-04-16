@@ -5,6 +5,22 @@
 name: Build refract-editor (artifact)
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/refract-editor/**"
+      - "packages/refract-core/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/build-refract-editor-artifact.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "apps/refract-editor/**"
+      - "packages/refract-core/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/build-refract-editor-artifact.yml"
   workflow_dispatch:
 
 permissions:
