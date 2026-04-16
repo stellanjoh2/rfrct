@@ -25,8 +25,6 @@ export type LensSectionProps = {
   setRefract: (v: number) => void;
   edgeSoft: number;
   setEdgeSoft: (v: number) => void;
-  detailDistortionEnabled: boolean;
-  setDetailDistortionEnabled: (v: boolean) => void;
   detailDistortionStrength: number;
   setDetailDistortionStrength: (v: number) => void;
   detailDistortionScale: number;
@@ -62,8 +60,6 @@ export function LensSection({
   setFilterScale,
   filterMotionSpeed,
   setFilterMotionSpeed,
-  detailDistortionEnabled,
-  setDetailDistortionEnabled,
   detailDistortionStrength,
   setDetailDistortionStrength,
   detailDistortionScale,
@@ -269,33 +265,6 @@ export function LensSection({
       </section>
       <h2>Detailed distortion</h2>
       <section>
-        <p className="field-hint">
-          Extra high-frequency warp from a tangent-space{" "}
-          <strong>normal map</strong> (layered on lens refraction). The same
-          sample also drives a <strong>dirt / stain</strong> mask from{" "}
-          <code className="field-hint-code">length(N.xy)</code> (slant) plus a
-          bit of <code className="field-hint-code">1 − Nz</code> — normal maps
-          are usually Z-heavy, so XY carries the visible variation. Multiply
-          dirt colour in the lens. File:{" "}
-          <code className="field-hint-code">Dist/14487-normal.jpg</code>.
-        </p>
-        <div className="field field--checkbox field--audio-toggles">
-          <button
-            type="button"
-            className={`mic-toggle ${detailDistortionEnabled ? "mic-toggle--on" : ""}`}
-            onClick={() =>
-              setDetailDistortionEnabled(!detailDistortionEnabled)
-            }
-            aria-pressed={detailDistortionEnabled}
-            aria-label={
-              detailDistortionEnabled
-                ? "Turn off detailed distortion"
-                : "Turn on detailed distortion"
-            }
-          >
-            Detailed distortion
-          </button>
-        </div>
         <div className="field">
           <label htmlFor="detail-distort-strength">
             Detail strength
@@ -311,7 +280,6 @@ export function LensSection({
             onChange={(e) =>
               setDetailDistortionStrength(Number(e.target.value))
             }
-            disabled={!detailDistortionEnabled}
             aria-label="Detailed distortion strength"
           />
         </div>
@@ -331,7 +299,6 @@ export function LensSection({
             step={0.1}
             value={detailDistortionScale}
             onChange={(e) => setDetailDistortionScale(Number(e.target.value))}
-            disabled={!detailDistortionEnabled}
             aria-label="Detailed distortion texture tiling"
           />
         </div>
@@ -348,7 +315,6 @@ export function LensSection({
             step={0.02}
             value={detailDirtStrength}
             onChange={(e) => setDetailDirtStrength(Number(e.target.value))}
-            disabled={!detailDistortionEnabled}
             aria-label="Dirt stain strength from normal map"
           />
         </div>
@@ -359,7 +325,6 @@ export function LensSection({
               type="color"
               value={detailDirtHex}
               onChange={(e) => setDetailDirtHex(e.target.value)}
-              disabled={!detailDistortionEnabled}
               aria-label="Dirt multiply colour"
             />
             <input
@@ -367,7 +332,6 @@ export function LensSection({
               value={detailDirtHex}
               onChange={(e) => setDetailDirtHex(e.target.value)}
               spellCheck={false}
-              disabled={!detailDistortionEnabled}
               aria-label="Dirt colour hex"
             />
           </div>

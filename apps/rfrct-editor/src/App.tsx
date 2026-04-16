@@ -95,13 +95,12 @@ export function App() {
   const [filterStrength, setFilterStrength] = useState(0);
   const [filterScale, setFilterScale] = useState(0.5);
   const [filterMotionSpeed, setFilterMotionSpeed] = useState(1);
-  const [detailDistortionEnabled, setDetailDistortionEnabled] =
-    useState(false);
   const [detailDistortionStrength, setDetailDistortionStrength] =
-    useState(0.55);
+    useState(0);
   const [detailDistortionScale, setDetailDistortionScale] = useState(3.2);
   const [detailDirtStrength, setDetailDirtStrength] = useState(0);
   const [detailDirtHex, setDetailDirtHex] = useState("#665648");
+  const detailDistortionEnabled = detailDistortionStrength > 1e-4;
   const [lensMouseInput, setLensMouseInput] = useState(false);
   /** 0 = light / snappy follow, 1 = heavy / sluggish liquid. */
   const [fluidDensity, setFluidDensity] = useState(0.45);
@@ -197,6 +196,17 @@ export function App() {
   const mouseFluidVelRef = useRef({ x: 0, y: 0 });
   const micLoopPrevTRef = useRef(performance.now());
   const mouseLoopPrevTRef = useRef(performance.now());
+  const zoomFxActiveRef = useRef(false);
+
+  const setZoomFxActive = useCallback(
+    (active: boolean) => {
+      zoomFxActiveRef.current = active;
+      const r = rendererRef.current;
+      if (!r) return;
+      r.setAnimationTimeFrozen(active);
+    },
+    [],
+  );
 
   useEffect(() => {
     if (!lensMouseInput) return;
@@ -223,6 +233,10 @@ export function App() {
     const degPerSec = 7.5;
     const envDeg = 130;
     const loop = () => {
+      if (zoomFxActiveRef.current) {
+        id = requestAnimationFrame(loop);
+        return;
+      }
       const t = performance.now() * 0.001;
       let deg = (t * degPerSec) % 360;
       if (solidOverlayHueAudio && micDrivingRefraction) {
@@ -433,11 +447,13 @@ export function App() {
       if (r) {
         r.blob.speed = 0;
       }
+      setZoomFxActive(true);
       if (zoomResumeTimerRef.current !== null) {
         window.clearTimeout(zoomResumeTimerRef.current);
       }
       zoomResumeTimerRef.current = window.setTimeout(() => {
         zoomResumeTimerRef.current = null;
+        setZoomFxActive(false);
         const rr = rendererRef.current;
         const src = latestSyncRef.current;
         if (!rr || !src) return;
@@ -461,6 +477,7 @@ export function App() {
       if (zoomResumeTimerRef.current !== null) {
         window.clearTimeout(zoomResumeTimerRef.current);
       }
+      setZoomFxActive(false);
       const rr = rendererRef.current;
       const src = latestSyncRef.current;
       if (rr && src) {
@@ -475,7 +492,7 @@ export function App() {
       }
       el.removeEventListener("wheel", onWheel);
     };
-  }, []);
+  }, [setZoomFxActive]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -493,6 +510,7 @@ export function App() {
     }
     setWebglError(null);
     rendererRef.current = renderer;
+    renderer.setAnimationTimeFrozen(zoomFxActiveRef.current);
     renderer.blob.centerX = blobCenterRef.current.x;
     renderer.blob.centerY = blobCenterRef.current.y;
     renderer.startLoop();
@@ -659,30 +677,37 @@ export function App() {
         const dt = Math.min(0.05, (now - micLoopPrevTRef.current) / 1000);
         micLoopPrevTRef.current = now;
         const timeSec = now * 0.001;
+        const freezeZoomFx = zoomFxActiveRef.current;
 
         let driven: RendererSyncSource;
         if (raw.lensMouseInput) {
           const target = mouseLensTargetRef.current;
           const pos = mouseFluidPosRef.current;
           const vel = mouseFluidVelRef.current;
-          const step = stepLensMouseFluid(
-            dt,
-            target,
-            pos,
-            vel,
-            raw.fluidDensity,
-            timeSec,
-          );
+          const step = freezeZoomFx
+            ? { x: pos.x, y: pos.y, vx: 0, vy: 0 }
+            : stepLensMouseFluid(
+                dt,
+                target,
+                pos,
+                vel,
+                raw.fluidDensity,
+                timeSec,
+              );
           mouseFluidPosRef.current = { x: step.x, y: step.y };
           mouseFluidVelRef.current = { x: step.vx, y: step.vy };
           blobCenterRef.current = { x: step.x, y: step.y };
           driven = { ...raw, blobCenterX: step.x, blobCenterY: step.y };
         } else if (vjMode && micDrivingRefraction) {
-          driven = applyVjDrive(raw, timeSec);
-          blobCenterRef.current = {
-            x: driven.blobCenterX,
-            y: driven.blobCenterY,
-          };
+          if (freezeZoomFx) {
+            driven = raw;
+          } else {
+            driven = applyVjDrive(raw, timeSec);
+            blobCenterRef.current = {
+              x: driven.blobCenterX,
+              y: driven.blobCenterY,
+            };
+          }
         } else {
           driven = raw;
         }
@@ -701,7 +726,13 @@ export function App() {
     };
     id = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(id);
-  }, [micDrivingRefraction, micRefractBoost, vjMode, lensMouseInput, fluidDensity]);
+  }, [
+    micDrivingRefraction,
+    micRefractBoost,
+    vjMode,
+    lensMouseInput,
+    fluidDensity,
+  ]);
 
   useEffect(() => {
     if (!lensMouseInput || micDrivingRefraction) {
@@ -713,19 +744,22 @@ export function App() {
       const dt = Math.min(0.05, (now - mouseLoopPrevTRef.current) / 1000);
       mouseLoopPrevTRef.current = now;
       const timeSec = now * 0.001;
+      const freezeZoomFx = zoomFxActiveRef.current;
       const r = rendererRef.current;
       if (r) {
         const target = mouseLensTargetRef.current;
         const pos = mouseFluidPosRef.current;
         const vel = mouseFluidVelRef.current;
-        const step = stepLensMouseFluid(
-          dt,
-          target,
-          pos,
-          vel,
-          fluidDensity,
-          timeSec,
-        );
+        const step = freezeZoomFx
+          ? { x: pos.x, y: pos.y, vx: 0, vy: 0 }
+          : stepLensMouseFluid(
+              dt,
+              target,
+              pos,
+              vel,
+              fluidDensity,
+              timeSec,
+            );
         mouseFluidPosRef.current = { x: step.x, y: step.y };
         mouseFluidVelRef.current = { x: step.vx, y: step.vy };
         blobCenterRef.current = { x: step.x, y: step.y };
@@ -1164,7 +1198,6 @@ export function App() {
     setFilterStrength(d.filterStrength);
     setFilterScale(d.filterScale);
     setFilterMotionSpeed(d.filterMotionSpeed);
-    setDetailDistortionEnabled(d.detailDistortionEnabled);
     setDetailDistortionStrength(d.detailDistortionStrength);
     setDetailDistortionScale(d.detailDistortionScale);
     setDetailDirtStrength(d.detailDirtStrength);
@@ -1282,7 +1315,6 @@ export function App() {
         filterMotionSpeed,
         setFilterMotionSpeed,
         detailDistortionEnabled,
-        setDetailDistortionEnabled,
         detailDistortionStrength,
         setDetailDistortionStrength,
         detailDistortionScale,

@@ -221,7 +221,7 @@ export function parseSettingsSnapshot(
     filterScale: num(p.filterScale, 0.5),
     filterMotionSpeed: num(p.filterMotionSpeed, 1),
     detailDistortionEnabled: bool(p.detailDistortionEnabled, false),
-    detailDistortionStrength: num(p.detailDistortionStrength, 0.55),
+    detailDistortionStrength: num(p.detailDistortionStrength, 0),
     detailDistortionScale: num(p.detailDistortionScale, 3.2),
     detailDirtStrength: num(p.detailDirtStrength, 0),
     detailDirtHex: str(p.detailDirtHex, "#665648"),

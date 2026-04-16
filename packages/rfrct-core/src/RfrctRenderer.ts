@@ -68,6 +68,8 @@ export class RfrctRenderer {
   private raf = 0;
   /** Monotonic shader time (seconds); advances by dt × speed so pause does not reset phase. */
   private animationTime = 0;
+  private animationTimeFrozen = false;
+  private frozenGrainTime = 0;
   private lastFrameTime = performance.now();
   private onVisibilityChange: (() => void) | null = null;
   /** Skips the per-frame draw so an export render is not overwritten before `toBlob`. */
@@ -171,6 +173,16 @@ export class RfrctRenderer {
 
   /** 0–1 — overlay film grain on final composite (Photoshop-style Overlay; neutral at ~50% grain). */
   grainStrength = 0;
+
+  setAnimationTimeFrozen(frozen: boolean): void {
+    if (this.animationTimeFrozen === frozen) return;
+    this.animationTimeFrozen = frozen;
+    if (frozen) {
+      this.frozenGrainTime = performance.now() * 0.001;
+    } else {
+      this.lastFrameTime = performance.now();
+    }
+  }
 
     constructor(canvas: HTMLCanvasElement) {
     const gl = canvas.getContext(
@@ -616,13 +628,17 @@ export class RfrctRenderer {
     if (dt > 0.25) {
       dt = 0.016;
     }
-    const speed = Math.max(0, this.blob.speed);
-    this.animationTime += dt * speed;
-    this.vjDupScrollTime += dt * Math.max(0, this.vjDupScrollSpeed);
+    if (!this.animationTimeFrozen) {
+      const speed = Math.max(0, this.blob.speed);
+      this.animationTime += dt * speed;
+      this.vjDupScrollTime += dt * Math.max(0, this.vjDupScrollSpeed);
+    }
 
     const bloomOn = this.bloom.strength > 1e-4;
     const grainOn = this.grainStrength > 1e-4;
-    const grainTime = now * 0.001;
+    const grainTime = this.animationTimeFrozen
+      ? this.frozenGrainTime
+      : now * 0.001;
 
     const clear: [number, number, number, number] = this.bgColor;
 
