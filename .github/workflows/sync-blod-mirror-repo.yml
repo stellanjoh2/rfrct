@@ -2,8 +2,8 @@
 # so GitHub Pages (https://stellanjoh2.github.io/blod/) rebuilds — same end result as
 # `bash scripts/push-blod-to-blod-repo.sh` locally.
 #
-# Optional: add BLOD_MIRROR_PUSH_TOKEN (Settings → Secrets and variables → Actions) to push the subtree
-# to https://github.com/stellanjoh2/blod . If unset, the workflow still succeeds and only skips the push.
+# Optional: add BLOD_MIRROR_PUSH_TOKEN or BLOD_MIRROR_TOKEN (Settings → Secrets → Actions) to push the
+# subtree to https://github.com/stellanjoh2/blod . If unset, the workflow still succeeds and only skips the push.
 #   • Fine-grained PAT: Contents read+write on stellanjoh2/blod only, or classic `repo` scope.
 name: Sync Blod folder to stellanjoh2/blod
 
@@ -40,11 +40,13 @@ jobs:
 
       - name: Push to stellanjoh2/blod
         env:
-          TOKEN: ${{ secrets.BLOD_MIRROR_PUSH_TOKEN }}
+          TOKEN_PUSH: ${{ secrets.BLOD_MIRROR_PUSH_TOKEN }}
+          TOKEN_ALT: ${{ secrets.BLOD_MIRROR_TOKEN }}
         run: |
           set -euo pipefail
-          if [ -z "${TOKEN:-}" ]; then
-            echo "::warning::BLOD_MIRROR_PUSH_TOKEN not set — skipping push to stellanjoh2/blod (mirror is optional)."
+          TOKEN="${TOKEN_PUSH:-${TOKEN_ALT:-}}"
+          if [ -z "${TOKEN}" ]; then
+            echo "::warning::Set BLOD_MIRROR_PUSH_TOKEN or BLOD_MIRROR_TOKEN — skipping push to stellanjoh2/blod (mirror is optional)."
             exit 0
           fi
           git push "https://x-access-token:${TOKEN}@github.com/stellanjoh2/blod.git" blod-standalone:main
