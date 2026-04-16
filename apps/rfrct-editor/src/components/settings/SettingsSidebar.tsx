@@ -14,6 +14,8 @@ import type { ExportSectionProps } from "./ExportSection";
 import type { LensSectionProps } from "./LensSection";
 import { VideoBackdropSection } from "./VideoBackdropSection";
 import type { VideoBackdropSectionProps } from "./VideoBackdropSection";
+import { ShareSettingsSection } from "./ShareSettingsSection";
+import type { ShareSettingsSectionProps } from "./ShareSettingsSection";
 
 export type SettingsSidebarProps = {
   uiVisible: boolean;
@@ -25,6 +27,7 @@ export type SettingsSidebarProps = {
   effects: EffectsSectionProps;
   audio: AudioSectionProps;
   videoBackdrop: VideoBackdropSectionProps;
+  shareSection: ShareSettingsSectionProps;
   exportSection: ExportSectionProps;
 };
 
@@ -38,6 +41,7 @@ export function SettingsSidebar({
   effects,
   audio,
   videoBackdrop,
+  shareSection,
   exportSection,
 }: SettingsSidebarProps) {
   useEffect(() => {
@@ -84,6 +88,7 @@ export function SettingsSidebar({
       <EffectsSection {...effects} />
       <AudioSection {...audio} />
       <VideoBackdropSection {...videoBackdrop} />
+      <ShareSettingsSection {...shareSection} />
       <ExportSection {...exportSection} />
       <div className="shortcut-hint">
         <p className="shortcut-hint__title">Mouse (canvas)</p>
