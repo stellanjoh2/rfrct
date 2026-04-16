@@ -38,6 +38,10 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
       - run: npm ci
+      # Workaround for npm optional-deps bug that can skip Rollup's Linux binary on runners.
+      - name: Ensure Rollup Linux binary is present
+        if: runner.os == 'Linux'
+        run: npm i --no-save @rollup/rollup-linux-x64-gnu
       - name: Build editor (tsc + Vite via workspace script)
         run: npm run build -w rfrct-editor
       - name: Verify production bundle (not dev index)

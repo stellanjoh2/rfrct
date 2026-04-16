@@ -52,6 +52,10 @@ jobs:
           cache-dependency-path: package-lock.json
 
       - run: npm ci
+      # Workaround for npm optional-deps bug that can skip Rollup's Linux binary on runners.
+      - name: Ensure Rollup Linux binary is present
+        if: runner.os == 'Linux'
+        run: npm i --no-save @rollup/rollup-linux-x64-gnu
 
       # Split so logs show whether tsc or Vite failed (single `npm run build` hides the boundary).
       - name: Diagnostics
