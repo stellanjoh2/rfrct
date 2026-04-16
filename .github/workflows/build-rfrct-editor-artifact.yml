@@ -38,12 +38,8 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
       - run: npm ci
-      - name: Typecheck editor (tsc)
-        working-directory: apps/rfrct-editor
-        run: npx tsc --noEmit
-      - name: Build editor bundle (Vite)
-        working-directory: apps/rfrct-editor
-        run: npx vite build
+      - name: Build editor (tsc + Vite via workspace script)
+        run: npm run build -w rfrct-editor
       - name: Verify production bundle (not dev index)
         run: |
           test -f apps/rfrct-editor/dist/index.html
