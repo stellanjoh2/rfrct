@@ -91,7 +91,11 @@ export function DevBlobControls({
     }
   };
 
-  const showWaves = s.shapeMode === 0 || s.shapeMode === 3;
+  const showWaves =
+    s.shapeMode === 0 ||
+    s.shapeMode === 3 ||
+    s.shapeMode === 4 ||
+    s.shapeMode === 5;
   const filterOff = s.filterMode === 0;
   const dirtHex = s.detailDirtHex ?? "#665648";
   const bgHex = s.bgHex || "#000000";
@@ -339,6 +343,8 @@ export function DevBlobControls({
             <option value={1}>Cube (3D)</option>
             <option value={2}>Metaballs</option>
             <option value={3}>Water</option>
+            <option value={4}>Reeds (vertical)</option>
+            <option value={5}>Reeds (horizontal)</option>
           </select>
           <div className="blod-dev-svg-actions">
             <input
@@ -498,6 +504,7 @@ export function DevBlobControls({
             <option value={0}>None</option>
             <option value={1}>Reeds — horizontal</option>
             <option value={5}>Reeds — vertical</option>
+            <option value={10}>Reeds — cross (fluted)</option>
             <option value={2}>Bullseye rings</option>
             <option value={3}>Speckle grain</option>
             <option value={4}>Halftone dots</option>

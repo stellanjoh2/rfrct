@@ -91,7 +91,7 @@ export function App() {
   const [waveAmp, setWaveAmp] = useState(0.16);
   const [refract, setRefract] = useState(0.12);
   const [edgeSoft, setEdgeSoft] = useState(0.012);
-  const [frostBlur, setFrostBlur] = useState(2);
+  const [frostBlur, setFrostBlur] = useState(0);
   const [blurQuality, setBlurQuality] = useState(1);
   const [globalHueShift, setGlobalHueShift] = useState(0);
   const [grainStrength, setGrainStrength] = useState(0);
@@ -431,6 +431,16 @@ export function App() {
       if (e.key === "4") {
         e.preventDefault();
         setShapeMode(3);
+        return;
+      }
+      if (e.key === "5") {
+        e.preventDefault();
+        setShapeMode(4);
+        return;
+      }
+      if (e.key === "6") {
+        e.preventDefault();
+        setShapeMode(5);
         return;
       }
     };

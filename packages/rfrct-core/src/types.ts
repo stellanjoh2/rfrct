@@ -1,12 +1,12 @@
-/** 0 = blob, 1 = 3D cube slice, 2 = metaballs, 3 = water (rolling waves) */
-export type ShapeMode = 0 | 1 | 2 | 3;
+/** 0 = blob, 1 = 3D cube slice, 2 = metaballs, 3 = water, 4 = vertical reeds, 5 = horizontal reeds */
+export type ShapeMode = 0 | 1 | 2 | 3 | 4 | 5;
 
 /**
  * Full-screen glass displacement layered after the lens (screen-space UV offset).
  * 0 = none, 1 = horizontal reeds, 2 = bullseye, 3 = speckle, 4 = halftone dots, 5 = vertical reeds,
- * 6 = pixels uniform, 7 = pixels random, 8 = bubbles, 9 = dots
+ * 6 = pixels uniform, 7 = pixels random, 8 = bubbles, 9 = dots, 10 = cross fluted (both reed axes)
  */
-export type FilterMode = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
+export type FilterMode = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
 
 export type BlobParams = {
   centerX: number;

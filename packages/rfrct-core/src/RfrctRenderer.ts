@@ -99,7 +99,7 @@ export class RfrctRenderer {
     speed: 1,
     refractStrength: 0.12,
     edgeSoftness: 0.012,
-    frostBlur: 2,
+    frostBlur: 0,
     blurQuality: 1,
     chroma: 0,
     shapeMode: 0,

@@ -88,6 +88,8 @@ export function LensSection({
             <option value={1}>Cube (3D)</option>
             <option value={2}>Metaballs</option>
             <option value={3}>Water</option>
+            <option value={4}>Reeds (vertical)</option>
+            <option value={5}>Reeds (horizontal)</option>
           </select>
         </div>
         <div className="field">
@@ -131,7 +133,10 @@ export function LensSection({
             Pause animation
           </label>
         </div>
-        {(shapeMode === 0 || shapeMode === 3) && (
+        {(shapeMode === 0 ||
+          shapeMode === 3 ||
+          shapeMode === 4 ||
+          shapeMode === 5) && (
           <>
             <div className="field">
               <label>
@@ -208,6 +213,7 @@ export function LensSection({
             <option value={0}>None</option>
             <option value={1}>Reeds - Horizontal</option>
             <option value={5}>Reeds - Vertical</option>
+            <option value={10}>Reeds - Cross (fluted)</option>
             <option value={2}>Bullseye rings</option>
             <option value={3}>Speckle grain</option>
             <option value={4}>Halftone dots</option>

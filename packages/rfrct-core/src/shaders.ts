@@ -54,10 +54,10 @@ uniform float u_blurQuality;
 uniform float u_globalHueShift;
 
 uniform float u_chroma;
-/** 0 = blob, 1 = rotating 3D box SDF, 2 = metaballs, 3 = water (traveling surface waves) */
+/** 0 = blob, 1 = rotating 3D box SDF, 2 = metaballs, 3 = water, 4 = vertical reeds, 5 = horizontal reeds */
 uniform int u_shapeMode;
 
-/** 0 = none, 1 = horizontal reeds, 2 = bullseye, 3 = speckle, 4 = halftone dots, 5 = vertical reeds, 6 = pixels uniform, 7 = pixels random, 8 = bubbles, 9 = dots */
+/** 0 = none, 1 = horizontal reeds, 2 = bullseye, 3 = speckle, 4 = halftone dots, 5 = vertical reeds, 6 = pixels uniform, 7 = pixels random, 8 = bubbles, 9 = dots, 10 = cross fluted */
 uniform int u_filterMode;
 uniform float u_filterStrength;
 /** 0 = finest features, 1 = coarsest (all modes use the same convention in filterGlass). */
@@ -250,6 +250,37 @@ float waterSdf(vec2 p) {
   return r - boundary;
 }
 
+/**
+ * Primary lens as vertical flutes: effective radius ripples with x (reeds run along +y).
+ * Wave frequency → reed density; wave strength → flute depth (matches blob/water sliders).
+ */
+float verticalReedsSdf(vec2 p) {
+  float r = length(p);
+  float R = u_blobRadius;
+  float t = u_time;
+  float wf = clamp(u_waveFreq, 1.0, 16.0);
+  float wfN = (wf - 1.0) / 15.0;
+  float reedCount = mix(3.5, 22.0, wfN);
+  float k = reedCount * 3.14159265359 / max(R, 1e-4);
+  float a = u_waveAmp * R * 0.92;
+  float ripple = a * sin(p.x * k + t * 0.38);
+  return r - (R + ripple);
+}
+
+/** Horizontal flutes: radius ripples with y (reeds run along +x). */
+float horizontalReedsSdf(vec2 p) {
+  float r = length(p);
+  float R = u_blobRadius;
+  float t = u_time;
+  float wf = clamp(u_waveFreq, 1.0, 16.0);
+  float wfN = (wf - 1.0) / 15.0;
+  float reedCount = mix(3.5, 22.0, wfN);
+  float k = reedCount * 3.14159265359 / max(R, 1e-4);
+  float a = u_waveAmp * R * 0.92;
+  float ripple = a * sin(p.y * k + t * 0.38);
+  return r - (R + ripple);
+}
+
 float shapeSdf(vec2 p) {
   if (u_shapeMode == 0) {
     return blobSdf(p);
@@ -259,6 +290,15 @@ float shapeSdf(vec2 p) {
   }
   if (u_shapeMode == 2) {
     return metaballsSdf(p);
+  }
+  if (u_shapeMode == 3) {
+    return waterSdf(p);
+  }
+  if (u_shapeMode == 4) {
+    return verticalReedsSdf(p);
+  }
+  if (u_shapeMode == 5) {
+    return horizontalReedsSdf(p);
   }
   return waterSdf(p);
 }
@@ -682,6 +722,14 @@ vec2 filterGlass(vec2 uv) {
     float amp = 0.0052 * fs;
     float ph = tf * 0.15;
     return vec2(0.0, sin(uvP.x * freq * 6.28318530718 + ph)) * amp;
+  }
+  if (u_filterMode == 10) {
+    float freq = mix(128.0, 20.0, sc);
+    float amp = 0.0052 * fs;
+    float ph = tf * 0.15;
+    float gx = sin(uvP.y * freq * 6.28318530718 + ph);
+    float gy = sin(uvP.x * freq * 6.28318530718 + ph);
+    return vec2(gx, gy) * amp;
   }
   if (u_filterMode == 6) {
     // Square pixelate: snap UV to a uniform grid (strength blends toward full snap).
