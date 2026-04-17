@@ -59,7 +59,7 @@ export function App() {
   const [svgGradientPosition, setSvgGradientPosition] = useState(0);
   const [viewportPx, setViewportPx] = useState({ w: 0, h: 0 });
 
-  const [bgHex, setBgHex] = useState("#ffffff");
+  const [bgHex, setBgHex] = useState("#000000");
   const [imageScale, setImageScale] = useState(1);
   const imageScaleRef = useRef(1);
   imageScaleRef.current = imageScale;
