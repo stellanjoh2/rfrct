@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { AppearanceSection } from "./AppearanceSection";
 import { AudioSection } from "./AudioSection";
 import { BloomSection } from "./BloomSection";
@@ -48,6 +48,8 @@ export function SettingsSidebar({
   shareSettings,
   exportSection,
 }: SettingsSidebarProps) {
+  const [activeTab, setActiveTab] = useState<"design" | "vj">("design");
+
   useEffect(() => {
     const clearRangeDrag = () => {
       document
@@ -76,6 +78,30 @@ export function SettingsSidebar({
       }}
     >
       <p className="sidebar-brand">Refrct</p>
+      <div className="sidebar-tabs" role="tablist" aria-label="Editor modes">
+        <button
+          type="button"
+          role="tab"
+          id="tab-design"
+          aria-selected={activeTab === "design"}
+          aria-controls="panel-design"
+          className={`sidebar-tab ${activeTab === "design" ? "sidebar-tab--active" : ""}`}
+          onClick={() => setActiveTab("design")}
+        >
+          Design
+        </button>
+        <button
+          type="button"
+          role="tab"
+          id="tab-vj"
+          aria-selected={activeTab === "vj"}
+          aria-controls="panel-vj"
+          className={`sidebar-tab ${activeTab === "vj" ? "sidebar-tab--active" : ""}`}
+          onClick={() => setActiveTab("vj")}
+        >
+          VJ
+        </button>
+      </div>
       {featureHint && (
         <p
           className="field-hint field-hint--feature-nudge"
@@ -85,16 +111,33 @@ export function SettingsSidebar({
           {featureHint}
         </p>
       )}
-      <UploadBlock onFile={onFile} />
-      <AppearanceSection {...appearance} />
-      <LensSection {...lens} />
-      <BloomSection {...bloom} />
-      <EffectsSection {...effects} />
-      <AudioSection {...audio} />
-      <VideoBackdropSection {...videoBackdrop} />
-      <MouseInputSection {...mouseInput} />
-      <ShareSettingsSection {...shareSettings} />
-      <ExportSection {...exportSection} />
+      {activeTab === "design" ? (
+        <div
+          id="panel-design"
+          role="tabpanel"
+          aria-labelledby="tab-design"
+          className="sidebar-tab-panel"
+        >
+          <UploadBlock onFile={onFile} />
+          <AppearanceSection {...appearance} />
+          <LensSection {...lens} />
+          <BloomSection {...bloom} />
+          <EffectsSection {...effects} />
+          <VideoBackdropSection {...videoBackdrop} />
+          <MouseInputSection {...mouseInput} />
+          <ShareSettingsSection {...shareSettings} />
+          <ExportSection {...exportSection} />
+        </div>
+      ) : (
+        <div
+          id="panel-vj"
+          role="tabpanel"
+          aria-labelledby="tab-vj"
+          className="sidebar-tab-panel"
+        >
+          <AudioSection {...audio} />
+        </div>
+      )}
     </aside>
   );
 }

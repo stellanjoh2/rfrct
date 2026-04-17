@@ -38,6 +38,11 @@ export type AudioSectionProps = {
   setVjGlassNeonBHex: (v: string) => void;
   vjGlassGradeIntensity: number;
   setVjGlassGradeIntensity: (v: number) => void;
+  solidOverlayOpacity: number;
+  solidOverlayVjHueShift: boolean;
+  setSolidOverlayVjHueShift: Dispatch<SetStateAction<boolean>>;
+  solidOverlayHueAudio: boolean;
+  setSolidOverlayHueAudio: Dispatch<SetStateAction<boolean>>;
   onFeatureBlockedHint: (message: string) => void;
 };
 
@@ -71,11 +76,29 @@ export function AudioSection({
   setVjGlassNeonBHex,
   vjGlassGradeIntensity,
   setVjGlassGradeIntensity,
+  solidOverlayOpacity,
+  solidOverlayVjHueShift,
+  setSolidOverlayVjHueShift,
+  solidOverlayHueAudio,
+  setSolidOverlayHueAudio,
   onFeatureBlockedHint,
 }: AudioSectionProps) {
   const vjControlsEnabled = micDrivingRefraction && vjMode;
   const dupSlidersNeedVj = !vjControlsEnabled;
   const dupSlidersNeedDup = vjControlsEnabled && !vjDupVertical;
+  const overlayTooWeak = solidOverlayOpacity < 0.02;
+  const vjHueShiftBlocked = overlayTooWeak || !vjMode;
+  const vjHueShiftHint = overlayTooWeak
+    ? "Raise solid overlay opacity to use VJ hue shift."
+    : "Turn on VJ mode to use VJ hue shift.";
+
+  const hueAudioBlocked =
+    overlayTooWeak || !vjMode || !solidOverlayVjHueShift;
+  const hueAudioHint = overlayTooWeak
+    ? "Raise solid overlay opacity to use Hue + audio."
+    : !vjMode
+      ? "Turn on VJ mode to use Hue + audio."
+      : "Turn on VJ hue shift first.";
   return (
     <>
       <h2 title="Live audio input and loudness-driven modulation">
@@ -366,6 +389,59 @@ export function AudioSection({
             </div>
           </>
         )}
+        <div className="field">
+          <label>Overlay hue (from Video backdrop)</label>
+          <div className="field--checkbox field--audio-toggles">
+            <ClickBlockedHint
+              blocked={vjHueShiftBlocked}
+              hint={vjHueShiftHint}
+              onBlockedClick={onFeatureBlockedHint}
+            >
+              <button
+                type="button"
+                className={`mic-toggle ${solidOverlayVjHueShift ? "mic-toggle--on" : ""}`}
+                disabled={!vjMode || solidOverlayOpacity < 0.02}
+                onClick={() => setSolidOverlayVjHueShift((v) => !v)}
+                aria-pressed={solidOverlayVjHueShift}
+                title={
+                  !vjMode
+                    ? "Turn on VJ mode to animate overlay hue"
+                    : solidOverlayOpacity < 0.02
+                      ? "Raise overlay opacity first"
+                      : solidOverlayVjHueShift
+                        ? "Use static overlay colour"
+                        : "Slowly rotate hue on the solid overlay"
+                }
+              >
+                VJ hue shift
+              </button>
+            </ClickBlockedHint>
+            <ClickBlockedHint
+              blocked={hueAudioBlocked}
+              hint={hueAudioHint}
+              onBlockedClick={onFeatureBlockedHint}
+            >
+              <button
+                type="button"
+                className={`mic-toggle ${solidOverlayHueAudio ? "mic-toggle--on" : ""}`}
+                disabled={
+                  !vjMode || !solidOverlayVjHueShift || solidOverlayOpacity < 0.02
+                }
+                onClick={() => setSolidOverlayHueAudio((v) => !v)}
+                aria-pressed={solidOverlayHueAudio}
+                title={
+                  solidOverlayVjHueShift && vjMode
+                    ? solidOverlayHueAudio
+                      ? "Hue uses time only"
+                      : "Add loudness to hue (needs audio on)"
+                    : "Enable VJ hue shift first"
+                }
+              >
+                Hue + audio
+              </button>
+            </ClickBlockedHint>
+          </div>
+        </div>
         <div className="field">
           <label
             title="Vertical gap between stacked logos (fraction of viewport height)"

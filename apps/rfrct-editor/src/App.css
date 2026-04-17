@@ -19,6 +19,7 @@
   --ui-ease: cubic-bezier(0.32, 0.08, 0.24, 1);
   --ui-duration: 0.22s;
   --ui-duration-slow: 0.36s;
+  --btn-radius: 4px;
 }
 
 * {
@@ -167,7 +168,7 @@ body {
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
 
-  border-radius: 22px;
+  border-radius: 8px;
   border: 1px solid var(--glass-border);
 
   background: var(--glass-bg);
@@ -233,7 +234,7 @@ body {
 @media (max-width: 640px) {
   .glass-sidebar {
     --glass-float-gutter: 12px;
-    border-radius: 18px;
+    border-radius: 8px;
   }
 }
 
@@ -241,8 +242,64 @@ body {
   font-size: 19px;
   font-weight: 700;
   letter-spacing: -0.03em;
-  margin: 0 0 18px;
+  margin: 0 0 12px;
   color: var(--glass-text);
+}
+
+.sidebar-tabs {
+  display: flex;
+  gap: 8px;
+  margin: 0 0 14px;
+}
+
+.sidebar-tab {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 12px 16px;
+  border-radius: var(--btn-radius);
+  border: 1px solid var(--glass-border);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--glass-text);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  transition:
+    background var(--ui-duration) var(--ui-ease),
+    border-color var(--ui-duration) var(--ui-ease),
+    color var(--ui-duration) var(--ui-ease),
+    transform var(--ui-duration) var(--ui-ease);
+}
+
+.sidebar-tab:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.28);
+}
+
+.sidebar-tab:active {
+  transform: scale(0.985);
+}
+
+.sidebar-tab:focus-visible {
+  outline: 1px solid rgba(var(--brand-rgb), 0.45);
+  outline-offset: 2px;
+}
+
+.sidebar-tab--active {
+  border-color: rgba(var(--brand-rgb), 0.56);
+  background: rgba(var(--brand-rgb), 0.15);
+  color: #0a0a12;
+}
+
+.sidebar-tab-panel {
+  margin-top: 12px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  min-width: 0;
 }
 
 .upload-block {
@@ -261,7 +318,7 @@ label.file-btn {
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--glass-text);
-  border-radius: 12px;
+  border-radius: var(--btn-radius);
   border: 1px solid var(--glass-border);
   background: rgba(255, 255, 255, 0.06);
   transition:
@@ -296,7 +353,7 @@ label.file-btn input[type="file"] {
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--glass-text);
-  border-radius: 12px;
+  border-radius: var(--btn-radius);
   border: 1px solid var(--glass-border);
   background: rgba(255, 255, 255, 0.06);
   transition:
@@ -393,7 +450,7 @@ label.file-btn input[type="file"] {
   padding: 8px 10px;
   margin-bottom: 8px;
   border: 1px solid var(--glass-border);
-  border-radius: 8px;
+  border-radius: 4px;
   background: rgba(0, 0, 0, 0.22);
   color: var(--glass-text);
 }
@@ -496,7 +553,7 @@ label.file-btn input[type="file"] {
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--glass-text);
-  border-radius: 999px;
+  border-radius: var(--btn-radius);
   border: 1px solid transparent;
   background: rgba(255, 255, 255, 0.06);
   transition:
@@ -542,7 +599,7 @@ label.file-btn input[type="file"] {
   font-family: inherit;
   letter-spacing: 0.04em;
   color: var(--glass-text);
-  border-radius: 999px;
+  border-radius: var(--btn-radius);
   border: 1px solid var(--glass-border);
   background: rgba(255, 255, 255, 0.06);
   transition:
@@ -753,12 +810,18 @@ label.file-btn input[type="file"] {
   width: 100%;
   font-family: inherit;
   font-size: 12px;
-  padding: 9px 10px;
+  padding: 9px 28px 9px 10px;
   border: 1px solid var(--glass-border);
-  border-radius: 8px;
+  border-radius: 4px;
   background: rgba(0, 0, 0, 0.22);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='rgba(255,255,255,0.78)' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  background-size: 10px 6px;
   color: var(--glass-text);
   cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
   transition:
     border-color var(--ui-duration) var(--ui-ease),
     background var(--ui-duration) var(--ui-ease),
@@ -782,7 +845,7 @@ label.file-btn input[type="file"] {
   height: 38px;
   padding: 0;
   border: 1px solid var(--glass-border);
-  border-radius: 10px;
+  border-radius: 4px;
   background: transparent;
   overflow: hidden;
   cursor: pointer;
@@ -798,12 +861,12 @@ label.file-btn input[type="file"] {
 
 .field input[type="color"]::-webkit-color-swatch {
   border: none;
-  border-radius: 9px;
+  border-radius: 3px;
 }
 
 .field input[type="color"]::-moz-color-swatch {
   border: none;
-  border-radius: 9px;
+  border-radius: 3px;
 }
 
 .field input[type="color"]:active {
@@ -828,7 +891,7 @@ label.file-btn input[type="file"] {
   font-size: 12px;
   padding: 8px 10px;
   border: 1px solid var(--glass-border);
-  border-radius: 8px;
+  border-radius: 4px;
   background: rgba(0, 0, 0, 0.22);
   color: var(--glass-text);
   transition:
@@ -873,7 +936,7 @@ label.file-btn input[type="file"] {
   line-height: 1.45;
   padding: 10px 10px;
   border: 1px solid var(--glass-border);
-  border-radius: 8px;
+  border-radius: 4px;
   background: rgba(0, 0, 0, 0.28);
   color: var(--glass-text);
   margin-bottom: 10px;
