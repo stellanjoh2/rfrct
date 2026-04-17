@@ -37,13 +37,22 @@ const ZOOM_ANIM_RESUME_MS = 120;
 /** SVG re-raster is expensive (canvas + alpha scan + optional refine); debounce while zoom stays live via syncLayout. */
 const SVG_RASTER_DEBOUNCE_MS = 320;
 
+/** Default wordmark in `public/`; `BASE_URL` keeps paths valid on GitHub Pages (`base: "./"`). */
+const TEMPLATE_LOGO_SVG_URL = `${import.meta.env.BASE_URL}rfrct-logo.svg`;
+
+function revokeSvgObjectUrlIfBlob(url: string | null) {
+  if (url?.startsWith("blob:")) URL.revokeObjectURL(url);
+}
+
 export function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<RfrctRenderer | null>(null);
 
   const [imgDims, setImgDims] = useState<{ w: number; h: number } | null>(null);
-  const [svgSourceUrl, setSvgSourceUrl] = useState<string | null>(null);
+  const [svgSourceUrl, setSvgSourceUrl] = useState<string | null>(
+    TEMPLATE_LOGO_SVG_URL,
+  );
   const [svgTintMode, setSvgTintMode] = useState<
     "original" | "multiply" | "replace" | "gradient"
   >("original");
@@ -836,7 +845,7 @@ export function App() {
 
   useEffect(() => {
     return () => {
-      if (svgSourceUrl) URL.revokeObjectURL(svgSourceUrl);
+      revokeSvgObjectUrlIfBlob(svgSourceUrl);
     };
   }, [svgSourceUrl]);
 
@@ -848,7 +857,7 @@ export function App() {
     if (isSvgFile(file)) {
       setImagePan({ x: 0, y: 0 });
       setSvgSourceUrl((prev) => {
-        if (prev) URL.revokeObjectURL(prev);
+        revokeSvgObjectUrlIfBlob(prev);
         return url;
       });
       return;
@@ -856,7 +865,7 @@ export function App() {
 
     setSvgTintMode("original");
     setSvgSourceUrl((prev) => {
-      if (prev) URL.revokeObjectURL(prev);
+      revokeSvgObjectUrlIfBlob(prev);
       return null;
     });
 
