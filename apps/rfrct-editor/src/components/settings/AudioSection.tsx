@@ -6,8 +6,6 @@ import { ClickBlockedHint } from "../ClickBlockedHint";
 const HINT_START_AUDIO_VJ = "Start audio first to enable Automate.";
 /** Shown when a sub-control needs audio + Automate. */
 const HINT_NEED_VJ_CHAIN = "Turn on Automate while audio is running to use this.";
-const HINT_DUP_STACK_FIRST = "Turn on Dup stack first.";
-
 export type AudioSectionProps = {
   micDrivingRefraction: boolean;
   audioInputMode: AudioInputMode;
@@ -18,14 +16,6 @@ export type AudioSectionProps = {
   micError: string | null;
   vjMode: boolean;
   setVjMode: Dispatch<SetStateAction<boolean>>;
-  vjDupVertical: boolean;
-  setVjDupVertical: Dispatch<SetStateAction<boolean>>;
-  vjDupGap: number;
-  setVjDupGap: (v: number) => void;
-  vjDupHorizStep: number;
-  setVjDupHorizStep: (v: number) => void;
-  vjDupScrollSpeed: number;
-  setVjDupScrollSpeed: (v: number) => void;
   vjPathScale: number;
   setVjPathScale: (v: number) => void;
   vjPathSpeed: number;
@@ -56,14 +46,6 @@ export function AudioSection({
   micError,
   vjMode,
   setVjMode,
-  vjDupVertical,
-  setVjDupVertical,
-  vjDupGap,
-  setVjDupGap,
-  vjDupHorizStep,
-  setVjDupHorizStep,
-  vjDupScrollSpeed,
-  setVjDupScrollSpeed,
   vjPathScale,
   setVjPathScale,
   vjPathSpeed,
@@ -84,8 +66,6 @@ export function AudioSection({
   onFeatureBlockedHint,
 }: AudioSectionProps) {
   const vjControlsEnabled = micDrivingRefraction && vjMode;
-  const dupSlidersNeedVj = !vjControlsEnabled;
-  const dupSlidersNeedDup = vjControlsEnabled && !vjDupVertical;
   const vjHueShiftBlocked = !vjMode;
   const vjHueShiftHint = "Turn on Automate to use hue shift.";
 
@@ -151,7 +131,7 @@ export function AudioSection({
         )}
       </section>
 
-      <h2 title="Audio-driven automation, lens path, glass neon, overlay hue, and duplicate stack">
+      <h2 title="Audio-driven automation, lens path, glass neon, and hue">
         Visuals
       </h2>
       <section>
@@ -411,117 +391,6 @@ export function AudioSection({
               </button>
             </ClickBlockedHint>
           </div>
-        </div>
-        <h3 className="settings-subhead">Dup stack</h3>
-        <div className="field field--checkbox field--audio-toggles">
-          <ClickBlockedHint
-            blocked={!vjControlsEnabled}
-            hint={HINT_NEED_VJ_CHAIN}
-            onBlockedClick={onFeatureBlockedHint}
-          >
-            <button
-              type="button"
-              className={`mic-toggle ${vjDupVertical ? "mic-toggle--on" : ""}`}
-              disabled={!vjControlsEnabled}
-              onClick={() => setVjDupVertical((v) => !v)}
-              aria-pressed={vjDupVertical}
-              aria-label={
-                vjControlsEnabled
-                  ? vjDupVertical
-                    ? "Turn off stacked logo scroll"
-                    : "Turn on stacked logo scroll"
-                  : "Enable Automate to use Dup stack"
-              }
-              title={
-                vjControlsEnabled
-                  ? "Repeat the SVG in a vertical scroll; rows are tight to the artwork with a slight horizontal stagger"
-                  : "Start audio and Automate first"
-              }
-            >
-              Dup stack
-            </button>
-          </ClickBlockedHint>
-        </div>
-        <div className="field">
-          <label
-            title="Vertical gap between stacked logos (fraction of viewport height)"
-            htmlFor="vj-dup-gap"
-          >
-            Spacing (vertical)
-            <span className="val">{(vjDupGap * 100).toFixed(1)}%</span>
-          </label>
-          <ClickBlockedHint
-            blocked={dupSlidersNeedVj || dupSlidersNeedDup}
-            hint={dupSlidersNeedVj ? HINT_NEED_VJ_CHAIN : HINT_DUP_STACK_FIRST}
-            onBlockedClick={onFeatureBlockedHint}
-            fullWidth
-          >
-            <input
-              id="vj-dup-gap"
-              type="range"
-              min={0}
-              max={0.35}
-              step={0.005}
-              value={vjDupGap}
-              onChange={(e) => setVjDupGap(Number(e.target.value))}
-              disabled={!vjControlsEnabled || !vjDupVertical}
-              aria-label="Dup stack vertical spacing"
-            />
-          </ClickBlockedHint>
-        </div>
-        <div className="field">
-          <label
-            title="Horizontal shift per stair step; pattern resets every 8 rows"
-            htmlFor="vj-dup-horiz"
-          >
-            Spacing (horizontal)
-            <span className="val">{(vjDupHorizStep * 100).toFixed(1)}%</span>
-          </label>
-          <ClickBlockedHint
-            blocked={dupSlidersNeedVj || dupSlidersNeedDup}
-            hint={dupSlidersNeedVj ? HINT_NEED_VJ_CHAIN : HINT_DUP_STACK_FIRST}
-            onBlockedClick={onFeatureBlockedHint}
-            fullWidth
-          >
-            <input
-              id="vj-dup-horiz"
-              type="range"
-              min={0}
-              max={0.18}
-              step={0.002}
-              value={vjDupHorizStep}
-              onChange={(e) => setVjDupHorizStep(Number(e.target.value))}
-              disabled={!vjControlsEnabled || !vjDupVertical}
-              aria-label="Dup stack horizontal stair step"
-            />
-          </ClickBlockedHint>
-        </div>
-        <div className="field">
-          <label
-            title="Vertical scroll speed for the dup stack (independent of Lens blob speed)"
-            htmlFor="vj-dup-scroll"
-          >
-            Scroll speed
-            <span className="val">{vjDupScrollSpeed.toFixed(3)}</span>
-          </label>
-          <ClickBlockedHint
-            blocked={dupSlidersNeedVj || dupSlidersNeedDup}
-            hint={dupSlidersNeedVj ? HINT_NEED_VJ_CHAIN : HINT_DUP_STACK_FIRST}
-            onBlockedClick={onFeatureBlockedHint}
-            fullWidth
-          >
-            <input
-              id="vj-dup-scroll"
-              type="range"
-              min={0}
-              max={0.4}
-              step={0.005}
-              value={vjDupScrollSpeed}
-              onChange={(e) => setVjDupScrollSpeed(Number(e.target.value))}
-              disabled={!vjControlsEnabled || !vjDupVertical}
-              aria-label="Dup stack vertical scroll speed"
-            />
-          </ClickBlockedHint>
         </div>
       </section>
     </>

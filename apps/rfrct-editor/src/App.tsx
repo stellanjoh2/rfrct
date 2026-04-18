@@ -183,7 +183,7 @@ export function App() {
   const [vjDupGap, setVjDupGap] = useState(0);
   /** Horizontal stair step per row phase (cycles every 8 rows). */
   const [vjDupHorizStep, setVjDupHorizStep] = useState(0.03);
-  /** Dup stack vertical scroll (UV y / sec); independent of blob animation speed. */
+  /** Duplicate (stack) vertical scroll (UV y / sec); independent of blob animation speed. */
   const [vjDupScrollSpeed, setVjDupScrollSpeed] = useState(0.11);
   /** VJ mode: squircle orbit radius multiplier (larger = lens travels closer to frame edges). */
   const [vjPathScale, setVjPathScale] = useState(1);
@@ -609,6 +609,7 @@ export function App() {
         bloomStrength,
         bloomRadius,
         bloomThreshold,
+        hasLensTexture: Boolean(imgDims),
         svgSourceUrl,
         svgTintMode,
         svgTintHex,
@@ -1012,10 +1013,6 @@ export function App() {
       micAnalyzerRef.current = null;
       micEnvelopeRef.current = 0;
       setVjMode(false);
-      setVjDupVertical(false);
-      setVjDupGap(0);
-      setVjDupHorizStep(0.03);
-      setVjDupScrollSpeed(0.11);
       setVjPathScale(1);
       setVjPathSpeed(DEFAULT_VJ_PATH_SPEED);
       setMicDrivingRefraction(false);
@@ -1384,6 +1381,18 @@ export function App() {
         grainStrength,
         setGrainStrength,
       },
+      dupStack: {
+        hasLensImage: Boolean(imgDims),
+        vjDupVertical,
+        setVjDupVertical,
+        vjDupGap,
+        setVjDupGap,
+        vjDupHorizStep,
+        setVjDupHorizStep,
+        vjDupScrollSpeed,
+        setVjDupScrollSpeed,
+        onFeatureBlockedHint: showFeatureHint,
+      },
       audio: {
         micDrivingRefraction,
         audioInputMode,
@@ -1394,14 +1403,6 @@ export function App() {
         micError,
         vjMode,
         setVjMode,
-        vjDupVertical,
-        setVjDupVertical,
-        vjDupGap,
-        setVjDupGap,
-        vjDupHorizStep,
-        setVjDupHorizStep,
-        vjDupScrollSpeed,
-        setVjDupScrollSpeed,
         vjPathScale,
         setVjPathScale,
         vjPathSpeed,
@@ -1487,11 +1488,13 @@ export function App() {
       toggleMicRefraction,
       micError,
       vjMode,
+      svgSourceUrl,
       vjDupVertical,
       vjDupGap,
       vjDupHorizStep,
       vjDupScrollSpeed,
       vjPathScale,
+      showFeatureHint,
       vjPathSpeed,
       vjGlassGradeMode,
       vjGlassNeonAHex,
@@ -1506,10 +1509,8 @@ export function App() {
       solidOverlayHex,
       solidOverlayOpacity,
       solidOverlayBlend,
-      vjMode,
       solidOverlayVjHueShift,
       solidOverlayHueAudio,
-      showFeatureHint,
       copySettingsToClipboard,
       settingsPasteDraft,
       applyPastedSettingsFromDraft,
@@ -1540,6 +1541,7 @@ export function App() {
     bloomStrength,
     bloomRadius,
     bloomThreshold,
+    hasLensTexture: Boolean(imgDims),
     svgSourceUrl,
     svgTintMode,
     svgTintHex,
@@ -1650,6 +1652,7 @@ export function App() {
           onFile={onFile}
           appearance={sidebar.appearance}
           lens={sidebar.lens}
+          dupStack={sidebar.dupStack}
           bloom={sidebar.bloom}
           effects={sidebar.effects}
           audio={sidebar.audio}

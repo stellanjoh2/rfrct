@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { AppearanceSection } from "./AppearanceSection";
 import { AudioSection } from "./AudioSection";
+import { DupStackSection } from "./DupStackSection";
 import { BloomSection } from "./BloomSection";
 import { EffectsSection } from "./EffectsSection";
 import { ExportSection } from "./ExportSection";
@@ -9,6 +10,7 @@ import { MouseInputSection } from "./MouseInputSection";
 import { UploadBlock } from "./UploadBlock";
 import type { AppearanceSectionProps } from "./AppearanceSection";
 import type { AudioSectionProps } from "./AudioSection";
+import type { DupStackSectionProps } from "./DupStackSection";
 import type { BloomSectionProps } from "./BloomSection";
 import type { EffectsSectionProps } from "./EffectsSection";
 import type { ExportSectionProps } from "./ExportSection";
@@ -25,6 +27,7 @@ export type SettingsSidebarProps = {
   onFile: (e: React.ChangeEvent<HTMLInputElement>) => void;
   appearance: AppearanceSectionProps;
   lens: LensSectionProps;
+  dupStack: DupStackSectionProps;
   bloom: BloomSectionProps;
   effects: EffectsSectionProps;
   audio: AudioSectionProps;
@@ -40,6 +43,7 @@ export function SettingsSidebar({
   onFile,
   appearance,
   lens,
+  dupStack,
   bloom,
   effects,
   audio,
@@ -123,6 +127,7 @@ export function SettingsSidebar({
           <LensSection {...lens} />
           <BloomSection {...bloom} />
           <EffectsSection {...effects} />
+          <DupStackSection {...dupStack} />
           <VideoBackdropSection {...videoBackdrop} />
           <MouseInputSection {...mouseInput} />
           <ShareSettingsSection {...shareSettings} />

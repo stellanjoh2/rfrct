@@ -142,6 +142,11 @@ export type RendererSyncSource = {
   bloomStrength: number;
   bloomRadius: number;
   bloomThreshold: number;
+  /**
+   * When true, a logo texture is on the lens (SVG or raster). Used for duplicate tiling;
+   * if omitted, falls back to `Boolean(svgSourceUrl)` for backward compatibility.
+   */
+  hasLensTexture?: boolean;
   svgSourceUrl: string | null;
   svgTintMode: "original" | "multiply" | "replace" | "gradient";
   svgTintHex: string;
@@ -333,8 +338,8 @@ export function buildRendererSyncParams(
     filterMotionSpeed: s.filterMotionSpeed,
   };
 
-  const vjTex =
-    Boolean(s.svgSourceUrl) && s.vjMode;
+  const lensTexForDup = s.hasLensTexture ?? Boolean(s.svgSourceUrl);
+  const dupShaderOn = lensTexForDup && s.vjDupVertical;
 
   const glassGrade: GlassGradeParams = (() => {
     const off: GlassGradeParams = {
@@ -377,13 +382,10 @@ export function buildRendererSyncParams(
     blob,
     bloom,
     svgTint,
-    vjDupVertical: vjTex && s.vjDupVertical ? 1 : 0,
-    vjDupGap:
-      vjTex && s.vjDupVertical ? Math.max(0, s.vjDupGap) : 0,
-    vjDupHorizStep:
-      vjTex && s.vjDupVertical ? Math.max(0, s.vjDupHorizStep) : 0,
-    vjDupScrollSpeed:
-      vjTex && s.vjDupVertical ? Math.max(0, s.vjDupScrollSpeed) : 0,
+    vjDupVertical: dupShaderOn ? 1 : 0,
+    vjDupGap: dupShaderOn ? Math.max(0, s.vjDupGap) : 0,
+    vjDupHorizStep: dupShaderOn ? Math.max(0, s.vjDupHorizStep) : 0,
+    vjDupScrollSpeed: dupShaderOn ? Math.max(0, s.vjDupScrollSpeed) : 0,
     glassGrade,
     detailDistortion: {
       enabled: detailEnabled,
