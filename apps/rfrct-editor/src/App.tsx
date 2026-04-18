@@ -23,6 +23,16 @@ import {
   type AudioInputMode,
   audioCaptureErrorMessage,
 } from "./audio/micAnalyzer";
+import {
+  createVjDupHorizRandomState,
+  resetVjDupHorizRandomState,
+  stepVjDupHorizRandom,
+} from "./audio/vjDupHorizRandom";
+import {
+  createVjDupSpeedShiftState,
+  resetVjDupSpeedShiftState,
+  stepVjDupSpeedShift,
+} from "./audio/vjDupSpeedShift";
 import type { BackdropBlendMode } from "./videoBackdrop";
 import { postYoutubeMute } from "./youtube/forceMuteIframe";
 import {
@@ -185,6 +195,10 @@ export function App() {
   const [vjDupHorizStep, setVjDupHorizStep] = useState(0.03);
   /** Duplicate (stack) vertical scroll (UV y / sec); independent of blob animation speed. */
   const [vjDupScrollSpeed, setVjDupScrollSpeed] = useState(0.11);
+  /** VJ: loudness-driven dup scroll bursts (Design → Duplicate stack). */
+  const [vjDupSpeedShift, setVjDupSpeedShift] = useState(false);
+  /** VJ: randomize duplicate horizontal stair spacing while audio is on. */
+  const [vjDupRandomHoriz, setVjDupRandomHoriz] = useState(false);
   /** VJ mode: squircle orbit radius multiplier (larger = lens travels closer to frame edges). */
   const [vjPathScale, setVjPathScale] = useState(1);
   const [vjPathSpeed, setVjPathSpeed] = useState(DEFAULT_VJ_PATH_SPEED);
@@ -204,6 +218,8 @@ export function App() {
   const mouseFluidPosRef = useRef({ x: 0.5, y: 0.5 });
   const mouseFluidVelRef = useRef({ x: 0, y: 0 });
   const micLoopPrevTRef = useRef(performance.now());
+  const vjDupSpeedShiftStateRef = useRef(createVjDupSpeedShiftState());
+  const vjDupHorizRandomStateRef = useRef(createVjDupHorizRandomState());
   const mouseLoopPrevTRef = useRef(performance.now());
   const zoomFxActiveRef = useRef(false);
 
@@ -684,6 +700,8 @@ export function App() {
     vjDupGap,
     vjDupHorizStep,
     vjDupScrollSpeed,
+    vjDupSpeedShift,
+    vjDupRandomHoriz,
     vjPathScale,
     vjPathSpeed,
     youtubeEmbedActive,
@@ -703,6 +721,8 @@ export function App() {
   useEffect(() => {
     if (!micDrivingRefraction) {
       micEnvelopeRef.current = 0;
+      resetVjDupSpeedShiftState(vjDupSpeedShiftStateRef.current);
+      resetVjDupHorizRandomState(vjDupHorizRandomStateRef.current);
       return;
     }
     micLoopPrevTRef.current = performance.now();
@@ -719,6 +739,34 @@ export function App() {
         micLoopPrevTRef.current = now;
         const timeSec = now * 0.001;
         const freezeZoomFx = zoomFxActiveRef.current;
+
+        const baseScroll = raw.vjDupScrollSpeed;
+        let scrollVy = baseScroll;
+        let scrollVx = 0;
+        if (
+          raw.vjDupSpeedShift &&
+          raw.vjMode &&
+          raw.vjDupVertical
+        ) {
+          const stepped = stepVjDupSpeedShift(
+            baseScroll,
+            tick.dbNorm,
+            tick.envelope,
+            dt,
+            vjDupSpeedShiftStateRef.current,
+          );
+          scrollVy = stepped.vy;
+          scrollVx = stepped.vx;
+        } else {
+          resetVjDupSpeedShiftState(vjDupSpeedShiftStateRef.current);
+        }
+
+        let horizStep = raw.vjDupHorizStep;
+        if (raw.vjDupRandomHoriz && raw.vjMode && raw.vjDupVertical) {
+          horizStep = stepVjDupHorizRandom(dt, vjDupHorizRandomStateRef.current);
+        } else {
+          resetVjDupHorizRandomState(vjDupHorizRandomStateRef.current);
+        }
 
         let driven: RendererSyncSource;
         if (raw.lensMouseInput) {
@@ -760,6 +808,9 @@ export function App() {
             micDrivingRefraction: true,
             micRefractBoost,
             micEnvelope: tick.envelope,
+            vjDupScrollSpeed: scrollVy,
+            vjDupScrollSpeedX: scrollVx,
+            vjDupHorizStep: horizStep,
           }),
         );
       }
@@ -1090,12 +1141,14 @@ export function App() {
       vjDupGap,
       vjDupHorizStep,
       vjDupScrollSpeed,
+      vjDupSpeedShift,
+      vjDupRandomHoriz,
       vjPathScale,
-      vjPathSpeed,
-      vjGlassGradeMode,
-      vjGlassNeonAHex,
-      vjGlassNeonBHex,
-      vjGlassGradeIntensity,
+    vjPathSpeed,
+    vjGlassGradeMode,
+    vjGlassNeonAHex,
+    vjGlassNeonBHex,
+    vjGlassGradeIntensity,
     }),
     [
       bgHex,
@@ -1154,6 +1207,8 @@ export function App() {
       vjDupGap,
       vjDupHorizStep,
       vjDupScrollSpeed,
+      vjDupSpeedShift,
+      vjDupRandomHoriz,
       vjPathScale,
       vjPathSpeed,
       vjGlassGradeMode,
@@ -1259,6 +1314,10 @@ export function App() {
     setVjDupGap(d.vjDupGap);
     setVjDupHorizStep(d.vjDupHorizStep);
     setVjDupScrollSpeed(d.vjDupScrollSpeed);
+    setVjDupSpeedShift(d.vjDupSpeedShift);
+    resetVjDupSpeedShiftState(vjDupSpeedShiftStateRef.current);
+    setVjDupRandomHoriz(d.vjDupRandomHoriz);
+    resetVjDupHorizRandomState(vjDupHorizRandomStateRef.current);
     setVjPathScale(d.vjPathScale);
     setVjPathSpeed(d.vjPathSpeed);
     setVjGlassGradeMode(d.vjGlassGradeMode);
@@ -1420,6 +1479,11 @@ export function App() {
         setSolidOverlayVjHueShift,
         solidOverlayHueAudio,
         setSolidOverlayHueAudio,
+        vjDupVertical,
+        vjDupSpeedShift,
+        setVjDupSpeedShift,
+        vjDupRandomHoriz,
+        setVjDupRandomHoriz,
         onFeatureBlockedHint: showFeatureHint,
       },
       exportSection: {
@@ -1493,6 +1557,8 @@ export function App() {
       vjDupGap,
       vjDupHorizStep,
       vjDupScrollSpeed,
+      vjDupSpeedShift,
+      vjDupRandomHoriz,
       vjPathScale,
       showFeatureHint,
       vjPathSpeed,
@@ -1560,6 +1626,8 @@ export function App() {
     vjDupGap,
     vjDupHorizStep,
     vjDupScrollSpeed,
+    vjDupSpeedShift,
+    vjDupRandomHoriz,
     vjPathScale,
     vjPathSpeed,
     youtubeEmbedActive,

@@ -30,6 +30,8 @@ export type RendererSyncParams = {
   vjDupHorizStep: number;
   /** Dup scroll rate (UV y units per second); drives internal scroll time, not blob speed. */
   vjDupScrollSpeed: number;
+  /** Dup horizontal scroll rate (UV x units per second; signed). */
+  vjDupScrollSpeedX: number;
   /** VJ-only neon colour grade inside the lens (independent of SVG tint). */
   glassGrade: GlassGradeParams;
   /** Normal-map micro-refraction layered on the main lens displacement. */
@@ -53,6 +55,7 @@ export type RendererStateTarget = {
   vjDupGap: number;
   vjDupHorizStep: number;
   vjDupScrollSpeed: number;
+  vjDupScrollSpeedX: number;
   glassGrade: GlassGradeParams;
   detailDistortion: DetailDistortionParams;
   underlayTintRgb: [number, number, number];
@@ -90,6 +93,7 @@ export function applyRendererState(
   r.vjDupGap = p.vjDupGap;
   r.vjDupHorizStep = p.vjDupHorizStep;
   r.vjDupScrollSpeed = p.vjDupScrollSpeed;
+  r.vjDupScrollSpeedX = p.vjDupScrollSpeedX;
   r.glassGrade = {
     mode: p.glassGrade.mode,
     rgbA: [p.glassGrade.rgbA[0], p.glassGrade.rgbA[1], p.glassGrade.rgbA[2]],
@@ -185,6 +189,14 @@ export type RendererSyncSource = {
   vjDupHorizStep: number;
   /** Dup vertical scroll speed (UV units per second). */
   vjDupScrollSpeed: number;
+  /**
+   * Dup horizontal scroll speed (UV x / s, signed). Usually 0; VJ speed-shift sets this from audio.
+   */
+  vjDupScrollSpeedX?: number;
+  /** When true with live audio, duplicate-stack scroll speeds follow dB with random bursts. */
+  vjDupSpeedShift?: boolean;
+  /** When true with live audio, horizontal stair spacing is randomized (VJ Extras). */
+  vjDupRandomHoriz?: boolean;
   /** VJ orbit / lens path scale (1 = default squircle radius; &gt;1 pushes motion toward the edges). */
   vjPathScale: number;
   /** VJ squircle orbit rate in full laps per second (0 = hold start angle). */
@@ -386,6 +398,7 @@ export function buildRendererSyncParams(
     vjDupGap: dupShaderOn ? Math.max(0, s.vjDupGap) : 0,
     vjDupHorizStep: dupShaderOn ? Math.max(0, s.vjDupHorizStep) : 0,
     vjDupScrollSpeed: dupShaderOn ? Math.max(0, s.vjDupScrollSpeed) : 0,
+    vjDupScrollSpeedX: dupShaderOn ? s.vjDupScrollSpeedX ?? 0 : 0,
     glassGrade,
     detailDistortion: {
       enabled: detailEnabled,

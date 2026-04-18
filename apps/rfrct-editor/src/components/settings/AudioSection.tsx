@@ -33,6 +33,12 @@ export type AudioSectionProps = {
   setSolidOverlayVjHueShift: Dispatch<SetStateAction<boolean>>;
   solidOverlayHueAudio: boolean;
   setSolidOverlayHueAudio: Dispatch<SetStateAction<boolean>>;
+  /** Design → Duplicate stack; required for speed-shift. */
+  vjDupVertical: boolean;
+  vjDupSpeedShift: boolean;
+  setVjDupSpeedShift: Dispatch<SetStateAction<boolean>>;
+  vjDupRandomHoriz: boolean;
+  setVjDupRandomHoriz: Dispatch<SetStateAction<boolean>>;
   onFeatureBlockedHint: (message: string) => void;
 };
 
@@ -63,6 +69,11 @@ export function AudioSection({
   setSolidOverlayVjHueShift,
   solidOverlayHueAudio,
   setSolidOverlayHueAudio,
+  vjDupVertical,
+  vjDupSpeedShift,
+  setVjDupSpeedShift,
+  vjDupRandomHoriz,
+  setVjDupRandomHoriz,
   onFeatureBlockedHint,
 }: AudioSectionProps) {
   const vjControlsEnabled = micDrivingRefraction && vjMode;
@@ -73,6 +84,10 @@ export function AudioSection({
   const hueAudioHint = !vjMode
     ? "Turn on Automate to use Hue + audio."
     : "Turn on hue shift first.";
+  const speedShiftBlocked = !vjControlsEnabled || !vjDupVertical;
+  const speedShiftHint = !vjControlsEnabled
+    ? HINT_NEED_VJ_CHAIN
+    : "Turn on Duplicate stack in the Design tab first.";
   return (
     <>
       <h2 title="Live audio input and loudness-driven modulation">
@@ -391,6 +406,54 @@ export function AudioSection({
               </button>
             </ClickBlockedHint>
           </div>
+        </div>
+      </section>
+
+      <h2 title="Optional VJ reactions layered on duplicate stack and audio">
+        Extras
+      </h2>
+      <section>
+        <div className="field field--checkbox field--audio-toggles">
+          <ClickBlockedHint
+            blocked={speedShiftBlocked}
+            hint={speedShiftHint}
+            onBlockedClick={onFeatureBlockedHint}
+          >
+            <button
+              type="button"
+              className={`mic-toggle ${vjDupSpeedShift ? "mic-toggle--on" : ""}`}
+              disabled={speedShiftBlocked}
+              onClick={() => setVjDupSpeedShift((v) => !v)}
+              aria-pressed={vjDupSpeedShift}
+              title={
+                speedShiftBlocked
+                  ? speedShiftHint
+                  : "Brief vertical scroll spikes on transients, then back to your Design scroll speed"
+              }
+            >
+              Speed-shift
+            </button>
+          </ClickBlockedHint>
+          <ClickBlockedHint
+            blocked={speedShiftBlocked}
+            hint={speedShiftHint}
+            onBlockedClick={onFeatureBlockedHint}
+          >
+            <button
+              type="button"
+              className={`mic-toggle ${vjDupRandomHoriz ? "mic-toggle--on" : ""}`}
+              disabled={speedShiftBlocked}
+              onClick={() => setVjDupRandomHoriz((v) => !v)}
+              aria-pressed={vjDupRandomHoriz}
+              title={
+                speedShiftBlocked
+                  ? speedShiftHint
+                  : "New random horizontal stair spacing (0–18%) on a timer; eases quickly to each target while audio is on. Design slider ignored until off."
+              }
+            >
+              Horiz spacing
+            </button>
+          </ClickBlockedHint>
         </div>
       </section>
     </>

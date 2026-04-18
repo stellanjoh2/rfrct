@@ -158,7 +158,10 @@ export class RfrctRenderer {
   vjDupHorizStep = 0.03;
   /** UV y units per second for dup scroll (independent of blob.speed). */
   vjDupScrollSpeed = 0.11;
+  /** UV x units per second for dup scroll (signed; VJ speed-shift horizontal drift). */
+  vjDupScrollSpeedX = 0;
   private vjDupScrollTime = 0;
+  private vjDupScrollTimeX = 0;
   /** Texture width ÷ height (GPU bitmap); used for aspect-correct VJ stack. */
   texAspect = 1;
 
@@ -252,6 +255,7 @@ export class RfrctRenderer {
       "u_vjDupGap",
       "u_vjDupHorizStep",
       "u_vjDupScrollTime",
+      "u_vjDupScrollTimeX",
       "u_vjSpanH",
       "u_vjSpanW",
       "u_vjCenterX",
@@ -510,6 +514,7 @@ export class RfrctRenderer {
     gl.uniform1f(this.locs.u_vjDupGap, this.vjDupGap);
     gl.uniform1f(this.locs.u_vjDupHorizStep, this.vjDupHorizStep);
     gl.uniform1f(this.locs.u_vjDupScrollTime, this.vjDupScrollTime);
+    gl.uniform1f(this.locs.u_vjDupScrollTimeX, this.vjDupScrollTimeX);
     gl.uniform1f(this.locs.u_vjSpanH, rect.h);
     gl.uniform1f(this.locs.u_vjSpanW, rect.w);
     gl.uniform1f(this.locs.u_vjCenterX, rect.x + rect.w * 0.5);
@@ -632,6 +637,7 @@ export class RfrctRenderer {
       const speed = Math.max(0, this.blob.speed);
       this.animationTime += dt * speed;
       this.vjDupScrollTime += dt * Math.max(0, this.vjDupScrollSpeed);
+      this.vjDupScrollTimeX += dt * this.vjDupScrollSpeedX;
     }
 
     const bloomOn = this.bloom.strength > 1e-4;

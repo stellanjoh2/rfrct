@@ -34,6 +34,8 @@ uniform float u_vjDupGap;
 uniform float u_vjDupHorizStep;
 /** Independent scroll phase for dup stack (not tied to lens/blob time). */
 uniform float u_vjDupScrollTime;
+/** Horizontal dup scroll phase (viewport-normalized; can be negative). */
+uniform float u_vjDupScrollTimeX;
 /** One logo’s contain-fit size in normalized viewport UV (from image rect). */
 uniform float u_vjSpanH;
 uniform float u_vjSpanW;
@@ -350,7 +352,7 @@ vec4 sampleSceneTex(vec2 uv) {
     float vTex = yInStride / max(u_vjSpanH, 1e-6);
     float rowPhase = mod(row, VJ_STAIR_CYCLE);
     float centerX = u_vjCenterX + u_vjDupHorizStep * rowPhase;
-    float uTex = (uv.x - centerX + u_vjSpanW * 0.5) / max(u_vjSpanW, 1e-6);
+    float uTex = (uv.x + u_vjDupScrollTimeX - centerX + u_vjSpanW * 0.5) / max(u_vjSpanW, 1e-6);
     if (uTex < 0.0 || uTex > 1.0) {
       return vec4(0.0);
     }
