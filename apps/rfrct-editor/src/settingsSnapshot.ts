@@ -85,6 +85,8 @@ export type RfrctEditorSettingsSnapshotV1 = {
   vjDupSpeedShift: boolean;
   /** VJ: random duplicate horizontal spacing while audio runs (optional in older snapshots). */
   vjDupRandomHoriz: boolean;
+  /** VJ Extras: HF difference invert bursts (optional in older snapshots). */
+  vjInvertStrobe: boolean;
   vjPathScale: number;
   vjPathSpeed: number;
   vjGlassGradeMode: "off" | "tint" | "duotone";
@@ -253,6 +255,7 @@ export function parseSettingsSnapshot(
     vjDupScrollSpeed: num(p.vjDupScrollSpeed, 0.11),
     vjDupSpeedShift: bool(p.vjDupSpeedShift, false),
     vjDupRandomHoriz: bool(p.vjDupRandomHoriz, false),
+    vjInvertStrobe: bool(p.vjInvertStrobe, false),
     vjPathScale: num(p.vjPathScale, 1),
     vjPathSpeed: num(p.vjPathSpeed, DEFAULT_VJ_PATH_SPEED),
     vjGlassGradeMode,

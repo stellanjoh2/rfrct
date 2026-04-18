@@ -19,7 +19,9 @@ import {
   stepLensMouseFluid,
 } from "@rfrct/core";
 import {
+  INACTIVE_MIC_TICK,
   MicAnalyzer,
+  scaleTickForAudioBoost,
   type AudioInputMode,
   audioCaptureErrorMessage,
 } from "./audio/micAnalyzer";
@@ -33,6 +35,11 @@ import {
   resetVjDupSpeedShiftState,
   stepVjDupSpeedShift,
 } from "./audio/vjDupSpeedShift";
+import {
+  createVjInvertStrobeState,
+  resetVjInvertStrobeState,
+  stepVjInvertStrobe,
+} from "./audio/vjInvertStrobe";
 import type { BackdropBlendMode } from "./videoBackdrop";
 import { postYoutubeMute } from "./youtube/forceMuteIframe";
 import {
@@ -199,6 +206,8 @@ export function App() {
   const [vjDupSpeedShift, setVjDupSpeedShift] = useState(false);
   /** VJ: randomize duplicate horizontal stair spacing while audio is on. */
   const [vjDupRandomHoriz, setVjDupRandomHoriz] = useState(false);
+  /** VJ Extras: high-frequency–gated fullscreen difference invert bursts. */
+  const [vjInvertStrobe, setVjInvertStrobe] = useState(false);
   /** VJ mode: squircle orbit radius multiplier (larger = lens travels closer to frame edges). */
   const [vjPathScale, setVjPathScale] = useState(1);
   const [vjPathSpeed, setVjPathSpeed] = useState(DEFAULT_VJ_PATH_SPEED);
@@ -220,6 +229,11 @@ export function App() {
   const micLoopPrevTRef = useRef(performance.now());
   const vjDupSpeedShiftStateRef = useRef(createVjDupSpeedShiftState());
   const vjDupHorizRandomStateRef = useRef(createVjDupHorizRandomState());
+  const vjInvertStrobeStateRef = useRef(createVjInvertStrobeState());
+  const vjInvertStrobeOverlayRef = useRef<HTMLDivElement>(null);
+  const vjInvertStrobeEnabledRef = useRef(false);
+  vjInvertStrobeEnabledRef.current =
+    micDrivingRefraction && vjMode && vjInvertStrobe;
   const mouseLoopPrevTRef = useRef(performance.now());
   const zoomFxActiveRef = useRef(false);
 
@@ -286,7 +300,7 @@ export function App() {
       const t = performance.now() * 0.001;
       let deg = (t * degPerSec) % 360;
       if (solidOverlayHueAudio && micDrivingRefraction) {
-        deg += micEnvelopeRef.current * envDeg;
+        deg += micEnvelopeRef.current * micRefractBoost * envDeg;
       }
       deg = ((deg % 360) + 360) % 360;
       el.style.filter = `hue-rotate(${deg}deg)`;
@@ -305,6 +319,7 @@ export function App() {
     solidOverlayHueAudio,
     vjMode,
     micDrivingRefraction,
+    micRefractBoost,
   ]);
 
   const showFeatureHint = useCallback((message: string) => {
@@ -316,6 +331,13 @@ export function App() {
     const id = window.setTimeout(() => setFeatureHint(null), 4200);
     return () => window.clearTimeout(id);
   }, [featureHint]);
+
+  useEffect(() => {
+    if (vjInvertStrobe) return;
+    resetVjInvertStrobeState(vjInvertStrobeStateRef.current);
+    const el = vjInvertStrobeOverlayRef.current;
+    if (el) el.style.opacity = "0";
+  }, [vjInvertStrobe]);
 
   const latestSyncRef = useRef<RendererSyncSource | null>(null);
 
@@ -723,13 +745,16 @@ export function App() {
       micEnvelopeRef.current = 0;
       resetVjDupSpeedShiftState(vjDupSpeedShiftStateRef.current);
       resetVjDupHorizRandomState(vjDupHorizRandomStateRef.current);
+      resetVjInvertStrobeState(vjInvertStrobeStateRef.current);
+      const invEl = vjInvertStrobeOverlayRef.current;
+      if (invEl) invEl.style.opacity = "0";
       return;
     }
     micLoopPrevTRef.current = performance.now();
     let id = 0;
     const loop = () => {
       const a = micAnalyzerRef.current;
-      const tick = a ? a.tick() : { envelope: 0, dbNorm: 0 };
+      const tick = a ? a.tick() : INACTIVE_MIC_TICK;
       micEnvelopeRef.current = tick.envelope;
       const r = rendererRef.current;
       const raw = latestSyncRef.current;
@@ -739,6 +764,8 @@ export function App() {
         micLoopPrevTRef.current = now;
         const timeSec = now * 0.001;
         const freezeZoomFx = zoomFxActiveRef.current;
+
+        const tickVj = scaleTickForAudioBoost(tick, micRefractBoost);
 
         const baseScroll = raw.vjDupScrollSpeed;
         let scrollVy = baseScroll;
@@ -750,8 +777,7 @@ export function App() {
         ) {
           const stepped = stepVjDupSpeedShift(
             baseScroll,
-            tick.dbNorm,
-            tick.envelope,
+            tickVj,
             dt,
             vjDupSpeedShiftStateRef.current,
           );
@@ -763,9 +789,26 @@ export function App() {
 
         let horizStep = raw.vjDupHorizStep;
         if (raw.vjDupRandomHoriz && raw.vjMode && raw.vjDupVertical) {
-          horizStep = stepVjDupHorizRandom(dt, vjDupHorizRandomStateRef.current);
+          horizStep = stepVjDupHorizRandom(dt, vjDupHorizRandomStateRef.current, {
+            highTransient: tickVj.bandTransient.high,
+          });
         } else {
           resetVjDupHorizRandomState(vjDupHorizRandomStateRef.current);
+        }
+
+        const invEl = vjInvertStrobeOverlayRef.current;
+        if (invEl) {
+          if (vjInvertStrobeEnabledRef.current) {
+            const op = stepVjInvertStrobe(
+              tickVj,
+              dt,
+              vjInvertStrobeStateRef.current,
+            );
+            invEl.style.opacity = String(op);
+          } else {
+            resetVjInvertStrobeState(vjInvertStrobeStateRef.current);
+            invEl.style.opacity = "0";
+          }
         }
 
         let driven: RendererSyncSource;
@@ -1143,6 +1186,7 @@ export function App() {
       vjDupScrollSpeed,
       vjDupSpeedShift,
       vjDupRandomHoriz,
+      vjInvertStrobe,
       vjPathScale,
     vjPathSpeed,
     vjGlassGradeMode,
@@ -1209,6 +1253,7 @@ export function App() {
       vjDupScrollSpeed,
       vjDupSpeedShift,
       vjDupRandomHoriz,
+      vjInvertStrobe,
       vjPathScale,
       vjPathSpeed,
       vjGlassGradeMode,
@@ -1318,6 +1363,8 @@ export function App() {
     resetVjDupSpeedShiftState(vjDupSpeedShiftStateRef.current);
     setVjDupRandomHoriz(d.vjDupRandomHoriz);
     resetVjDupHorizRandomState(vjDupHorizRandomStateRef.current);
+    setVjInvertStrobe(d.vjInvertStrobe);
+    resetVjInvertStrobeState(vjInvertStrobeStateRef.current);
     setVjPathScale(d.vjPathScale);
     setVjPathSpeed(d.vjPathSpeed);
     setVjGlassGradeMode(d.vjGlassGradeMode);
@@ -1484,6 +1531,8 @@ export function App() {
         setVjDupSpeedShift,
         vjDupRandomHoriz,
         setVjDupRandomHoriz,
+        vjInvertStrobe,
+        setVjInvertStrobe,
         onFeatureBlockedHint: showFeatureHint,
       },
       exportSection: {
@@ -1559,6 +1608,7 @@ export function App() {
       vjDupScrollSpeed,
       vjDupSpeedShift,
       vjDupRandomHoriz,
+      vjInvertStrobe,
       vjPathScale,
       showFeatureHint,
       vjPathSpeed,
@@ -1712,6 +1762,13 @@ export function App() {
             onPointerLeave={onPointerUp}
             onContextMenu={onCanvasContextMenu}
           />
+          {vjInvertStrobe ? (
+            <div
+              ref={vjInvertStrobeOverlayRef}
+              className="viewport__vj-invert-strobe"
+              aria-hidden
+            />
+          ) : null}
         </div>
 
         <SettingsSidebar

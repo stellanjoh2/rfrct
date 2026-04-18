@@ -1,70 +1,79 @@
 /**
- * Momentary vertical scroll spikes on loudness transients, then snap back to base speed.
+ * Momentary vertical scroll spikes driven by spectral transients:
+ * large hits from bass, snappier smaller hits from high frequencies.
  */
 
-/** Count “high dB” transient candidates; fire once every this many. */
+import type { MicTickResult } from "./micAnalyzer";
+
+/** Count bass-dominant transient candidates before firing a big shift. */
 const HIGH_BEATS_PER_SHIFT = 3;
-/** Smoothed loudness floor — only tallies toward the counter above this. */
-const HIGH_DB_FOR_BEAT = 0.4;
-/** Min time between counted beats (avoids one drum hit spanning many frames). */
+/** Minimum bass energy to count toward the tally (not global dB). */
+const BASS_LEVEL_FLOOR = 0.035;
+/** Min time between counted bass beats (same drum hit → one tally). */
 const BEAT_DEBOUNCE_SEC = 0.065;
-
-export type VjDupSpeedShiftState = {
-  /** Extra multiplier on top of 1 (0 = exactly base scroll from slider). */
-  impulse: number;
-  prevDbNorm: number;
-  prevEnvelope: number;
-  /** Seconds until pulse cooldown (after a real fire). */
-  cooldown: number;
-  /** After reset, skip one frame so we don’t treat startup as a transient. */
-  primed: boolean;
-  /** Counts high-dB beat candidates; fires after {@link HIGH_BEATS_PER_SHIFT} tallies. */
-  highBeatTally: number;
-  /** Time until another frame can register as a beat candidate. */
-  beatDebounce: number;
-};
-
-export function createVjDupSpeedShiftState(): VjDupSpeedShiftState {
-  return {
-    impulse: 0,
-    prevDbNorm: 0,
-    prevEnvelope: 0,
-    cooldown: 0,
-    primed: false,
-    highBeatTally: 0,
-    beatDebounce: 0,
-  };
-}
-
-export function resetVjDupSpeedShiftState(st: VjDupSpeedShiftState): void {
-  st.impulse = 0;
-  st.prevDbNorm = 0;
-  st.prevEnvelope = 0;
-  st.cooldown = 0;
-  st.primed = false;
-  st.highBeatTally = 0;
-  st.beatDebounce = 0;
-}
 
 /** Return to baseline scroll this fast after a spike (~40–90 ms effective). */
 const IMPULSE_DECAY_PER_SEC = 48;
 
 /**
- * Peak extra multiplier (on top of 1× base). Large values = much more vertical travel per spike.
+ * Peak extra multiplier for bass-driven tallies (on top of 1× base scroll).
  */
-function drawImpulsePeak(): number {
+function drawBassImpulsePeak(): number {
   return 72 + Math.random() * 140;
 }
 
 /**
+ * Smaller, faster-acting peaks for high-frequency transients (hats, crack).
+ */
+function drawHighImpulsePeak(): number {
+  return 20 + Math.random() * 48;
+}
+
+export type VjDupSpeedShiftState = {
+  /** Extra multiplier on top of 1 (0 = exactly base scroll from slider). */
+  impulse: number;
+  /** Seconds until pulse cooldown (after a bass tally fire). */
+  cooldown: number;
+  /** After reset, skip one frame so we don’t treat startup as a transient. */
+  primed: boolean;
+  highBeatTally: number;
+  beatDebounce: number;
+  /** Short cooldown so high-band snappy hits don’t stack every frame. */
+  highSnappyCooldown: number;
+};
+
+export function createVjDupSpeedShiftState(): VjDupSpeedShiftState {
+  return {
+    impulse: 0,
+    cooldown: 0,
+    primed: false,
+    highBeatTally: 0,
+    beatDebounce: 0,
+    highSnappyCooldown: 0,
+  };
+}
+
+export function resetVjDupSpeedShiftState(st: VjDupSpeedShiftState): void {
+  st.impulse = 0;
+  st.cooldown = 0;
+  st.primed = false;
+  st.highBeatTally = 0;
+  st.beatDebounce = 0;
+  st.highSnappyCooldown = 0;
+}
+
+type SpectralTick = Pick<
+  MicTickResult,
+  "envelope" | "bands" | "bandTransient"
+>;
+
+/**
  * @param base — Duplicate stack scroll speed from the Design slider (UV / s).
- * @param dbNorm — Smoothed loudness 0–1 from {@link MicAnalyzer.tick}.
- * @param envelope — Smoothed RMS 0–1 from {@link MicAnalyzer.tick} (good for transients).
+ * @param tick — Must include FFT-derived {@link MicTickResult.bands} and {@link MicTickResult.bandTransient}.
  */
 export function stepVjDupSpeedShift(
   base: number,
-  dbNorm: number,
-  envelope: number,
+  tick: SpectralTick,
   dt: number,
   st: VjDupSpeedShiftState,
 ): { vy: number; vx: number } {
@@ -75,33 +84,47 @@ export function stepVjDupSpeedShift(
 
   st.cooldown = Math.max(0, st.cooldown - dt);
   st.beatDebounce = Math.max(0, st.beatDebounce - dt);
+  st.highSnappyCooldown = Math.max(0, st.highSnappyCooldown - dt);
 
   if (!st.primed) {
-    st.prevEnvelope = envelope;
-    st.prevDbNorm = dbNorm;
     st.primed = true;
     return { vy: base * (1 + st.impulse), vx: 0 };
   }
 
-  const envDelta = envelope - st.prevEnvelope;
-  const dbDelta = dbNorm - st.prevDbNorm;
-  st.prevEnvelope = envelope;
-  st.prevDbNorm = dbNorm;
+  const { bands, bandTransient } = tick;
+  const tb = bandTransient.bass;
+  const th = bandTransient.high;
+  const tl = bandTransient.lowMid;
 
-  const strongHit =
-    envDelta > 0.07 ||
-    (dbDelta > 0.045 && dbNorm > 0.38);
-  const softHit =
-    envDelta > 0.028 ||
-    (dbDelta > 0.018 && dbNorm > 0.32);
+  /** Snappy high-frequency hits: add moderate impulse without bass tally. */
+  if (
+    st.highSnappyCooldown <= 0 &&
+    th > 0.09 &&
+    bands.high > 0.045
+  ) {
+    st.impulse = Math.max(st.impulse, drawHighImpulsePeak());
+    st.highSnappyCooldown = 0.045;
+  }
 
-  const transient =
-    strongHit || (softHit && Math.random() < 0.35);
+  /** Big bass-driven shifts: energy can read well in bass even when overall dB is moderate. */
+  const strongBass =
+    tb > 0.055 ||
+    (tb > 0.02 && bands.bass > 0.14) ||
+    (tl > 0.07 && bands.bass > 0.1);
+  const softBass =
+    tb > 0.018 ||
+    tl > 0.045 ||
+    (bands.lowMid > 0.12 && tb > 0.012);
+
+  const hasSignal =
+    bands.bass >= BASS_LEVEL_FLOOR ||
+    tick.envelope > 0.075;
+
+  const transient = strongBass || (softBass && Math.random() < 0.38);
 
   if (
     st.cooldown <= 0 &&
-    envelope > 0.1 &&
-    dbNorm >= HIGH_DB_FOR_BEAT &&
+    hasSignal &&
     transient &&
     st.beatDebounce <= 0
   ) {
@@ -109,7 +132,7 @@ export function stepVjDupSpeedShift(
     st.highBeatTally += 1;
     if (st.highBeatTally >= HIGH_BEATS_PER_SHIFT) {
       st.highBeatTally = 0;
-      st.impulse = Math.max(st.impulse, drawImpulsePeak());
+      st.impulse = Math.max(st.impulse, drawBassImpulsePeak());
       st.cooldown = 0.065;
     }
   }

@@ -319,16 +319,29 @@ export function buildRendererSyncParams(
     softKnee: BLOOM_SOFT_KNEE,
   };
 
+  /**
+   * Mic adds only within headroom below {@link REFRACT_CAP}, scaled by envelope × boost,
+   * so Audio boost stays meaningful even when the Lens refraction slider is not at zero.
+   */
   const refractStrength = s.micDrivingRefraction
-    ? Math.min(
-        REFRACT_CAP,
-        s.refract +
-          s.micEnvelope * s.micRefractBoost * MIC_REFRACT_GAIN,
-      )
+    ? (() => {
+        const room = Math.max(0, REFRACT_CAP - s.refract);
+        const audioAdd =
+          room > 0
+            ? room *
+              Math.min(1, s.micEnvelope) *
+              s.micRefractBoost *
+              (MIC_REFRACT_GAIN / REFRACT_CAP)
+            : 0;
+        return Math.min(REFRACT_CAP, s.refract + audioAdd);
+      })()
     : s.refract;
 
   const filterStrength = s.micDrivingRefraction
-    ? Math.min(1, s.micEnvelope * s.filterStrength)
+    ? Math.min(
+        1,
+        s.micEnvelope * s.micRefractBoost * s.filterStrength,
+      )
     : s.filterStrength;
 
   const blob: BlobParams = {
@@ -371,7 +384,7 @@ export function buildRendererSyncParams(
     const cb = parseHexColor(s.vjGlassNeonBHex);
     const envMod =
       s.micDrivingRefraction && s.vjMode
-        ? 0.1 + 0.9 * s.micEnvelope
+        ? 0.1 + 0.9 * s.micEnvelope * s.micRefractBoost
         : 1.0;
     const strength = Math.min(2, s.vjGlassGradeIntensity * envMod);
     return {

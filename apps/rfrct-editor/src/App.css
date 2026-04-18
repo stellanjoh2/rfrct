@@ -138,6 +138,19 @@ body {
   font-size: 11px;
 }
 
+/**
+ * VJ: fullscreen difference invert — white layer over canvas (`mix-blend-mode: difference`).
+ */
+.viewport__vj-invert-strobe {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background: #fff;
+  mix-blend-mode: difference;
+  opacity: 0;
+}
+
 .viewport canvas {
   position: relative;
   z-index: 1;

@@ -38,13 +38,19 @@ export function resetVjDupHorizRandomState(st: VjDupHorizRandomState): void {
 
 /**
  * Advance timer, maybe pick a new target, ease {@link VjDupHorizRandomState.value} toward it.
+ * Optional high-band activity pulls the next pick sooner (snappier VJ).
  * Returns effective `vjDupHorizStep` for the GPU.
  */
 export function stepVjDupHorizRandom(
   dt: number,
   st: VjDupHorizRandomState,
+  opts?: { highTransient?: number },
 ): number {
   st.untilNextPick -= dt;
+  const ht = opts?.highTransient ?? 0;
+  if (ht > 0.06) {
+    st.untilNextPick -= dt * (1.1 + ht * 4);
+  }
   if (st.untilNextPick <= 0) {
     st.untilNextPick = PICK_INTERVAL_MIN + Math.random() * PICK_INTERVAL_SPAN;
     st.target = Math.random() * HORIZ_STEP_MAX;

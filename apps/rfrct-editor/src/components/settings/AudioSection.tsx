@@ -39,6 +39,9 @@ export type AudioSectionProps = {
   setVjDupSpeedShift: Dispatch<SetStateAction<boolean>>;
   vjDupRandomHoriz: boolean;
   setVjDupRandomHoriz: Dispatch<SetStateAction<boolean>>;
+  /** Fullscreen difference invert bursts on high-frequency transients. */
+  vjInvertStrobe: boolean;
+  setVjInvertStrobe: Dispatch<SetStateAction<boolean>>;
   onFeatureBlockedHint: (message: string) => void;
 };
 
@@ -74,6 +77,8 @@ export function AudioSection({
   setVjDupSpeedShift,
   vjDupRandomHoriz,
   setVjDupRandomHoriz,
+  vjInvertStrobe,
+  setVjInvertStrobe,
   onFeatureBlockedHint,
 }: AudioSectionProps) {
   const vjControlsEnabled = micDrivingRefraction && vjMode;
@@ -88,6 +93,8 @@ export function AudioSection({
   const speedShiftHint = !vjControlsEnabled
     ? HINT_NEED_VJ_CHAIN
     : "Turn on Duplicate stack in the Design tab first.";
+  const invertStrobeBlocked = !vjControlsEnabled;
+  const invertStrobeHint = HINT_NEED_VJ_CHAIN;
   return (
     <>
       <h2 title="Live audio input and loudness-driven modulation">
@@ -452,6 +459,26 @@ export function AudioSection({
               }
             >
               Horiz spacing
+            </button>
+          </ClickBlockedHint>
+          <ClickBlockedHint
+            blocked={invertStrobeBlocked}
+            hint={invertStrobeHint}
+            onBlockedClick={onFeatureBlockedHint}
+          >
+            <button
+              type="button"
+              className={`mic-toggle ${vjInvertStrobe ? "mic-toggle--on" : ""}`}
+              disabled={invertStrobeBlocked}
+              onClick={() => setVjInvertStrobe((v) => !v)}
+              aria-pressed={vjInvertStrobe}
+              title={
+                invertStrobeBlocked
+                  ? invertStrobeHint
+                  : "Random fullscreen difference-invert flashes on snare/hat transients (high frequencies only)"
+              }
+            >
+              Invert strobe
             </button>
           </ClickBlockedHint>
         </div>
