@@ -225,19 +225,40 @@ export function App() {
     mouseFluidVelRef.current = { x: 0, y: 0 };
   }, [lensMouseInput]);
 
-  /** VJ: CSS hue-rotate on solid overlay — slow drift + optional mic envelope. */
+  /**
+   * Automate hue: CSS hue-rotate with slow drift + optional mic envelope.
+   * When solid overlay opacity is high enough, animates that layer; otherwise
+   * animates the WebGL canvas so hue works without any backdrop tint.
+   */
   useEffect(() => {
-    const el = solidOverlayRef.current;
-    if (!el) return;
-    const run =
-      solidOverlayOpacity > 0.02 &&
-      solidOverlayVjHueShift &&
-      vjMode;
+    const run = solidOverlayVjHueShift && vjMode;
+    const solidEl = solidOverlayRef.current;
+    const canvasEl = canvasRef.current;
+
+    const clearHue = (node: HTMLElement | null) => {
+      if (!node) return;
+      node.style.filter = "";
+      node.style.removeProperty("will-change");
+    };
+
     if (!run) {
-      el.style.filter = "";
-      el.style.removeProperty("will-change");
+      clearHue(solidEl);
+      clearHue(canvasEl);
       return;
     }
+
+    const useSolid =
+      solidOverlayOpacity > 0.02 && solidEl !== null;
+    const el = useSolid ? solidEl! : canvasEl;
+    if (!el) {
+      clearHue(solidEl);
+      clearHue(canvasEl);
+      return;
+    }
+
+    if (useSolid) clearHue(canvasEl);
+    else clearHue(solidEl);
+
     let id = 0;
     const degPerSec = 7.5;
     const envDeg = 130;
@@ -259,8 +280,8 @@ export function App() {
     id = requestAnimationFrame(loop);
     return () => {
       cancelAnimationFrame(id);
-      el.style.filter = "";
-      el.style.removeProperty("will-change");
+      clearHue(solidEl);
+      clearHue(canvasEl);
     };
   }, [
     solidOverlayOpacity,

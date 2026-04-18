@@ -651,6 +651,15 @@ label.file-btn input[type="file"] {
   margin-top: 22px;
 }
 
+.panel h3.settings-subhead {
+  margin: 18px 0 10px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.5);
+}
+
 .field {
   position: relative;
   z-index: 1;

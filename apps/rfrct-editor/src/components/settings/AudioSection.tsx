@@ -2,10 +2,10 @@ import type { Dispatch, SetStateAction } from "react";
 import type { AudioInputMode } from "../../audio/micAnalyzer";
 import { ClickBlockedHint } from "../ClickBlockedHint";
 
-/** Shown when a VJ-only control is clicked while audio is off. */
-const HINT_START_AUDIO_VJ = "Start audio first to enable VJ mode.";
-/** Shown when a sub-control needs the VJ chain (mic + VJ toggle). */
-const HINT_NEED_VJ_CHAIN = "Turn on VJ mode while audio is running to use this.";
+/** Shown when automation controls are clicked while audio is off. */
+const HINT_START_AUDIO_VJ = "Start audio first to enable Automate.";
+/** Shown when a sub-control needs audio + Automate. */
+const HINT_NEED_VJ_CHAIN = "Turn on Automate while audio is running to use this.";
 const HINT_DUP_STACK_FIRST = "Turn on Dup stack first.";
 
 export type AudioSectionProps = {
@@ -86,19 +86,13 @@ export function AudioSection({
   const vjControlsEnabled = micDrivingRefraction && vjMode;
   const dupSlidersNeedVj = !vjControlsEnabled;
   const dupSlidersNeedDup = vjControlsEnabled && !vjDupVertical;
-  const overlayTooWeak = solidOverlayOpacity < 0.02;
-  const vjHueShiftBlocked = overlayTooWeak || !vjMode;
-  const vjHueShiftHint = overlayTooWeak
-    ? "Raise solid overlay opacity to use VJ hue shift."
-    : "Turn on VJ mode to use VJ hue shift.";
+  const vjHueShiftBlocked = !vjMode;
+  const vjHueShiftHint = "Turn on Automate to use hue shift.";
 
-  const hueAudioBlocked =
-    overlayTooWeak || !vjMode || !solidOverlayVjHueShift;
-  const hueAudioHint = overlayTooWeak
-    ? "Raise solid overlay opacity to use Hue + audio."
-    : !vjMode
-      ? "Turn on VJ mode to use Hue + audio."
-      : "Turn on VJ hue shift first.";
+  const hueAudioBlocked = !vjMode || !solidOverlayVjHueShift;
+  const hueAudioHint = !vjMode
+    ? "Turn on Automate to use Hue + audio."
+    : "Turn on hue shift first.";
   return (
     <>
       <h2 title="Live audio input and loudness-driven modulation">
@@ -157,8 +151,8 @@ export function AudioSection({
         )}
       </section>
 
-      <h2 title="Audio-driven automation, path motion, and stacked logo controls">
-        VJ
+      <h2 title="Audio-driven automation, lens path, glass neon, overlay hue, and duplicate stack">
+        Visuals
       </h2>
       <section>
         <div className="field field--checkbox field--audio-toggles">
@@ -176,53 +170,27 @@ export function AudioSection({
               aria-label={
                 micDrivingRefraction
                   ? vjMode
-                    ? "Turn off VJ mode"
-                    : "Turn on VJ mode"
-                  : "Start audio to enable VJ mode"
+                    ? "Turn off Automate"
+                    : "Turn on Automate"
+                  : "Start audio to enable Automate"
               }
               title={
                 micDrivingRefraction
-                  ? "Automate lens, glass, bloom, and effects from loudness (dB)"
+                  ? "Automate lens path, glass neon, bloom, and related effects from loudness (dB)"
                   : "Start audio first"
               }
             >
-              VJ mode
-            </button>
-          </ClickBlockedHint>
-          <ClickBlockedHint
-            blocked={!vjControlsEnabled}
-            hint={HINT_NEED_VJ_CHAIN}
-            onBlockedClick={onFeatureBlockedHint}
-          >
-            <button
-              type="button"
-              className={`mic-toggle ${vjDupVertical ? "mic-toggle--on" : ""}`}
-              disabled={!vjControlsEnabled}
-              onClick={() => setVjDupVertical((v) => !v)}
-              aria-pressed={vjDupVertical}
-              aria-label={
-                vjControlsEnabled
-                  ? vjDupVertical
-                    ? "Turn off stacked logo scroll"
-                    : "Turn on stacked logo scroll"
-                  : "Enable VJ mode to use stacked logos"
-              }
-              title={
-                vjControlsEnabled
-                  ? "Repeat the SVG in a vertical scroll; rows are tight to the artwork with a slight horizontal stagger"
-                  : "Start audio and VJ mode first"
-              }
-            >
-              Dup stack
+              Automate
             </button>
           </ClickBlockedHint>
         </div>
+        <h3 className="settings-subhead">Path</h3>
         <div className="field">
           <label
             title="Radius of the lens squircle orbit (1 = default). Larger values keep the same smooth path; the lens can move off-screen and back (no sliding along the frame edges)."
             htmlFor="vj-path-scale"
           >
-            VJ path scale
+            Path scale
             <span className="val">{vjPathScale.toFixed(2)}×</span>
           </label>
           <ClickBlockedHint
@@ -240,7 +208,7 @@ export function AudioSection({
               value={vjPathScale}
               onChange={(e) => setVjPathScale(Number(e.target.value))}
               disabled={!vjControlsEnabled}
-              aria-label="VJ mode lens orbit radius scale"
+              aria-label="Lens orbit radius scale"
             />
           </ClickBlockedHint>
         </div>
@@ -249,7 +217,7 @@ export function AudioSection({
             title="How fast the lens travels the squircle path (full loops per second). 0 = hold start position. Separate from Lens “Animation speed” (blob ripple)."
             htmlFor="vj-path-speed"
           >
-            VJ path speed
+            Path speed
             <span className="val">
               {vjPathSpeed < 1e-4
                 ? "paused"
@@ -271,12 +239,13 @@ export function AudioSection({
               value={vjPathSpeed}
               onChange={(e) => setVjPathSpeed(Number(e.target.value))}
               disabled={!vjControlsEnabled}
-              aria-label="VJ squircle path speed in laps per second"
+              aria-label="Squircle path speed in laps per second"
             />
           </ClickBlockedHint>
         </div>
+        <h3 className="settings-subhead">Neon</h3>
         <div className="field">
-          <label htmlFor="vj-glass-grade-mode">Glass neon (VJ)</label>
+          <label htmlFor="vj-glass-grade-mode">Glass neon</label>
           <ClickBlockedHint
             blocked={!vjControlsEnabled}
             hint={HINT_NEED_VJ_CHAIN}
@@ -293,7 +262,7 @@ export function AudioSection({
                 )
               }
               disabled={!vjControlsEnabled}
-              aria-label="VJ glass neon mode"
+              aria-label="Glass neon mode"
             >
               <option value="off">Off</option>
               <option value="tint">Neon tint (screen)</option>
@@ -383,14 +352,17 @@ export function AudioSection({
                     setVjGlassGradeIntensity(Number(e.target.value))
                   }
                   disabled={!vjControlsEnabled}
-                  aria-label="VJ glass neon intensity"
+                  aria-label="Glass neon intensity"
                 />
               </ClickBlockedHint>
             </div>
           </>
         )}
+        <h3 className="settings-subhead">Hue</h3>
         <div className="field">
-          <label>Overlay hue (from Video backdrop)</label>
+          <label title="With solid overlay opacity up (Video backdrop), hue shifts that layer. With overlay off, hue shifts the refracted lens view instead.">
+            Scene & overlay
+          </label>
           <div className="field--checkbox field--audio-toggles">
             <ClickBlockedHint
               blocked={vjHueShiftBlocked}
@@ -400,20 +372,20 @@ export function AudioSection({
               <button
                 type="button"
                 className={`mic-toggle ${solidOverlayVjHueShift ? "mic-toggle--on" : ""}`}
-                disabled={!vjMode || solidOverlayOpacity < 0.02}
+                disabled={!vjMode}
                 onClick={() => setSolidOverlayVjHueShift((v) => !v)}
                 aria-pressed={solidOverlayVjHueShift}
                 title={
                   !vjMode
-                    ? "Turn on VJ mode to animate overlay hue"
-                    : solidOverlayOpacity < 0.02
-                      ? "Raise overlay opacity first"
-                      : solidOverlayVjHueShift
-                        ? "Use static overlay colour"
-                        : "Slowly rotate hue on the solid overlay"
+                    ? "Turn on Automate to animate hue"
+                    : solidOverlayVjHueShift
+                      ? "Turn off hue animation"
+                      : solidOverlayOpacity > 0.02
+                        ? "Slowly rotate hue on the solid overlay"
+                        : "Slowly rotate hue on the refracted view (no solid overlay needed)"
                 }
               >
-                VJ hue shift
+                Hue shift
               </button>
             </ClickBlockedHint>
             <ClickBlockedHint
@@ -424,9 +396,7 @@ export function AudioSection({
               <button
                 type="button"
                 className={`mic-toggle ${solidOverlayHueAudio ? "mic-toggle--on" : ""}`}
-                disabled={
-                  !vjMode || !solidOverlayVjHueShift || solidOverlayOpacity < 0.02
-                }
+                disabled={!vjMode || !solidOverlayVjHueShift}
                 onClick={() => setSolidOverlayHueAudio((v) => !v)}
                 aria-pressed={solidOverlayHueAudio}
                 title={
@@ -434,7 +404,7 @@ export function AudioSection({
                     ? solidOverlayHueAudio
                       ? "Hue uses time only"
                       : "Add loudness to hue (needs audio on)"
-                    : "Enable VJ hue shift first"
+                    : "Enable hue shift first"
                 }
               >
                 Hue + audio
@@ -442,12 +412,42 @@ export function AudioSection({
             </ClickBlockedHint>
           </div>
         </div>
+        <h3 className="settings-subhead">Dup stack</h3>
+        <div className="field field--checkbox field--audio-toggles">
+          <ClickBlockedHint
+            blocked={!vjControlsEnabled}
+            hint={HINT_NEED_VJ_CHAIN}
+            onBlockedClick={onFeatureBlockedHint}
+          >
+            <button
+              type="button"
+              className={`mic-toggle ${vjDupVertical ? "mic-toggle--on" : ""}`}
+              disabled={!vjControlsEnabled}
+              onClick={() => setVjDupVertical((v) => !v)}
+              aria-pressed={vjDupVertical}
+              aria-label={
+                vjControlsEnabled
+                  ? vjDupVertical
+                    ? "Turn off stacked logo scroll"
+                    : "Turn on stacked logo scroll"
+                  : "Enable Automate to use Dup stack"
+              }
+              title={
+                vjControlsEnabled
+                  ? "Repeat the SVG in a vertical scroll; rows are tight to the artwork with a slight horizontal stagger"
+                  : "Start audio and Automate first"
+              }
+            >
+              Dup stack
+            </button>
+          </ClickBlockedHint>
+        </div>
         <div className="field">
           <label
             title="Vertical gap between stacked logos (fraction of viewport height)"
             htmlFor="vj-dup-gap"
           >
-            Dup spacing (vertical)
+            Spacing (vertical)
             <span className="val">{(vjDupGap * 100).toFixed(1)}%</span>
           </label>
           <ClickBlockedHint
@@ -474,7 +474,7 @@ export function AudioSection({
             title="Horizontal shift per stair step; pattern resets every 8 rows"
             htmlFor="vj-dup-horiz"
           >
-            Dup spacing (horizontal)
+            Spacing (horizontal)
             <span className="val">{(vjDupHorizStep * 100).toFixed(1)}%</span>
           </label>
           <ClickBlockedHint
@@ -501,7 +501,7 @@ export function AudioSection({
             title="Vertical scroll speed for the dup stack (independent of Lens blob speed)"
             htmlFor="vj-dup-scroll"
           >
-            Dup scroll speed
+            Scroll speed
             <span className="val">{vjDupScrollSpeed.toFixed(3)}</span>
           </label>
           <ClickBlockedHint
