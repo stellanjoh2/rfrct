@@ -12,6 +12,9 @@ import {
 export const SETTINGS_SNAPSHOT_SCHEMA = "rfrct-editor-settings" as const;
 export const SETTINGS_SNAPSHOT_VERSION = 1 as const;
 
+/** Where the Effects hue slider applies — WebGL scene vs full preview stack. */
+export type HueApplyScope = "scene" | "viewport";
+
 const BLEND_VALUES = new Set(
   BACKDROP_BLEND_OPTIONS.map((o) => o.value),
 ) as Set<BackdropBlendMode>;
@@ -49,6 +52,7 @@ export type RfrctEditorSettingsSnapshotV1 = {
   frostBlur: number;
   blurQuality: number;
   globalHueShift: number;
+  hueApplyScope: HueApplyScope;
   /** 0–1 film grain overlay; omitted in older snapshots → 0. */
   grainStrength: number;
   chroma: number;
@@ -119,6 +123,8 @@ export type RfrctEditorSettingsSnapshotV1 = {
   vjLayer2BlinkInverse: boolean;
   vjLayer2RandomScale: boolean;
   vjLayer2RandomBurst: boolean;
+  /** Random burst: linear scale ramp (~+15%) while a burst window plays (optional in older snapshots). */
+  vjLayer2StrobeScale: boolean;
 };
 
 /**
@@ -306,6 +312,7 @@ export function parseSettingsSnapshot(
     frostBlur: num(p.frostBlur, 0),
     blurQuality: num(p.blurQuality, 1),
     globalHueShift: num(p.globalHueShift, 0),
+    hueApplyScope: p.hueApplyScope === "viewport" ? "viewport" : "scene",
     grainStrength: num(p.grainStrength, 0),
     chroma: num(p.chroma, 0),
     bloomStrength: num(p.bloomStrength, 0),
@@ -384,6 +391,7 @@ export function parseSettingsSnapshot(
         bool(p.vjLayer2RandomBurst, false),
       ),
     ),
+    vjLayer2StrobeScale: bool(p.vjLayer2StrobeScale, false),
   };
 
   return { ok: true, data };

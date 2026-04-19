@@ -49,6 +49,9 @@ export type AudioSectionProps = {
   hasSecondaryLayer: boolean;
   vjLayer2AutomationMode: VjLayer2AutomationMode;
   setVjLayer2AutomationMode: Dispatch<SetStateAction<VjLayer2AutomationMode>>;
+  /** Random burst: linear scale ramp during each strobe window. */
+  vjLayer2StrobeScale: boolean;
+  setVjLayer2StrobeScale: Dispatch<SetStateAction<boolean>>;
   onFeatureBlockedHint: (message: string) => void;
 };
 
@@ -90,6 +93,8 @@ export function AudioSection({
   hasSecondaryLayer,
   vjLayer2AutomationMode,
   setVjLayer2AutomationMode,
+  vjLayer2StrobeScale,
+  setVjLayer2StrobeScale,
   onFeatureBlockedHint,
 }: AudioSectionProps) {
   const vjControlsEnabled = micDrivingRefraction && vjMode;
@@ -110,6 +115,11 @@ export function AudioSection({
   const layer2VjHint = !hasSecondaryLayer
     ? "Add Layer 2 in the Design tab first."
     : HINT_NEED_VJ_CHAIN;
+  const strobeScaleBlocked =
+    layer2VjBlocked || vjLayer2AutomationMode !== "randomBurst";
+  const strobeScaleHint = layer2VjBlocked
+    ? layer2VjHint
+    : "Turn on Random burst first.";
 
   const pickLayer2Mode = (mode: Exclude<VjLayer2AutomationMode, "off">) => {
     setVjLayer2AutomationMode((prev) => (prev === mode ? "off" : mode));
@@ -608,6 +618,26 @@ export function AudioSection({
               }
             >
               Random burst
+            </button>
+          </ClickBlockedHint>
+          <ClickBlockedHint
+            blocked={strobeScaleBlocked}
+            hint={strobeScaleHint}
+            onBlockedClick={onFeatureBlockedHint}
+          >
+            <button
+              type="button"
+              className={`mic-toggle ${vjLayer2StrobeScale ? "mic-toggle--on" : ""}`}
+              disabled={strobeScaleBlocked}
+              onClick={() => setVjLayer2StrobeScale((v) => !v)}
+              aria-pressed={vjLayer2StrobeScale}
+              title={
+                strobeScaleBlocked
+                  ? strobeScaleHint
+                  : "Each burst starts Layer 2 at −15% scale and linearly reaches +15% over ~1.3 s — longer than the flash, so the motion continues after the strobe goes dark"
+              }
+            >
+              Strobe scale
             </button>
           </ClickBlockedHint>
         </div>

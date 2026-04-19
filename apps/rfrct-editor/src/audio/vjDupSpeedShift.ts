@@ -3,6 +3,7 @@
  * large hits from bass, snappier smaller hits from high frequencies.
  */
 
+import { AUDIBLE_DB_NORM_MIN } from "./audibleGate";
 import type { MicTickResult } from "./micAnalyzer";
 
 /** Count bass-dominant transient candidates before firing a big shift. */
@@ -14,6 +15,11 @@ const BEAT_DEBOUNCE_SEC = 0.065;
 
 /** Return to baseline scroll this fast after a spike (~40–90 ms effective). */
 const IMPULSE_DECAY_PER_SEC = 48;
+/**
+ * When RMS loudness ({@link MicTickResult.dbNorm}) is below the audible floor,
+ * speed-shift does not add new spikes and decays existing impulse quickly.
+ */
+const SILENCE_IMPULSE_DECAY_PER_SEC = 150;
 
 /**
  * Peak extra multiplier for bass-driven tallies (on top of 1× base scroll).
@@ -64,7 +70,7 @@ export function resetVjDupSpeedShiftState(st: VjDupSpeedShiftState): void {
 
 type SpectralTick = Pick<
   MicTickResult,
-  "envelope" | "bands" | "bandTransient"
+  "envelope" | "dbNorm" | "bands" | "bandTransient"
 >;
 
 /**
@@ -77,7 +83,11 @@ export function stepVjDupSpeedShift(
   dt: number,
   st: VjDupSpeedShiftState,
 ): { vy: number; vx: number } {
-  st.impulse *= Math.exp(-dt * IMPULSE_DECAY_PER_SEC);
+  const audible = tick.dbNorm >= AUDIBLE_DB_NORM_MIN;
+  const decay = audible
+    ? IMPULSE_DECAY_PER_SEC
+    : SILENCE_IMPULSE_DECAY_PER_SEC;
+  st.impulse *= Math.exp(-dt * decay);
   if (st.impulse < 1e-4) {
     st.impulse = 0;
   }
@@ -88,6 +98,14 @@ export function stepVjDupSpeedShift(
 
   if (!st.primed) {
     st.primed = true;
+    return { vy: base * (1 + st.impulse), vx: 0 };
+  }
+
+  if (!audible) {
+    st.highBeatTally = 0;
+    st.cooldown = 0;
+    st.beatDebounce = 0;
+    st.highSnappyCooldown = 0;
     return { vy: base * (1 + st.impulse), vx: 0 };
   }
 

@@ -134,6 +134,7 @@ export function scaleTickForAudioBoost(
     return {
       ...tick,
       envelope: tick.envelope * b,
+      dbNorm: tick.dbNorm * b,
       bands: { ...ZERO_SPECTRAL_BANDS },
       bandTransient: { ...ZERO_SPECTRAL_BANDS },
     };
@@ -141,6 +142,7 @@ export function scaleTickForAudioBoost(
   return {
     ...tick,
     envelope: tick.envelope * b,
+    dbNorm: tick.dbNorm * b,
     bands: {
       bass: tick.bands.bass * b,
       lowMid: tick.bands.lowMid * b,

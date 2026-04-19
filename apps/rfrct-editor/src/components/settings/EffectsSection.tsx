@@ -1,6 +1,10 @@
+import type { HueApplyScope } from "../../settingsSnapshot";
+
 export type EffectsSectionProps = {
   globalHueShift: number;
   setGlobalHueShift: (v: number) => void;
+  hueApplyScope: HueApplyScope;
+  setHueApplyScope: (v: HueApplyScope) => void;
   frostBlur: number;
   setFrostBlur: (v: number) => void;
   blurQuality: number;
@@ -14,6 +18,8 @@ export type EffectsSectionProps = {
 export function EffectsSection({
   globalHueShift,
   setGlobalHueShift,
+  hueApplyScope,
+  setHueApplyScope,
   frostBlur,
   setFrostBlur,
   blurQuality,
@@ -29,7 +35,7 @@ export function EffectsSection({
       <section>
         <div className="field">
           <label>
-            Global hue
+            Hue
             <span className="val">{Math.round(globalHueShift)}°</span>
           </label>
           <input
@@ -39,8 +45,29 @@ export function EffectsSection({
             step={1}
             value={globalHueShift}
             onChange={(e) => setGlobalHueShift(Number(e.target.value))}
-            aria-label="Global hue shift in degrees"
+            aria-label="Hue shift in degrees"
           />
+        </div>
+        <div className="field">
+          <label htmlFor="hue-apply-scope">Apply hue to</label>
+          <select
+            id="hue-apply-scope"
+            className="field-select"
+            value={hueApplyScope}
+            onChange={(e) =>
+              setHueApplyScope(e.target.value as HueApplyScope)
+            }
+            aria-label="Where to apply hue shift"
+          >
+            <option value="scene">Scene (WebGL only)</option>
+            <option value="viewport">
+              Full viewport (scene + video + overlays)
+            </option>
+          </select>
+          <p className="field-hint">
+            Full viewport uses CSS on the live preview. PNG export still uses
+            the WebGL scene path only.
+          </p>
         </div>
         <div className="field">
           <label>

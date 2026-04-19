@@ -131,8 +131,14 @@ export type RendererSyncSource = {
   edgeSoft: number;
   frostBlur: number;
   blurQuality: number;
-  /** 0–360 — global output hue (export-friendly). */
+  /** 0–360 — hue angle (degrees); see {@link hueApplyScope}. */
   globalHueShift: number;
+  /**
+   * `scene`: hue in WebGL only (refracted canvas). `viewport`: same angle via CSS on the
+   * preview stack (canvas + video + in-viewport overlays); shader hue is 0 to avoid double application.
+   * @default "scene"
+   */
+  hueApplyScope?: "scene" | "viewport";
   /** 0–1 — film grain overlay on final output. */
   grainStrength?: number;
   chroma: number;
@@ -430,6 +436,8 @@ export function buildRendererSyncParams(
     },
     underlayTintRgb,
     globalHueShift: (() => {
+      const scope = s.hueApplyScope ?? "scene";
+      if (scope === "viewport") return 0;
       const x = Number(s.globalHueShift);
       if (!Number.isFinite(x)) return 0;
       return ((x % 360) + 360) % 360;

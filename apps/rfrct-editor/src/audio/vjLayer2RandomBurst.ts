@@ -14,6 +14,16 @@ const BASS_TRANSIENT_MIN = 0.055;
 const BASS_BAND_MIN = 0.042;
 const TRIGGER_ROLL = 0.46;
 
+/** Symmetric swing: scale starts at 1 − this and ends at 1 + this (e.g. 0.85 → 1.15). */
+const STROBE_SCALE_DELTA = 0.15;
+const STROBE_SCALE_LOW = 1 - STROBE_SCALE_DELTA;
+const STROBE_SCALE_HIGH = 1 + STROBE_SCALE_DELTA;
+/**
+ * Full sweep duration (wall clock). Longer than typical on-screen strobes so the ramp
+ * keeps running after the burst opacity has gone dark.
+ */
+const STROBE_SCALE_TOTAL_SEC = 1.35;
+
 /** In-group gap after a burst (wider spread = less machine-like). */
 function randomMicroGapSec(): number {
   const r = Math.random();
@@ -67,6 +77,10 @@ export type VjLayer2RandomBurstState = {
   microCooldown: number;
   /** Bursts remaining in the current group (including the active one while it plays). */
   burstsLeftInGroup: number;
+  /** True while the extended strobe-scale sweep is running (may outlast the burst). */
+  strobeScaleAnimPlaying: boolean;
+  /** Elapsed seconds in the sweep (0 = −15% scale; end of sweep = +15%). */
+  strobeScaleAnimElapsed: number;
 };
 
 export function createVjLayer2RandomBurstState(): VjLayer2RandomBurstState {
@@ -78,6 +92,8 @@ export function createVjLayer2RandomBurstState(): VjLayer2RandomBurstState {
     interGroupCooldown: 0,
     microCooldown: 0,
     burstsLeftInGroup: 0,
+    strobeScaleAnimPlaying: false,
+    strobeScaleAnimElapsed: 0,
   };
 }
 
@@ -87,6 +103,8 @@ export function resetVjLayer2RandomBurstState(st: VjLayer2RandomBurstState): voi
   st.interGroupCooldown = 0;
   st.microCooldown = 0;
   st.burstsLeftInGroup = 0;
+  st.strobeScaleAnimPlaying = false;
+  st.strobeScaleAnimElapsed = 0;
 }
 
 function armBurst(st: VjLayer2RandomBurstState): void {
@@ -95,65 +113,92 @@ function armBurst(st: VjLayer2RandomBurstState): void {
   st.phase = Math.random() * Math.PI * 2;
 }
 
+export type VjLayer2RandomBurstStepResult = {
+  /** Opacity multiplier — **0 or 1 only** (hard alpha). 0 between bursts. */
+  opacity: number;
+  /**
+   * Layer scale: linear −15% → +15% over an extended wall-clock sweep; starts on burst frame zero
+   * and keeps going after the on-screen strobe ends, then returns to 1.
+   */
+  strobeScaleMul: number;
+};
+
 /**
- * @returns Opacity multiplier — **0 or 1 only** (hard alpha). 0 between bursts.
+ * @returns Opacity (0/1) plus optional strobe-time scale multiplier for Layer 2.
  */
 export function stepVjLayer2RandomBurst(
   tick: SpectralTick,
   dt: number,
   st: VjLayer2RandomBurstState,
-): number {
+): VjLayer2RandomBurstStepResult {
   st.interGroupCooldown = Math.max(0, st.interGroupCooldown - dt);
   st.microCooldown = Math.max(0, st.microCooldown - dt);
 
+  const burstLeftAtStart = st.burstLeft;
+
+  let opacity = 0;
+
   if (!st.primed) {
     st.primed = true;
-    return 0;
-  }
+    opacity = 0;
+  } else {
+    const tb = tick.bandTransient.bass;
+    const bb = tick.bands.bass;
 
-  const tb = tick.bandTransient.bass;
-  const bb = tick.bands.bass;
+    const strobeFrame = (): number => {
+      st.phase += dt * st.strobeHz * (Math.PI * 2);
+      return Math.sin(st.phase) >= 0.0 ? 1.0 : 0.0;
+    };
 
-  const strobeFrame = (): number => {
-    st.phase += dt * st.strobeHz * (Math.PI * 2);
-    return Math.sin(st.phase) >= 0.0 ? 1.0 : 0.0;
-  };
-
-  if (st.burstLeft > 0) {
-    const flash = strobeFrame();
-    st.burstLeft -= dt;
-    if (st.burstLeft <= 0) {
-      st.burstLeft = 0;
-      st.burstsLeftInGroup -= 1;
-      if (st.burstsLeftInGroup > 0) {
-        st.microCooldown = randomMicroGapSec();
-      } else {
-        st.interGroupCooldown =
-          INTER_GROUP_MIN +
-          Math.random() * (INTER_GROUP_MAX - INTER_GROUP_MIN);
+    if (st.burstLeft > 0) {
+      opacity = strobeFrame();
+      st.burstLeft -= dt;
+      if (st.burstLeft <= 0) {
+        st.burstLeft = 0;
+        st.burstsLeftInGroup -= 1;
+        if (st.burstsLeftInGroup > 0) {
+          st.microCooldown = randomMicroGapSec();
+        } else {
+          st.interGroupCooldown =
+            INTER_GROUP_MIN +
+            Math.random() * (INTER_GROUP_MAX - INTER_GROUP_MIN);
+        }
       }
+    } else if (st.microCooldown <= 0 && st.burstsLeftInGroup > 0) {
+      armBurst(st);
+      opacity = strobeFrame();
+    } else if (
+      st.interGroupCooldown <= 0 &&
+      st.burstsLeftInGroup === 0 &&
+      tb > BASS_TRANSIENT_MIN &&
+      bb > BASS_BAND_MIN &&
+      Math.random() < TRIGGER_ROLL
+    ) {
+      st.burstsLeftInGroup = randomBurstsInGroup();
+      armBurst(st);
+      opacity = strobeFrame();
+    } else {
+      opacity = 0;
     }
-    return flash;
   }
 
-  // Between bursts in a group: after micro gap, chain the next burst (no bass required).
-  if (st.microCooldown <= 0 && st.burstsLeftInGroup > 0) {
-    armBurst(st);
-    return strobeFrame();
+  const burstStarted = st.burstLeft > 0 && burstLeftAtStart <= 0;
+  if (burstStarted) {
+    st.strobeScaleAnimPlaying = true;
+    st.strobeScaleAnimElapsed = 0;
   }
 
-  // Idle between groups: bass may start a new group.
-  if (
-    st.interGroupCooldown <= 0 &&
-    st.burstsLeftInGroup === 0 &&
-    tb > BASS_TRANSIENT_MIN &&
-    bb > BASS_BAND_MIN &&
-    Math.random() < TRIGGER_ROLL
-  ) {
-    st.burstsLeftInGroup = randomBurstsInGroup();
-    armBurst(st);
-    return strobeFrame();
+  let strobeScaleMul = 1;
+  if (st.strobeScaleAnimPlaying) {
+    const p = Math.min(1, st.strobeScaleAnimElapsed / STROBE_SCALE_TOTAL_SEC);
+    strobeScaleMul = STROBE_SCALE_LOW + (STROBE_SCALE_HIGH - STROBE_SCALE_LOW) * p;
+    st.strobeScaleAnimElapsed += dt;
+    if (st.strobeScaleAnimElapsed >= STROBE_SCALE_TOTAL_SEC) {
+      st.strobeScaleAnimPlaying = false;
+      st.strobeScaleAnimElapsed = 0;
+      strobeScaleMul = 1;
+    }
   }
 
-  return 0;
+  return { opacity, strobeScaleMul };
 }

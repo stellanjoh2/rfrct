@@ -26,6 +26,7 @@ import {
   type AudioInputMode,
   audioCaptureErrorMessage,
 } from "./audio/micAnalyzer";
+import { AUDIBLE_DB_NORM_MIN } from "./audio/audibleGate";
 import {
   createVjDupHorizRandomState,
   resetVjDupHorizRandomState,
@@ -64,6 +65,7 @@ import {
   serializeSettingsSnapshot,
   vjLayer2ModeFromLegacyBools,
   vjLayer2ModeToLegacyBools,
+  type HueApplyScope,
   type RfrctEditorSettingsSnapshotCopyPayload,
   type VjLayer2AutomationMode,
 } from "./settingsSnapshot";
@@ -86,6 +88,11 @@ const TEMPLATE_LOGO_SVG_URL = `${import.meta.env.BASE_URL}rfrct-logo.svg`;
 
 function revokeSvgObjectUrlIfBlob(url: string | null) {
   if (url?.startsWith("blob:")) URL.revokeObjectURL(url);
+}
+
+function normalizeHueDeg(x: number): number {
+  if (!Number.isFinite(x)) return 0;
+  return ((x % 360) + 360) % 360;
 }
 
 export function App() {
@@ -138,6 +145,7 @@ export function App() {
   const [frostBlur, setFrostBlur] = useState(0);
   const [blurQuality, setBlurQuality] = useState(1);
   const [globalHueShift, setGlobalHueShift] = useState(0);
+  const [hueApplyScope, setHueApplyScope] = useState<HueApplyScope>("scene");
   const [grainStrength, setGrainStrength] = useState(0);
   const [chroma, setChroma] = useState(0);
   const [bloomStrength, setBloomStrength] = useState(0);
@@ -259,6 +267,8 @@ export function App() {
   /** VJ: secondary layer — at most one automation mode (mutually exclusive in UI). */
   const [vjLayer2AutomationMode, setVjLayer2AutomationMode] =
     useState<VjLayer2AutomationMode>("off");
+  /** Random burst only: ramp Layer 2 scale during each burst window, reset when it ends. */
+  const [vjLayer2StrobeScale, setVjLayer2StrobeScale] = useState(false);
   /** VJ mode: squircle orbit radius multiplier (larger = lens travels closer to frame edges). */
   const [vjPathScale, setVjPathScale] = useState(1);
   const [vjPathSpeed, setVjPathSpeed] = useState(DEFAULT_VJ_PATH_SPEED);
@@ -318,6 +328,8 @@ export function App() {
   const [layer2BaseOpacity, setLayer2BaseOpacity] = useState(1);
   const vjLayer2AutomationModeRef = useRef<VjLayer2AutomationMode>("off");
   vjLayer2AutomationModeRef.current = vjLayer2AutomationMode;
+  const vjLayer2StrobeScaleRef = useRef(false);
+  vjLayer2StrobeScaleRef.current = vjLayer2StrobeScale;
   const layer2ReadyRef = useRef(false);
   layer2ReadyRef.current = Boolean(
     layer2SourceUrl && layer2ImgDims && imgDims,
@@ -952,6 +964,7 @@ export function App() {
         frostBlur,
         blurQuality,
         globalHueShift,
+        hueApplyScope,
         grainStrength,
         chroma,
         shapeMode,
@@ -1012,6 +1025,7 @@ export function App() {
     frostBlur,
     blurQuality,
     globalHueShift,
+    hueApplyScope,
     grainStrength,
     chroma,
     shapeMode,
@@ -1123,9 +1137,19 @@ export function App() {
         if (raw.vjDupRandomHoriz && raw.vjMode && raw.vjDupVertical) {
           horizStep = stepVjDupHorizRandom(dt, vjDupHorizRandomStateRef.current, {
             highTransient: tickVj.bandTransient.high,
+            dbNorm: tickVj.dbNorm,
           });
         } else {
           resetVjDupHorizRandomState(vjDupHorizRandomStateRef.current);
+        }
+
+        if (
+          raw.vjMode &&
+          raw.vjDupVertical &&
+          tickVj.dbNorm < AUDIBLE_DB_NORM_MIN
+        ) {
+          scrollVy = 0;
+          scrollVx = 0;
         }
 
         layer2VjOpacityMulRef.current = 1;
@@ -1159,11 +1183,15 @@ export function App() {
             resetVjLayer2ScaleAudioState(vjLayer2ScaleAudioStateRef.current);
           }
           if (l2Mode === "randomBurst") {
-            layer2VjBurstOpacityMulRef.current = stepVjLayer2RandomBurst(
+            const burst = stepVjLayer2RandomBurst(
               tickVj,
               dt,
               vjLayer2RandomBurstStateRef.current,
             );
+            layer2VjBurstOpacityMulRef.current = burst.opacity;
+            if (vjLayer2StrobeScaleRef.current) {
+              layer2VjScaleMulRef.current *= burst.strobeScaleMul;
+            }
           } else {
             resetVjLayer2RandomBurstState(vjLayer2RandomBurstStateRef.current);
           }
@@ -1578,6 +1606,7 @@ export function App() {
       frostBlur,
       blurQuality,
       globalHueShift,
+      hueApplyScope,
       grainStrength,
       chroma,
       bloomStrength,
@@ -1636,6 +1665,7 @@ export function App() {
       layer2FollowDistort,
       layer2BaseOpacity,
       ...vjLayer2ModeToLegacyBools(vjLayer2AutomationMode),
+      vjLayer2StrobeScale,
     }),
     [
       bgHex,
@@ -1660,6 +1690,7 @@ export function App() {
       frostBlur,
       blurQuality,
       globalHueShift,
+      hueApplyScope,
       grainStrength,
       chroma,
       bloomStrength,
@@ -1718,6 +1749,7 @@ export function App() {
       layer2FollowDistort,
       layer2BaseOpacity,
       vjLayer2AutomationMode,
+      vjLayer2StrobeScale,
     ],
   );
 
@@ -1783,6 +1815,7 @@ export function App() {
     setFrostBlur(d.frostBlur);
     setBlurQuality(Math.round(Math.min(5, Math.max(1, d.blurQuality))));
     setGlobalHueShift(d.globalHueShift);
+    setHueApplyScope(d.hueApplyScope);
     setGrainStrength(d.grainStrength);
     setChroma(d.chroma);
     setBloomStrength(d.bloomStrength);
@@ -1851,6 +1884,7 @@ export function App() {
         d.vjLayer2RandomBurst,
       ),
     );
+    setVjLayer2StrobeScale(d.vjLayer2StrobeScale);
 
     const r = rendererRef.current;
     if (r) {
@@ -1975,6 +2009,8 @@ export function App() {
       effects: {
         globalHueShift,
         setGlobalHueShift,
+        hueApplyScope,
+        setHueApplyScope,
         frostBlur,
         setFrostBlur,
         blurQuality,
@@ -2034,6 +2070,8 @@ export function App() {
         hasSecondaryLayer: Boolean(layer2SourceUrl && layer2ImgDims),
         vjLayer2AutomationMode,
         setVjLayer2AutomationMode,
+        vjLayer2StrobeScale,
+        setVjLayer2StrobeScale,
         onFeatureBlockedHint: showFeatureHint,
       },
       exportPage: {
@@ -2116,6 +2154,7 @@ export function App() {
       frostBlur,
       blurQuality,
       globalHueShift,
+      hueApplyScope,
       grainStrength,
       chroma,
       exportTransparent,
@@ -2158,6 +2197,7 @@ export function App() {
       layer2FollowDistort,
       layer2BaseOpacity,
       vjLayer2AutomationMode,
+      vjLayer2StrobeScale,
       vjPathScale,
       showFeatureHint,
       vjPathSpeed,
@@ -2193,6 +2233,7 @@ export function App() {
     frostBlur,
     blurQuality,
     globalHueShift,
+    hueApplyScope,
     grainStrength,
     chroma,
     shapeMode,
@@ -2256,6 +2297,11 @@ export function App() {
           style={{
             background: youtubeEmbedActive ? "transparent" : bgHex,
             isolation: "isolate",
+            ...(hueApplyScope === "viewport"
+              ? {
+                  filter: `hue-rotate(${normalizeHueDeg(globalHueShift)}deg)`,
+                }
+              : {}),
           }}
         >
           {youtubeVideoId && (
