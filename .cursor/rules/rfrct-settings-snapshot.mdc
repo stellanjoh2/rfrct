@@ -1,0 +1,19 @@
+---
+description: Keep Copy settings / paste JSON in sync when adding serializable editor fields
+alwaysApply: true
+---
+
+# Settings snapshot (Rfrct editor)
+
+Serializable UI state lives in `RfrctEditorSettingsSnapshotV1` in `apps/rfrct-editor/src/settingsSnapshot.ts`.
+
+**Copy settings** builds `settingsSnapshotPayload` in `App.tsx`, typed as `RfrctEditorSettingsSnapshotCopyPayload`. That type is `Omit<…, "schema" | "version" | "blobCenter">` — `blobCenter` is merged from refs at copy time.
+
+When adding or renaming a user-facing setting that should round-trip in JSON:
+
+1. Add the field to **`RfrctEditorSettingsSnapshotV1`** (and **`parseSettingsSnapshot`** with safe defaults).
+2. Include it in **`settingsSnapshotPayload`** in `App.tsx` — the explicit return type must stay assignable; **TypeScript will fail the build** if the payload is incomplete.
+3. Apply it in **`applyPastedSettingsFromDraft`** (paste path).
+4. Run **`npm run build -w rfrct-editor`** before finishing.
+
+Do **not** store image/SVG binary data in the snapshot (design is unchanged).

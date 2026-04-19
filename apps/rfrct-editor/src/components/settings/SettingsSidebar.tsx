@@ -4,16 +4,18 @@ import { AudioSection } from "./AudioSection";
 import { DupStackSection } from "./DupStackSection";
 import { BloomSection } from "./BloomSection";
 import { EffectsSection } from "./EffectsSection";
-import { ExportSection } from "./ExportSection";
+import { ExportPage } from "./ExportPage";
+import type { ExportPageProps } from "./ExportPage";
 import { LensSection } from "./LensSection";
 import { MouseInputSection } from "./MouseInputSection";
 import { UploadBlock } from "./UploadBlock";
 import type { AppearanceSectionProps } from "./AppearanceSection";
+import { SecondaryLayerSection } from "./SecondaryLayerSection";
+import type { SecondaryLayerSectionProps } from "./SecondaryLayerSection";
 import type { AudioSectionProps } from "./AudioSection";
 import type { DupStackSectionProps } from "./DupStackSection";
 import type { BloomSectionProps } from "./BloomSection";
 import type { EffectsSectionProps } from "./EffectsSection";
-import type { ExportSectionProps } from "./ExportSection";
 import type { LensSectionProps } from "./LensSection";
 import type { MouseInputSectionProps } from "./MouseInputSection";
 import { ShareSettingsSection } from "./ShareSettingsSection";
@@ -23,9 +25,9 @@ import type { VideoBackdropSectionProps } from "./VideoBackdropSection";
 
 export type SettingsSidebarProps = {
   uiVisible: boolean;
-  featureHint: string | null;
   onFile: (e: React.ChangeEvent<HTMLInputElement>) => void;
   appearance: AppearanceSectionProps;
+  secondaryLayer: SecondaryLayerSectionProps;
   lens: LensSectionProps;
   dupStack: DupStackSectionProps;
   bloom: BloomSectionProps;
@@ -34,14 +36,14 @@ export type SettingsSidebarProps = {
   videoBackdrop: VideoBackdropSectionProps;
   mouseInput: MouseInputSectionProps;
   shareSettings: ShareSettingsSectionProps;
-  exportSection: ExportSectionProps;
+  exportPage: ExportPageProps;
 };
 
 export function SettingsSidebar({
   uiVisible,
-  featureHint,
   onFile,
   appearance,
+  secondaryLayer,
   lens,
   dupStack,
   bloom,
@@ -50,9 +52,11 @@ export function SettingsSidebar({
   videoBackdrop,
   mouseInput,
   shareSettings,
-  exportSection,
+  exportPage,
 }: SettingsSidebarProps) {
-  const [activeTab, setActiveTab] = useState<"design" | "vj">("design");
+  const [activeTab, setActiveTab] = useState<"design" | "vj" | "export">(
+    "design",
+  );
 
   useEffect(() => {
     const clearRangeDrag = () => {
@@ -105,16 +109,18 @@ export function SettingsSidebar({
         >
           VJ
         </button>
-      </div>
-      {featureHint && (
-        <p
-          className="field-hint field-hint--feature-nudge"
-          role="status"
-          aria-live="polite"
+        <button
+          type="button"
+          role="tab"
+          id="tab-export"
+          aria-selected={activeTab === "export"}
+          aria-controls="panel-export"
+          className={`sidebar-tab ${activeTab === "export" ? "sidebar-tab--active" : ""}`}
+          onClick={() => setActiveTab("export")}
         >
-          {featureHint}
-        </p>
-      )}
+          Export
+        </button>
+      </div>
       {activeTab === "design" ? (
         <div
           id="panel-design"
@@ -124,6 +130,7 @@ export function SettingsSidebar({
         >
           <UploadBlock onFile={onFile} />
           <AppearanceSection {...appearance} />
+          <SecondaryLayerSection {...secondaryLayer} />
           <LensSection {...lens} />
           <BloomSection {...bloom} />
           <EffectsSection {...effects} />
@@ -131,9 +138,8 @@ export function SettingsSidebar({
           <VideoBackdropSection {...videoBackdrop} />
           <MouseInputSection {...mouseInput} />
           <ShareSettingsSection {...shareSettings} />
-          <ExportSection {...exportSection} />
         </div>
-      ) : (
+      ) : activeTab === "vj" ? (
         <div
           id="panel-vj"
           role="tabpanel"
@@ -141,6 +147,15 @@ export function SettingsSidebar({
           className="sidebar-tab-panel"
         >
           <AudioSection {...audio} />
+        </div>
+      ) : (
+        <div
+          id="panel-export"
+          role="tabpanel"
+          aria-labelledby="tab-export"
+          className="sidebar-tab-panel export-page-sidebar"
+        >
+          <ExportPage {...exportPage} />
         </div>
       )}
     </aside>

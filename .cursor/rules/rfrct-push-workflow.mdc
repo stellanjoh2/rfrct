@@ -1,0 +1,19 @@
+---
+description: Treat "push" as full tracked workspace publish + Pages verification
+alwaysApply: true
+---
+
+# Push workflow (Rfrct)
+
+When the user says **"push"**, treat it as publishing the full current local Rfrct work, not selective files.
+
+Required sequence:
+
+1. Commit **all tracked local modifications** (`git add -u`) unless the user explicitly asks to split commits.
+2. Push current branch to remote.
+3. Verify GitHub Pages deploy triggered for the pushed `head_sha` and report run URL/status.
+
+Notes:
+
+- Do **not** silently cherry-pick only a subset of files for "push".
+- Keep untracked assets/files out of the commit unless the user explicitly asks to include them.

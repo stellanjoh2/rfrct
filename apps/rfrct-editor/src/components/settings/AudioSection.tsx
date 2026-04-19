@@ -1,5 +1,6 @@
 import type { Dispatch, SetStateAction } from "react";
 import type { AudioInputMode } from "../../audio/micAnalyzer";
+import type { VjLayer2AutomationMode } from "../../settingsSnapshot";
 import { ClickBlockedHint } from "../ClickBlockedHint";
 
 /** Shown when automation controls are clicked while audio is off. */
@@ -13,7 +14,6 @@ export type AudioSectionProps = {
   micRefractBoost: number;
   setMicRefractBoost: (v: number) => void;
   toggleMicRefraction: () => void | Promise<void>;
-  micError: string | null;
   vjMode: boolean;
   setVjMode: Dispatch<SetStateAction<boolean>>;
   vjPathScale: number;
@@ -42,6 +42,10 @@ export type AudioSectionProps = {
   /** Fullscreen difference invert bursts on high-frequency transients. */
   vjInvertStrobe: boolean;
   setVjInvertStrobe: Dispatch<SetStateAction<boolean>>;
+  /** Design → Secondary layer — required for layer VJ. */
+  hasSecondaryLayer: boolean;
+  vjLayer2AutomationMode: VjLayer2AutomationMode;
+  setVjLayer2AutomationMode: Dispatch<SetStateAction<VjLayer2AutomationMode>>;
   onFeatureBlockedHint: (message: string) => void;
 };
 
@@ -52,7 +56,6 @@ export function AudioSection({
   micRefractBoost,
   setMicRefractBoost,
   toggleMicRefraction,
-  micError,
   vjMode,
   setVjMode,
   vjPathScale,
@@ -79,6 +82,9 @@ export function AudioSection({
   setVjDupRandomHoriz,
   vjInvertStrobe,
   setVjInvertStrobe,
+  hasSecondaryLayer,
+  vjLayer2AutomationMode,
+  setVjLayer2AutomationMode,
   onFeatureBlockedHint,
 }: AudioSectionProps) {
   const vjControlsEnabled = micDrivingRefraction && vjMode;
@@ -95,6 +101,14 @@ export function AudioSection({
     : "Turn on Duplicate stack in the Design tab first.";
   const invertStrobeBlocked = !vjControlsEnabled;
   const invertStrobeHint = HINT_NEED_VJ_CHAIN;
+  const layer2VjBlocked = !vjControlsEnabled || !hasSecondaryLayer;
+  const layer2VjHint = !hasSecondaryLayer
+    ? "Add a secondary SVG layer in the Design tab first."
+    : HINT_NEED_VJ_CHAIN;
+
+  const pickLayer2Mode = (mode: Exclude<VjLayer2AutomationMode, "off">) => {
+    setVjLayer2AutomationMode((prev) => (prev === mode ? "off" : mode));
+  };
   return (
     <>
       <h2 title="Live audio input and loudness-driven modulation">
@@ -146,11 +160,6 @@ export function AudioSection({
             {micDrivingRefraction ? "Stop audio" : "Start audio"}
           </button>
         </div>
-        {micError && (
-          <p className="field-hint field-hint--error" role="status">
-            {micError}
-          </p>
-        )}
       </section>
 
       <h2 title="Audio-driven automation, lens path, glass neon, and hue">
@@ -416,11 +425,11 @@ export function AudioSection({
         </div>
       </section>
 
-      <h2 title="Optional VJ reactions layered on duplicate stack and audio">
+      <h2 title="Duplicate stack scroll, horizontal spacing, and fullscreen invert strobe">
         Extras
       </h2>
       <section>
-        <div className="field field--checkbox field--audio-toggles">
+        <div className="field field--checkbox field--audio-toggles field--audio-toggles--stack">
           <ClickBlockedHint
             blocked={speedShiftBlocked}
             hint={speedShiftHint}
@@ -479,6 +488,94 @@ export function AudioSection({
               }
             >
               Invert strobe
+            </button>
+          </ClickBlockedHint>
+        </div>
+      </section>
+
+      <h2 title="Automation targets the second SVG from Design → Secondary layer (not the main logo)">
+        Secondary layer
+      </h2>
+      <section>
+        <div className="field field--checkbox field--audio-toggles field--audio-toggles--stack">
+          <ClickBlockedHint
+            blocked={layer2VjBlocked}
+            hint={layer2VjHint}
+            onBlockedClick={onFeatureBlockedHint}
+          >
+            <button
+              type="button"
+              className={`mic-toggle ${vjLayer2AutomationMode === "randomBlink" ? "mic-toggle--on" : ""}`}
+              disabled={layer2VjBlocked}
+              onClick={() => pickLayer2Mode("randomBlink")}
+              aria-pressed={vjLayer2AutomationMode === "randomBlink"}
+              title={
+                layer2VjBlocked
+                  ? layer2VjHint
+                  : "Sparse random dips in secondary layer opacity on HF transients"
+              }
+            >
+              Layer blink
+            </button>
+          </ClickBlockedHint>
+          <ClickBlockedHint
+            blocked={layer2VjBlocked}
+            hint={layer2VjHint}
+            onBlockedClick={onFeatureBlockedHint}
+          >
+            <button
+              type="button"
+              className={`mic-toggle ${vjLayer2AutomationMode === "blinkInverse" ? "mic-toggle--on" : ""}`}
+              disabled={layer2VjBlocked}
+              onClick={() => pickLayer2Mode("blinkInverse")}
+              aria-pressed={vjLayer2AutomationMode === "blinkInverse"}
+              title={
+                layer2VjBlocked
+                  ? layer2VjHint
+                  : "Same burst times as Layer blink — layer usually off, brief flashes on the alternate flicker half"
+              }
+            >
+              Layer blink inverse
+            </button>
+          </ClickBlockedHint>
+          <ClickBlockedHint
+            blocked={layer2VjBlocked}
+            hint={layer2VjHint}
+            onBlockedClick={onFeatureBlockedHint}
+          >
+            <button
+              type="button"
+              className={`mic-toggle ${vjLayer2AutomationMode === "randomScale" ? "mic-toggle--on" : ""}`}
+              disabled={layer2VjBlocked}
+              onClick={() => pickLayer2Mode("randomScale")}
+              aria-pressed={vjLayer2AutomationMode === "randomScale"}
+              title={
+                layer2VjBlocked
+                  ? layer2VjHint
+                  : "Wobble secondary layer scale with loudness and spectral motion"
+              }
+            >
+              Layer scale + audio
+            </button>
+          </ClickBlockedHint>
+          <ClickBlockedHint
+            blocked={layer2VjBlocked}
+            hint={layer2VjHint}
+            onBlockedClick={onFeatureBlockedHint}
+          >
+            <button
+              type="button"
+              className={`mic-toggle ${vjLayer2AutomationMode === "randomBurst" ? "mic-toggle--on" : ""}`}
+              disabled={layer2VjBlocked}
+              onClick={() => pickLayer2Mode("randomBurst")}
+              aria-pressed={vjLayer2AutomationMode === "randomBurst"}
+              title={
+                layer2VjBlocked
+                  ? layer2VjHint
+                  : "Layer stays off until bass transients trigger short strobe bursts"
+              }
+            >
+              Random burst
             </button>
           </ClickBlockedHint>
         </div>

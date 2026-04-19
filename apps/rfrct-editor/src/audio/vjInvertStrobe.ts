@@ -12,6 +12,30 @@ const HIGH_BAND_MIN = 0.036;
 /** Chance to actually start a burst when the above pass (keeps it sparse / random). */
 const TRIGGER_ROLL = 0.48;
 
+/**
+ * Burst length and strobe rate are loosely based on common stage/DMX behaviour: a “macro”
+ * hit is often ~70–220 ms of flashes, and discrete strobing is usually kept in roughly
+ * ~6–20 Hz so each flash spans multiple frames at 60fps. Faster tiers (≈25 Hz+) read as a
+ * smear or alias badly, so we avoid them here.
+ */
+function randomBurstDurationSec(): number {
+  const ms = 68 + Math.random() * 152; // ~68–220 ms
+  return ms / 1000;
+}
+
+/** Hz ranges for random tiers — excludes very fast “upper tier” rates. */
+const STROBE_HZ_TIERS: readonly [number, number][] = [
+  [6, 10.5],
+  [8.5, 14],
+  [11, 20],
+];
+
+function randomStrobeHz(): number {
+  const [lo, hi] =
+    STROBE_HZ_TIERS[Math.floor(Math.random() * STROBE_HZ_TIERS.length)]!;
+  return lo + Math.random() * (hi - lo);
+}
+
 type SpectralTick = Pick<MicTickResult, "bands" | "bandTransient">;
 
 export type VjInvertStrobeState = {
@@ -30,7 +54,7 @@ export function createVjInvertStrobeState(): VjInvertStrobeState {
     burstLeft: 0,
     burstTotal: 0,
     phase: 0,
-    strobeHz: 22,
+    strobeHz: 14,
     cooldown: 0,
   };
 }
@@ -66,10 +90,10 @@ export function stepVjInvertStrobe(
       hi > HIGH_BAND_MIN &&
       Math.random() < TRIGGER_ROLL
     ) {
-      const dur = 0.032 + Math.random() * 0.1;
+      const dur = randomBurstDurationSec();
       st.burstLeft = dur;
       st.burstTotal = dur;
-      st.strobeHz = 12 + Math.random() * 46;
+      st.strobeHz = randomStrobeHz();
       st.phase = Math.random() * Math.PI * 2;
     }
   }
@@ -81,8 +105,8 @@ export function stepVjInvertStrobe(
   const env =
     st.burstTotal > 1e-6 ? Math.max(0, st.burstLeft / st.burstTotal) : 0;
   st.phase += dt * st.strobeHz * (Math.PI * 2);
-  const blink = Math.sin(st.phase) >= 0 ? 1 : 0.07;
-  const out = Math.min(1, env * (0.22 + 0.78 * blink));
+  const blink = Math.sin(st.phase) >= 0 ? 1 : 0.1;
+  const out = Math.min(1, env * (0.3 + 0.7 * blink));
 
   st.burstLeft -= dt;
   if (st.burstLeft <= 0) {

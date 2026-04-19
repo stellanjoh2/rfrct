@@ -1,5 +1,9 @@
 import { DEFAULT_VJ_PATH_SPEED, type FilterMode, type ShapeMode } from "@rfrct/core";
 import type { AudioInputMode } from "./audio/micAnalyzer";
+import type {
+  SecondaryLayerBlendMode,
+  SecondaryLayerTintMode,
+} from "./components/settings/SecondaryLayerSection";
 import {
   BACKDROP_BLEND_OPTIONS,
   type BackdropBlendMode,
@@ -65,6 +69,14 @@ export type RfrctEditorSettingsSnapshotV1 = {
   fluidDensity: number;
   exportTransparent: boolean;
   exportRegion: "full" | "image";
+  /** Export tab — animated GIF defaults (folder handle is never stored). */
+  gifFps: number;
+  gifMaxWidthEnabled: boolean;
+  gifMaxWidth: number;
+  gifMaxColors: 128 | 256;
+  gifDurationSec: number;
+  gifPixelArtResize: boolean;
+  gifInfiniteLoop: boolean;
   youtubeVideoId: string | null;
   youtubeUrlDraft: string;
   canvasBackdropBlend: BackdropBlendMode;
@@ -93,7 +105,29 @@ export type RfrctEditorSettingsSnapshotV1 = {
   vjGlassNeonAHex: string;
   vjGlassNeonBHex: string;
   vjGlassGradeIntensity: number;
+  /** Secondary layer (Design) — no SVG data in snapshot. */
+  layer2Scale: number;
+  layer2TintMode: SecondaryLayerTintMode;
+  layer2TintHex: string;
+  layer2BlendMode: SecondaryLayerBlendMode;
+  layer2FollowDistort: boolean;
+  layer2BaseOpacity: number;
+  /** VJ tab — secondary layer. */
+  vjLayer2RandomBlink: boolean;
+  vjLayer2BlinkInverse: boolean;
+  vjLayer2RandomScale: boolean;
+  vjLayer2RandomBurst: boolean;
 };
+
+/**
+ * All fields that **Copy settings** must include (`blobCenter` is merged at copy
+ * time from refs). Adding a field to {@link RfrctEditorSettingsSnapshotV1} should
+ * cause a type error here until the payload in `App.tsx` is updated.
+ */
+export type RfrctEditorSettingsSnapshotCopyPayload = Omit<
+  RfrctEditorSettingsSnapshotV1,
+  "schema" | "version" | "blobCenter"
+>;
 
 export function serializeSettingsSnapshot(
   s: RfrctEditorSettingsSnapshotV1,
@@ -127,6 +161,41 @@ function str(n: unknown, fallback: string): string {
 
 function bool(n: unknown, fallback: boolean): boolean {
   return typeof n === "boolean" ? n : fallback;
+}
+
+/** At most one mode applies; legacy snapshots may have multiple booleans true — we normalize on load. */
+export type VjLayer2AutomationMode =
+  | "off"
+  | "randomBlink"
+  | "blinkInverse"
+  | "randomScale"
+  | "randomBurst";
+
+export function vjLayer2ModeFromLegacyBools(
+  vjLayer2RandomBlink: boolean,
+  vjLayer2BlinkInverse: boolean,
+  vjLayer2RandomScale: boolean,
+  vjLayer2RandomBurst: boolean,
+): VjLayer2AutomationMode {
+  if (vjLayer2RandomBlink) return "randomBlink";
+  if (vjLayer2BlinkInverse) return "blinkInverse";
+  if (vjLayer2RandomScale) return "randomScale";
+  if (vjLayer2RandomBurst) return "randomBurst";
+  return "off";
+}
+
+export function vjLayer2ModeToLegacyBools(mode: VjLayer2AutomationMode): {
+  vjLayer2RandomBlink: boolean;
+  vjLayer2BlinkInverse: boolean;
+  vjLayer2RandomScale: boolean;
+  vjLayer2RandomBurst: boolean;
+} {
+  return {
+    vjLayer2RandomBlink: mode === "randomBlink",
+    vjLayer2BlinkInverse: mode === "blinkInverse",
+    vjLayer2RandomScale: mode === "randomScale",
+    vjLayer2RandomBurst: mode === "randomBurst",
+  };
 }
 
 export function parseSettingsSnapshot(
@@ -183,6 +252,25 @@ export function parseSettingsSnapshot(
       ? p.vjGlassGradeMode
       : "off";
 
+  const layer2TintMode: SecondaryLayerTintMode =
+    p.layer2TintMode === "multiply" || p.layer2TintMode === "replace"
+      ? p.layer2TintMode
+      : "original";
+
+  const LAYER2_BLEND = new Set<SecondaryLayerBlendMode>([
+    "normal",
+    "multiply",
+    "screen",
+    "plus-lighter",
+    "overlay",
+    "difference",
+  ]);
+  const layer2BlendMode: SecondaryLayerBlendMode =
+    typeof p.layer2BlendMode === "string" &&
+    LAYER2_BLEND.has(p.layer2BlendMode as SecondaryLayerBlendMode)
+      ? (p.layer2BlendMode as SecondaryLayerBlendMode)
+      : "normal";
+
   const shapeMode = Math.round(
     num(p.shapeMode, 0),
   ) as RfrctEditorSettingsSnapshotV1["shapeMode"];
@@ -235,6 +323,20 @@ export function parseSettingsSnapshot(
     fluidDensity: num(p.fluidDensity, 0.45),
     exportTransparent: bool(p.exportTransparent, false),
     exportRegion,
+    gifFps: Math.round(
+      Math.min(120, Math.max(1, num(p.gifFps, 24))),
+    ),
+    gifMaxWidthEnabled: bool(p.gifMaxWidthEnabled, true),
+    gifMaxWidth: Math.round(
+      Math.min(4096, Math.max(64, num(p.gifMaxWidth, 600))),
+    ),
+    gifMaxColors: p.gifMaxColors === 128 ? 128 : 256,
+    gifDurationSec: Math.min(
+      30,
+      Math.max(0.5, num(p.gifDurationSec, 6)),
+    ),
+    gifPixelArtResize: bool(p.gifPixelArtResize, false),
+    gifInfiniteLoop: bool(p.gifInfiniteLoop, true),
     youtubeVideoId:
       p.youtubeVideoId === null || typeof p.youtubeVideoId === "string"
         ? p.youtubeVideoId
@@ -262,6 +364,20 @@ export function parseSettingsSnapshot(
     vjGlassNeonAHex: str(p.vjGlassNeonAHex, "#ff00ee"),
     vjGlassNeonBHex: str(p.vjGlassNeonBHex, "#1a0055"),
     vjGlassGradeIntensity: num(p.vjGlassGradeIntensity, 0),
+    layer2Scale: num(p.layer2Scale, 0.55),
+    layer2TintMode,
+    layer2TintHex: str(p.layer2TintHex, "#ffffff"),
+    layer2BlendMode,
+    layer2FollowDistort: bool(p.layer2FollowDistort, true),
+    layer2BaseOpacity: num(p.layer2BaseOpacity, 1),
+    ...vjLayer2ModeToLegacyBools(
+      vjLayer2ModeFromLegacyBools(
+        bool(p.vjLayer2RandomBlink, false),
+        bool(p.vjLayer2BlinkInverse, false),
+        bool(p.vjLayer2RandomScale, false),
+        bool(p.vjLayer2RandomBurst, false),
+      ),
+    ),
   };
 
   return { ok: true, data };

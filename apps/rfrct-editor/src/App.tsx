@@ -11,6 +11,7 @@ import {
   DEFAULT_VJ_PATH_SPEED,
   isSvgFile,
   mergePngExportParams,
+  parseHexColor,
   rasterizeSvgForRfrct,
   RfrctRenderer,
   type FilterMode,
@@ -40,14 +41,40 @@ import {
   resetVjInvertStrobeState,
   stepVjInvertStrobe,
 } from "./audio/vjInvertStrobe";
+import {
+  createVjLayer2BlinkState,
+  resetVjLayer2BlinkState,
+  stepVjLayer2BlinkPair,
+} from "./audio/vjLayer2Blink";
+import {
+  createVjLayer2ScaleAudioState,
+  resetVjLayer2ScaleAudioState,
+  stepVjLayer2ScaleAudio,
+} from "./audio/vjLayer2ScaleAudio";
+import {
+  createVjLayer2RandomBurstState,
+  resetVjLayer2RandomBurstState,
+  stepVjLayer2RandomBurst,
+} from "./audio/vjLayer2RandomBurst";
 import type { BackdropBlendMode } from "./videoBackdrop";
 import { postYoutubeMute } from "./youtube/forceMuteIframe";
 import {
   createSettingsSnapshot,
   parseSettingsSnapshot,
   serializeSettingsSnapshot,
+  vjLayer2ModeFromLegacyBools,
+  vjLayer2ModeToLegacyBools,
+  type RfrctEditorSettingsSnapshotCopyPayload,
+  type VjLayer2AutomationMode,
 } from "./settingsSnapshot";
+import { recordAnimatedGif } from "./export/recordAnimatedGif";
+import { saveGifBlob } from "./export/saveGifBlob";
 import { buildYoutubeEmbedSrc, parseYoutubeVideoId } from "./youtube/embedUrl";
+import {
+  secondaryLayerBlendToShaderId,
+  type SecondaryLayerBlendMode,
+  type SecondaryLayerTintMode,
+} from "./components/settings/SecondaryLayerSection";
 
 /** Pause lens shader time while scroll-zooming; resume after last wheel event. */
 const ZOOM_ANIM_RESUME_MS = 120;
@@ -145,6 +172,25 @@ export function App() {
   const [exportTransparent, setExportTransparent] = useState(false);
   const [exportRegion, setExportRegion] = useState<"full" | "image">("full");
 
+  const [gifFps, setGifFps] = useState(24);
+  const [gifMaxWidthEnabled, setGifMaxWidthEnabled] = useState(true);
+  const [gifMaxWidth, setGifMaxWidth] = useState(600);
+  const [gifMaxColors, setGifMaxColors] = useState<128 | 256>(256);
+  const [gifDurationSec, setGifDurationSec] = useState(6);
+  const [gifPixelArtResize, setGifPixelArtResize] = useState(false);
+  const [gifInfiniteLoop, setGifInfiniteLoop] = useState(true);
+  const [gifOutputFolderLabel, setGifOutputFolderLabel] = useState<
+    string | null
+  >(null);
+  const [gifRecording, setGifRecording] = useState(false);
+  const [gifRecordProgress, setGifRecordProgress] = useState<{
+    current: number;
+    total: number;
+  } | null>(null);
+  const gifDirHandleRef = useRef<FileSystemDirectoryHandle | null>(null);
+  const gifAbortRef = useRef<AbortController | null>(null);
+  const gifExportBusyRef = useRef(false);
+
   const [youtubeVideoId, setYoutubeVideoId] = useState<string | null>(null);
   const [youtubeUrlDraft, setYoutubeUrlDraft] = useState("");
   const [youtubeError, setYoutubeError] = useState<string | null>(null);
@@ -208,6 +254,9 @@ export function App() {
   const [vjDupRandomHoriz, setVjDupRandomHoriz] = useState(false);
   /** VJ Extras: high-frequency–gated fullscreen difference invert bursts. */
   const [vjInvertStrobe, setVjInvertStrobe] = useState(false);
+  /** VJ: secondary layer — at most one automation mode (mutually exclusive in UI). */
+  const [vjLayer2AutomationMode, setVjLayer2AutomationMode] =
+    useState<VjLayer2AutomationMode>("off");
   /** VJ mode: squircle orbit radius multiplier (larger = lens travels closer to frame edges). */
   const [vjPathScale, setVjPathScale] = useState(1);
   const [vjPathSpeed, setVjPathSpeed] = useState(DEFAULT_VJ_PATH_SPEED);
@@ -234,6 +283,41 @@ export function App() {
   const vjInvertStrobeEnabledRef = useRef(false);
   vjInvertStrobeEnabledRef.current =
     micDrivingRefraction && vjMode && vjInvertStrobe;
+  const vjLayer2BlinkStateRef = useRef(createVjLayer2BlinkState());
+  const vjLayer2ScaleAudioStateRef = useRef(createVjLayer2ScaleAudioState());
+  const vjLayer2RandomBurstStateRef = useRef(createVjLayer2RandomBurstState());
+  const layer2VjOpacityMulRef = useRef(1);
+  const layer2VjScaleMulRef = useRef(1);
+  /** 1 when burst mode off; 0–1 strobe envelope when burst mode on. */
+  const layer2VjBurstOpacityMulRef = useRef(1);
+
+  const [layer2SourceUrl, setLayer2SourceUrl] = useState<string | null>(null);
+  const [layer2ImgDims, setLayer2ImgDims] = useState<{ w: number; h: number } | null>(
+    null,
+  );
+  const [layer2Scale, setLayer2Scale] = useState(0.55);
+  const layer2ScaleRef = useRef(0.55);
+  layer2ScaleRef.current = layer2Scale;
+  const [layer2RasterScale, setLayer2RasterScale] = useState(0.55);
+  useEffect(() => {
+    const t = window.setTimeout(() => {
+      setLayer2RasterScale(layer2Scale);
+    }, SVG_RASTER_DEBOUNCE_MS);
+    return () => clearTimeout(t);
+  }, [layer2Scale]);
+  const [layer2TintMode, setLayer2TintMode] =
+    useState<SecondaryLayerTintMode>("original");
+  const [layer2TintHex, setLayer2TintHex] = useState("#ffffff");
+  const [layer2BlendMode, setLayer2BlendMode] =
+    useState<SecondaryLayerBlendMode>("normal");
+  const [layer2FollowDistort, setLayer2FollowDistort] = useState(true);
+  const [layer2BaseOpacity, setLayer2BaseOpacity] = useState(1);
+  const vjLayer2AutomationModeRef = useRef<VjLayer2AutomationMode>("off");
+  vjLayer2AutomationModeRef.current = vjLayer2AutomationMode;
+  const layer2ReadyRef = useRef(false);
+  layer2ReadyRef.current = Boolean(
+    layer2SourceUrl && layer2ImgDims && imgDims,
+  );
   const mouseLoopPrevTRef = useRef(performance.now());
   const zoomFxActiveRef = useRef(false);
 
@@ -360,6 +444,60 @@ export function App() {
     };
   }, [imgDims, imageScale, imagePan]);
 
+  const syncSecondaryOverlay = useCallback(() => {
+    const r = rendererRef.current;
+    const canvas = canvasRef.current;
+    if (!r || !canvas || !imgDims || !layer2SourceUrl || !layer2ImgDims) {
+      rendererRef.current?.clearOverlay();
+      return;
+    }
+    const layout = r.imageLayout;
+    if (!layout) {
+      r.clearOverlay();
+      return;
+    }
+    const rect = layout.rect;
+    const c = parseHexColor(layer2TintHex);
+    r.overlayTintMode =
+      layer2TintMode === "original" ? 0 : layer2TintMode === "multiply" ? 1 : 2;
+    r.overlayTintRgb = [c[0], c[1], c[2]];
+    r.overlayBlendMode = secondaryLayerBlendToShaderId(layer2BlendMode);
+    r.overlayFollowDistortion = layer2FollowDistort ? 1 : 0;
+    const op =
+      layer2BaseOpacity *
+      layer2VjOpacityMulRef.current *
+      layer2VjBurstOpacityMulRef.current;
+    r.overlayOpacity = Math.max(0, Math.min(1, op));
+    r.syncOverlayLayout(
+      canvas.width,
+      canvas.height,
+      rect,
+      layer2ImgDims.w,
+      layer2ImgDims.h,
+      { scale: layer2Scale * layer2VjScaleMulRef.current },
+    );
+  }, [
+    imgDims,
+    layer2SourceUrl,
+    layer2ImgDims,
+    layer2TintHex,
+    layer2TintMode,
+    layer2BlendMode,
+    layer2FollowDistort,
+    layer2BaseOpacity,
+    layer2Scale,
+  ]);
+
+  const syncSecondaryOverlayRef = useRef(syncSecondaryOverlay);
+  syncSecondaryOverlayRef.current = syncSecondaryOverlay;
+
+  useEffect(() => {
+    if (vjLayer2AutomationMode === "randomBurst") return;
+    resetVjLayer2RandomBurstState(vjLayer2RandomBurstStateRef.current);
+    layer2VjBurstOpacityMulRef.current = 1;
+    syncSecondaryOverlayRef.current();
+  }, [vjLayer2AutomationMode]);
+
   const runPngExport = useCallback(
     (scale: 1 | 2) => {
       const r = rendererRef.current;
@@ -382,6 +520,95 @@ export function App() {
   const captureScreenshot = useCallback(() => {
     runPngExport(2);
   }, [runPngExport]);
+
+  const pickGifOutputFolder = useCallback(async () => {
+    if (typeof window.showDirectoryPicker !== "function") {
+      setFeatureHint(
+        "Folder pick needs Chrome or Edge. GIFs download to your default folder instead.",
+      );
+      return;
+    }
+    if (!window.isSecureContext) {
+      setFeatureHint(
+        "Folder pick needs HTTPS or localhost (secure page). GIFs download instead.",
+      );
+      return;
+    }
+    try {
+      const h = await window.showDirectoryPicker();
+      gifDirHandleRef.current = h;
+      setGifOutputFolderLabel(h.name);
+      setFeatureHint("Output folder set — GIFs will save there.");
+    } catch (e) {
+      if (e instanceof DOMException && e.name === "AbortError") return;
+      setFeatureHint("Could not use that folder.");
+    }
+  }, []);
+
+  const clearGifOutputFolder = useCallback(() => {
+    gifDirHandleRef.current = null;
+    setGifOutputFolderLabel(null);
+  }, []);
+
+  const cancelGifRecording = useCallback(() => {
+    gifAbortRef.current?.abort();
+  }, []);
+
+  const startGifRecording = useCallback(async () => {
+    const canvas = canvasRef.current;
+    if (!canvas || gifExportBusyRef.current) return;
+    gifAbortRef.current?.abort();
+    const ac = new AbortController();
+    gifAbortRef.current = ac;
+    gifExportBusyRef.current = true;
+    setGifRecording(true);
+    setGifRecordProgress(null);
+    try {
+      const blob = await recordAnimatedGif({
+        canvas,
+        fps: gifFps,
+        durationSec: gifDurationSec,
+        maxWidth: gifMaxWidthEnabled ? gifMaxWidth : null,
+        maxColors: gifMaxColors,
+        pixelArt: gifPixelArtResize,
+        infiniteLoop: gifInfiniteLoop,
+        signal: ac.signal,
+        onProgress: (current, total) =>
+          setGifRecordProgress({ current, total }),
+      });
+      if (ac.signal.aborted) return;
+      const { filename, mode } = await saveGifBlob(
+        blob,
+        gifDirHandleRef.current,
+        "refrct",
+      );
+      setFeatureHint(
+        mode === "directory"
+          ? `Saved ${filename} to the selected folder.`
+          : `Downloaded ${filename}.`,
+      );
+    } catch (e) {
+      if (e instanceof DOMException && e.name === "AbortError") {
+        setFeatureHint("GIF recording cancelled.");
+      } else {
+        console.error(e);
+        setFeatureHint("GIF export failed — see console.");
+      }
+    } finally {
+      gifExportBusyRef.current = false;
+      setGifRecording(false);
+      setGifRecordProgress(null);
+      gifAbortRef.current = null;
+    }
+  }, [
+    gifFps,
+    gifDurationSec,
+    gifMaxWidthEnabled,
+    gifMaxWidth,
+    gifMaxColors,
+    gifPixelArtResize,
+    gifInfiniteLoop,
+  ]);
 
   const focusImage = useCallback(() => {
     if (!imgDims) return;
@@ -682,6 +909,7 @@ export function App() {
         fluidDensity,
       }),
     );
+    syncSecondaryOverlay();
   }, [
     bgHex,
     blobSize,
@@ -738,6 +966,7 @@ export function App() {
     detailDirtHex,
     lensMouseInput,
     fluidDensity,
+    syncSecondaryOverlay,
   ]);
 
   useEffect(() => {
@@ -746,6 +975,12 @@ export function App() {
       resetVjDupSpeedShiftState(vjDupSpeedShiftStateRef.current);
       resetVjDupHorizRandomState(vjDupHorizRandomStateRef.current);
       resetVjInvertStrobeState(vjInvertStrobeStateRef.current);
+      resetVjLayer2BlinkState(vjLayer2BlinkStateRef.current);
+      resetVjLayer2ScaleAudioState(vjLayer2ScaleAudioStateRef.current);
+      resetVjLayer2RandomBurstState(vjLayer2RandomBurstStateRef.current);
+      layer2VjOpacityMulRef.current = 1;
+      layer2VjScaleMulRef.current = 1;
+      layer2VjBurstOpacityMulRef.current = 1;
       const invEl = vjInvertStrobeOverlayRef.current;
       if (invEl) invEl.style.opacity = "0";
       return;
@@ -794,6 +1029,51 @@ export function App() {
           });
         } else {
           resetVjDupHorizRandomState(vjDupHorizRandomStateRef.current);
+        }
+
+        layer2VjOpacityMulRef.current = 1;
+        layer2VjScaleMulRef.current = 1;
+        layer2VjBurstOpacityMulRef.current = 1;
+        const layer2Vj =
+          raw.vjMode && layer2ReadyRef.current && micDrivingRefraction;
+        if (layer2Vj) {
+          const l2Mode = vjLayer2AutomationModeRef.current;
+          if (l2Mode === "randomBlink" || l2Mode === "blinkInverse") {
+            const { dip, inverse } = stepVjLayer2BlinkPair(
+              tickVj,
+              dt,
+              vjLayer2BlinkStateRef.current,
+            );
+            let m = 1;
+            if (l2Mode === "randomBlink") m *= dip;
+            if (l2Mode === "blinkInverse") m *= inverse;
+            layer2VjOpacityMulRef.current = Math.max(0, Math.min(1, m));
+          } else {
+            resetVjLayer2BlinkState(vjLayer2BlinkStateRef.current);
+          }
+          if (l2Mode === "randomScale") {
+            layer2VjScaleMulRef.current = stepVjLayer2ScaleAudio(
+              tickVj,
+              dt,
+              vjLayer2ScaleAudioStateRef.current,
+              micRefractBoost,
+            );
+          } else {
+            resetVjLayer2ScaleAudioState(vjLayer2ScaleAudioStateRef.current);
+          }
+          if (l2Mode === "randomBurst") {
+            layer2VjBurstOpacityMulRef.current = stepVjLayer2RandomBurst(
+              tickVj,
+              dt,
+              vjLayer2RandomBurstStateRef.current,
+            );
+          } else {
+            resetVjLayer2RandomBurstState(vjLayer2RandomBurstStateRef.current);
+          }
+        } else {
+          resetVjLayer2BlinkState(vjLayer2BlinkStateRef.current);
+          resetVjLayer2ScaleAudioState(vjLayer2ScaleAudioStateRef.current);
+          resetVjLayer2RandomBurstState(vjLayer2RandomBurstStateRef.current);
         }
 
         const invEl = vjInvertStrobeOverlayRef.current;
@@ -856,6 +1136,7 @@ export function App() {
             vjDupHorizStep: horizStep,
           }),
         );
+        syncSecondaryOverlayRef.current();
       }
       id = requestAnimationFrame(loop);
     };
@@ -917,7 +1198,8 @@ export function App() {
 
   useEffect(() => {
     syncLayout();
-  }, [syncLayout, viewportPx]);
+    syncSecondaryOverlay();
+  }, [syncLayout, syncSecondaryOverlay, viewportPx]);
 
   useEffect(() => {
     rendererRef.current?.reuploadTextureIfNeeded();
@@ -974,6 +1256,57 @@ export function App() {
       revokeSvgObjectUrlIfBlob(svgSourceUrl);
     };
   }, [svgSourceUrl]);
+
+  useEffect(() => {
+    if (!layer2SourceUrl) return;
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      const r = rendererRef.current;
+      const canvas = canvasRef.current;
+      if (!r || !canvas) return;
+      const bw = Math.max(1, canvas.width);
+      const bh = Math.max(1, canvas.height);
+      const raster = rasterizeSvgForRfrct(
+        img,
+        bw,
+        bh,
+        layer2ScaleRef.current,
+      );
+      setLayer2ImgDims({ w: raster.width, h: raster.height });
+      r.setOverlayFromSource(raster);
+    };
+    img.onerror = () => {};
+    img.src = layer2SourceUrl;
+    return () => {
+      img.onload = null;
+      img.onerror = null;
+      img.src = "";
+    };
+  }, [layer2SourceUrl, viewportPx, layer2RasterScale]);
+
+  useEffect(() => {
+    return () => {
+      revokeSvgObjectUrlIfBlob(layer2SourceUrl);
+    };
+  }, [layer2SourceUrl]);
+
+  const onLayer2File = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !isSvgFile(file)) return;
+    const url = URL.createObjectURL(file);
+    setLayer2SourceUrl((prev) => {
+      revokeSvgObjectUrlIfBlob(prev);
+      return url;
+    });
+    e.target.value = "";
+  };
+
+  const removeLayer2 = useCallback(() => {
+    setLayer2SourceUrl(null);
+    setLayer2ImgDims(null);
+    rendererRef.current?.clearOverlay();
+  }, []);
 
   const onFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -1127,7 +1460,7 @@ export function App() {
   }, [micDrivingRefraction, audioInputMode]);
 
   const settingsSnapshotPayload = useMemo(
-    () => ({
+    (): RfrctEditorSettingsSnapshotCopyPayload => ({
       bgHex,
       imageScale,
       imagePan,
@@ -1169,6 +1502,13 @@ export function App() {
       fluidDensity,
       exportTransparent,
       exportRegion,
+      gifFps,
+      gifMaxWidthEnabled,
+      gifMaxWidth,
+      gifMaxColors,
+      gifDurationSec,
+      gifPixelArtResize,
+      gifInfiniteLoop,
       youtubeVideoId,
       youtubeUrlDraft,
       canvasBackdropBlend,
@@ -1193,6 +1533,13 @@ export function App() {
     vjGlassNeonAHex,
     vjGlassNeonBHex,
     vjGlassGradeIntensity,
+      layer2Scale,
+      layer2TintMode,
+      layer2TintHex,
+      layer2BlendMode,
+      layer2FollowDistort,
+      layer2BaseOpacity,
+      ...vjLayer2ModeToLegacyBools(vjLayer2AutomationMode),
     }),
     [
       bgHex,
@@ -1236,6 +1583,13 @@ export function App() {
       fluidDensity,
       exportTransparent,
       exportRegion,
+      gifFps,
+      gifMaxWidthEnabled,
+      gifMaxWidth,
+      gifMaxColors,
+      gifDurationSec,
+      gifPixelArtResize,
+      gifInfiniteLoop,
       youtubeVideoId,
       youtubeUrlDraft,
       canvasBackdropBlend,
@@ -1257,9 +1611,16 @@ export function App() {
       vjPathScale,
       vjPathSpeed,
       vjGlassGradeMode,
-      vjGlassNeonAHex,
-      vjGlassNeonBHex,
-      vjGlassGradeIntensity,
+    vjGlassNeonAHex,
+    vjGlassNeonBHex,
+    vjGlassGradeIntensity,
+      layer2Scale,
+      layer2TintMode,
+      layer2TintHex,
+      layer2BlendMode,
+      layer2FollowDistort,
+      layer2BaseOpacity,
+      vjLayer2AutomationMode,
     ],
   );
 
@@ -1343,6 +1704,13 @@ export function App() {
     setFluidDensity(d.fluidDensity);
     setExportTransparent(d.exportTransparent);
     setExportRegion(d.exportRegion);
+    setGifFps(d.gifFps);
+    setGifMaxWidthEnabled(d.gifMaxWidthEnabled);
+    setGifMaxWidth(d.gifMaxWidth);
+    setGifMaxColors(d.gifMaxColors);
+    setGifDurationSec(d.gifDurationSec);
+    setGifPixelArtResize(d.gifPixelArtResize);
+    setGifInfiniteLoop(d.gifInfiniteLoop);
     setYoutubeVideoId(d.youtubeVideoId);
     setYoutubeUrlDraft(d.youtubeUrlDraft);
     setYoutubeError(null);
@@ -1371,6 +1739,20 @@ export function App() {
     setVjGlassNeonAHex(d.vjGlassNeonAHex);
     setVjGlassNeonBHex(d.vjGlassNeonBHex);
     setVjGlassGradeIntensity(d.vjGlassGradeIntensity);
+    setLayer2Scale(d.layer2Scale);
+    setLayer2TintMode(d.layer2TintMode);
+    setLayer2TintHex(d.layer2TintHex);
+    setLayer2BlendMode(d.layer2BlendMode);
+    setLayer2FollowDistort(d.layer2FollowDistort);
+    setLayer2BaseOpacity(d.layer2BaseOpacity);
+    setVjLayer2AutomationMode(
+      vjLayer2ModeFromLegacyBools(
+        d.vjLayer2RandomBlink,
+        d.vjLayer2BlinkInverse,
+        d.vjLayer2RandomScale,
+        d.vjLayer2RandomBurst,
+      ),
+    );
 
     const r = rendererRef.current;
     if (r) {
@@ -1410,13 +1792,30 @@ export function App() {
         setSvgGradientPosition,
         youtubeActive: youtubeEmbedActive,
       },
+      secondaryLayer: {
+        canUseLayer: Boolean(svgSourceUrl && imgDims),
+        layer2SourceUrl,
+        onLayer2File,
+        onRemoveLayer2: removeLayer2,
+        layer2Scale,
+        setLayer2Scale,
+        layer2TintMode,
+        setLayer2TintMode,
+        layer2TintHex,
+        setLayer2TintHex,
+        layer2BlendMode,
+        setLayer2BlendMode,
+        layer2FollowDistort,
+        setLayer2FollowDistort,
+        layer2BaseOpacity,
+        setLayer2BaseOpacity,
+      },
       videoBackdrop: {
         youtubeUrlDraft,
         setYoutubeUrlDraft,
         onYoutubeApply,
         onYoutubeClear,
         youtubeActive: youtubeEmbedActive,
-        youtubeError,
         canvasBackdropBlend,
         setCanvasBackdropBlend,
         solidOverlayHex,
@@ -1506,7 +1905,6 @@ export function App() {
         micRefractBoost,
         setMicRefractBoost,
         toggleMicRefraction,
-        micError,
         vjMode,
         setVjMode,
         vjPathScale,
@@ -1533,16 +1931,45 @@ export function App() {
         setVjDupRandomHoriz,
         vjInvertStrobe,
         setVjInvertStrobe,
+        hasSecondaryLayer: Boolean(layer2SourceUrl && layer2ImgDims),
+        vjLayer2AutomationMode,
+        setVjLayer2AutomationMode,
         onFeatureBlockedHint: showFeatureHint,
       },
-      exportSection: {
-        transparentBackground: exportTransparent,
-        setTransparentBackground: setExportTransparent,
-        region: exportRegion,
-        setRegion: setExportRegion,
-        hasImage: !!imgDims,
-        onExport1x: () => runPngExport(1),
-        onExport2x: () => runPngExport(2),
+      exportPage: {
+        png: {
+          transparentBackground: exportTransparent,
+          setTransparentBackground: setExportTransparent,
+          region: exportRegion,
+          setRegion: setExportRegion,
+          hasImage: !!imgDims,
+          onExport1x: () => runPngExport(1),
+          onExport2x: () => runPngExport(2),
+        },
+        gif: {
+          fps: gifFps,
+          setFps: setGifFps,
+          maxWidthEnabled: gifMaxWidthEnabled,
+          setMaxWidthEnabled: setGifMaxWidthEnabled,
+          maxWidth: gifMaxWidth,
+          setMaxWidth: setGifMaxWidth,
+          maxColors: gifMaxColors,
+          setMaxColors: setGifMaxColors,
+          durationSec: gifDurationSec,
+          setDurationSec: setGifDurationSec,
+          pixelArtResize: gifPixelArtResize,
+          setPixelArtResize: setGifPixelArtResize,
+          infiniteLoop: gifInfiniteLoop,
+          setInfiniteLoop: setGifInfiniteLoop,
+          outputFolderLabel: gifOutputFolderLabel,
+          onChooseOutputFolder: pickGifOutputFolder,
+          onClearOutputFolder: clearGifOutputFolder,
+          isRecording: gifRecording,
+          recordProgress: gifRecordProgress,
+          onStartRecord: startGifRecording,
+          onCancelRecord: cancelGifRecording,
+        },
+        youtubeBackdropActive: youtubeEmbedActive,
       },
       shareSettings: {
         onCopySettings: copySettingsToClipboard,
@@ -1595,13 +2022,25 @@ export function App() {
       exportRegion,
       imgDims,
       runPngExport,
+      gifFps,
+      gifMaxWidthEnabled,
+      gifMaxWidth,
+      gifMaxColors,
+      gifDurationSec,
+      gifPixelArtResize,
+      gifInfiniteLoop,
+      gifOutputFolderLabel,
+      pickGifOutputFolder,
+      clearGifOutputFolder,
+      gifRecording,
+      gifRecordProgress,
+      startGifRecording,
+      cancelGifRecording,
       micDrivingRefraction,
       audioInputMode,
       micRefractBoost,
       toggleMicRefraction,
-      micError,
       vjMode,
-      svgSourceUrl,
       vjDupVertical,
       vjDupGap,
       vjDupHorizStep,
@@ -1609,6 +2048,15 @@ export function App() {
       vjDupSpeedShift,
       vjDupRandomHoriz,
       vjInvertStrobe,
+      layer2SourceUrl,
+      layer2ImgDims,
+      layer2Scale,
+      layer2TintMode,
+      layer2TintHex,
+      layer2BlendMode,
+      layer2FollowDistort,
+      layer2BaseOpacity,
+      vjLayer2AutomationMode,
       vjPathScale,
       showFeatureHint,
       vjPathSpeed,
@@ -1620,7 +2068,6 @@ export function App() {
       onYoutubeApply,
       onYoutubeClear,
       youtubeEmbedActive,
-      youtubeError,
       canvasBackdropBlend,
       solidOverlayHex,
       solidOverlayOpacity,
@@ -1773,9 +2220,9 @@ export function App() {
 
         <SettingsSidebar
           uiVisible={uiVisible}
-          featureHint={featureHint}
           onFile={onFile}
           appearance={sidebar.appearance}
+          secondaryLayer={sidebar.secondaryLayer}
           lens={sidebar.lens}
           dupStack={sidebar.dupStack}
           bloom={sidebar.bloom}
@@ -1784,8 +2231,32 @@ export function App() {
           videoBackdrop={sidebar.videoBackdrop}
           mouseInput={sidebar.mouseInput}
           shareSettings={sidebar.shareSettings}
-          exportSection={sidebar.exportSection}
+          exportPage={sidebar.exportPage}
         />
+        {(micError || youtubeError || featureHint) && (
+          <div
+            className="app-toast-stack"
+            role="region"
+            aria-label="Messages"
+            aria-live="polite"
+          >
+            {micError ? (
+              <p className="app-toast app-toast--error" role="status">
+                {micError}
+              </p>
+            ) : null}
+            {youtubeError ? (
+              <p className="app-toast app-toast--error" role="status">
+                {youtubeError}
+              </p>
+            ) : null}
+            {featureHint ? (
+              <p className="app-toast app-toast--info" role="status">
+                {featureHint}
+              </p>
+            ) : null}
+          </div>
+        )}
       </div>
     </div>
   );

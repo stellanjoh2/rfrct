@@ -10,7 +10,6 @@ export type VideoBackdropSectionProps = {
   onYoutubeApply: () => void;
   onYoutubeClear: () => void;
   youtubeActive: boolean;
-  youtubeError: string | null;
   canvasBackdropBlend: BackdropBlendMode;
   setCanvasBackdropBlend: Dispatch<SetStateAction<BackdropBlendMode>>;
   solidOverlayHex: string;
@@ -27,7 +26,6 @@ export function VideoBackdropSection({
   onYoutubeApply,
   onYoutubeClear,
   youtubeActive,
-  youtubeError,
   canvasBackdropBlend,
   setCanvasBackdropBlend,
   solidOverlayHex,
@@ -55,11 +53,6 @@ export function VideoBackdropSection({
             spellCheck={false}
             autoComplete="off"
           />
-          {youtubeError && (
-            <p className="field-hint field-hint--error" role="status">
-              {youtubeError}
-            </p>
-          )}
           <div className="row row--youtube-actions">
             <button type="button" className="mic-toggle" onClick={onYoutubeApply}>
               Apply

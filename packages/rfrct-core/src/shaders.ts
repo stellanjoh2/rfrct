@@ -22,6 +22,18 @@ uniform float u_underlayOpacity;
 uniform vec4 u_underlayCell;
 /** Multiply underlay (PNG) rgb after sample; default (1,1,1) = unchanged. */
 uniform vec3 u_underlayTintRgb;
+/** Optional second SVG / bitmap **on top** of the main logo (same letterbox). */
+uniform sampler2D u_overlayLayer;
+uniform float u_overlayLayerActive;
+uniform float u_overlayOpacity;
+uniform vec4 u_overlayCell;
+/** 0 = original, 1 = multiply tint rgb, 2 = replace with tint rgb. */
+uniform float u_overlayTintMode;
+uniform vec3 u_overlayTintRgb;
+/** 0 normal, 1 multiply, 2 screen, 3 add, 4 overlay, 5 difference. */
+uniform int u_overlayBlendMode;
+/** 1 = sample using distorted UV (uvR); 0 = undistorted screen UV (uv). */
+uniform float u_overlayFollowDistort;
 /** 1 = scene composites over a transparent canvas (e.g. YouTube behind); enables RGBA output. */
 uniform float u_transparentSceneBg;
 /** VJ: tile & scroll logo texture vertically in image UV (0/1). */
@@ -397,6 +409,54 @@ vec4 sampleUnderlayTex(vec2 uv) {
   vec4 t = texture(u_underlay, vec2(uTex, vTex));
   t.rgb *= u_underlayTintRgb;
   return t;
+}
+
+/** Top overlay (second logo); same cell mapping as underlay, optional tint. */
+vec4 sampleOverlayTex(vec2 uv) {
+  if (u_overlayLayerActive < 0.5) {
+    return vec4(0.0);
+  }
+  /**
+   * Primary letterbox local space (same basis as u_overlayCell). Do not clamp local to 0–1:
+   * at scale above 1 the overlay quad extends past the primary artwork rect; clamping hid those
+   * pixels so the layer looked masked by the main logo bounds.
+   */
+  vec2 local = (uv - u_imageRect.xy) / u_imageRect.zw;
+  float uTex = (local.x - u_overlayCell.x) / max(u_overlayCell.z, 1e-6);
+  float vTex = (local.y - u_overlayCell.y) / max(u_overlayCell.w, 1e-6);
+  if (uTex < 0.0 || uTex > 1.0 || vTex < 0.0 || vTex > 1.0) {
+    return vec4(0.0);
+  }
+  vec4 t = texture(u_overlayLayer, vec2(uTex, vTex));
+  if (u_overlayTintMode > 0.5) {
+    if (u_overlayTintMode < 1.5) {
+      t.rgb *= u_overlayTintRgb;
+    } else {
+      t.rgb = u_overlayTintRgb;
+    }
+  }
+  return t;
+}
+
+vec3 overlayBlendRgb(vec3 base, vec3 src, int mode) {
+  if (mode == 1) {
+    return base * src;
+  }
+  if (mode == 2) {
+    return 1.0 - (1.0 - base) * (1.0 - src);
+  }
+  if (mode == 3) {
+    return base + src;
+  }
+  if (mode == 4) {
+    vec3 low = 2.0 * base * src;
+    vec3 hi = 1.0 - 2.0 * (1.0 - base) * (1.0 - src);
+    return mix(low, hi, step(0.5, base));
+  }
+  if (mode == 5) {
+    return abs(base - src);
+  }
+  return src;
 }
 
 /**
@@ -887,6 +947,25 @@ void main() {
   } else {
     col = sampleSceneChroma(uvR, chromaSpread, frostPx);
     outA = 1.0;
+  }
+
+  if (u_overlayLayerActive > 0.5 && u_overlayOpacity > 1e-5) {
+    vec2 ovUv = u_overlayFollowDistort > 0.5 ? uvR : uv;
+    vec4 ov = sampleOverlayTex(ovUv);
+    float a = clamp(ov.a * u_overlayOpacity, 0.0, 1.0);
+    if (a > 1e-5) {
+      vec3 src = ov.rgb;
+      int bm = u_overlayBlendMode;
+      if (bm == 0) {
+        col = mix(col, src, a);
+      } else {
+        vec3 blended = overlayBlendRgb(col, src, bm);
+        col = mix(col, blended, a);
+      }
+      if (u_transparentSceneBg > 0.5) {
+        outA = a + outA * (1.0 - a);
+      }
+    }
   }
 
   /** Dirt / colour stain: multiply tint by detailHeight (spatially varying). */

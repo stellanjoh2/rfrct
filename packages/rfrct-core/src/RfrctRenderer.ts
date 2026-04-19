@@ -64,6 +64,7 @@ export class RfrctRenderer {
   private readonly vao: WebGLVertexArrayObject;
   private readonly texture: WebGLTexture;
   private readonly underlayTexture: WebGLTexture;
+  private readonly overlayTexture: WebGLTexture;
   private readonly locs: Record<string, WebGLUniformLocation | null> = {};
   private raf = 0;
   /** Monotonic shader time (seconds); advances by dt × speed so pause does not reset phase. */
@@ -84,6 +85,19 @@ export class RfrctRenderer {
   underlayOpacity = 0;
   /** Multiply sampled underlay rgb (PNG); default white leaves bitmap unchanged. */
   underlayTintRgb: [number, number, number] = [1, 1, 1];
+
+  /** Optional second bitmap composited **above** the main logo (same letterbox). */
+  private overlayTexSource: TexImageSource | null = null;
+  private overlayCell = { ox: 0, oy: 0, sw: 1, sh: 1 };
+  /** 0–1 effective opacity (Design × VJ). */
+  overlayOpacity = 1;
+  /** 0 original, 1 multiply tint, 2 replace — SVG / bitmap. */
+  overlayTintMode = 0;
+  overlayTintRgb: [number, number, number] = [1, 1, 1];
+  /** 0 normal … 5 difference — see fragment shader `overlayBlendRgb`. */
+  overlayBlendMode = 0;
+  /** 1 = refracted UV; 0 = flat screen UV. */
+  overlayFollowDistortion = 1;
 
   /** Prevents overlapping exports from fighting over canvas dimensions / suppressAnimationDraw. */
   private exportInProgress = false;
@@ -221,6 +235,14 @@ export class RfrctRenderer {
       "u_underlayOpacity",
       "u_underlayCell",
       "u_underlayTintRgb",
+      "u_overlayLayer",
+      "u_overlayLayerActive",
+      "u_overlayOpacity",
+      "u_overlayCell",
+      "u_overlayTintMode",
+      "u_overlayTintRgb",
+      "u_overlayBlendMode",
+      "u_overlayFollowDistort",
       "u_transparentSceneBg",
       "u_blobCenter",
       "u_blobRadius",
@@ -298,6 +320,24 @@ export class RfrctRenderer {
       new Uint8Array([0, 0, 0, 0]),
     );
 
+    this.overlayTexture = gl.createTexture()!;
+    gl.bindTexture(gl.TEXTURE_2D, this.overlayTexture);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texImage2D(
+      gl.TEXTURE_2D,
+      0,
+      gl.RGBA,
+      1,
+      1,
+      0,
+      gl.RGBA,
+      gl.UNSIGNED_BYTE,
+      new Uint8Array([0, 0, 0, 0]),
+    );
+
     this.detailNormalTex = gl.createTexture()!;
     gl.bindTexture(gl.TEXTURE_2D, this.detailNormalTex);
     const neutralNormal = new Uint8Array([128, 128, 255, 255]);
@@ -321,6 +361,7 @@ export class RfrctRenderer {
     gl.uniform1i(this.locs.u_image, 0);
     gl.uniform1i(this.locs.u_detailNormal, 1);
     gl.uniform1i(this.locs.u_underlay, 2);
+    gl.uniform1i(this.locs.u_overlayLayer, 3);
 
     this.onVisibilityChange = () => {
       if (!document.hidden) {
@@ -439,6 +480,69 @@ export class RfrctRenderer {
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
   }
 
+  /**
+   * Optional bitmap drawn **above** the main SVG in the fragment shader, using either distorted
+   * or flat UVs depending on {@link overlayFollowDistortion}.
+   */
+  setOverlayFromSource(source: TexImageSource) {
+    if (this.disposed) return;
+    const gl = this.gl;
+    this.overlayTexSource = source;
+    gl.bindTexture(gl.TEXTURE_2D, this.overlayTexture);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, source);
+    const { w, h } = textureDimensions(source);
+    if (isPowerOfTwo(w) && isPowerOfTwo(h)) {
+      gl.generateMipmap(gl.TEXTURE_2D);
+      gl.texParameteri(
+        gl.TEXTURE_2D,
+        gl.TEXTURE_MIN_FILTER,
+        gl.LINEAR_MIPMAP_LINEAR,
+      );
+    } else {
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    }
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+  }
+
+  clearOverlay() {
+    if (this.disposed) return;
+    const gl = this.gl;
+    this.overlayTexSource = null;
+    gl.bindTexture(gl.TEXTURE_2D, this.overlayTexture);
+    gl.texImage2D(
+      gl.TEXTURE_2D,
+      0,
+      gl.RGBA,
+      1,
+      1,
+      0,
+      gl.RGBA,
+      gl.UNSIGNED_BYTE,
+      new Uint8Array([0, 0, 0, 0]),
+    );
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  }
+
+  /** Maps overlay texture UVs with contain-fit inside the same letterbox `rect` as the main image. */
+  syncOverlayLayout(
+    canvasW: number,
+    canvasH: number,
+    rect: ImageRect,
+    overlayW: number,
+    overlayH: number,
+    options?: UnderlayContainOptions,
+  ) {
+    this.overlayCell = computeUnderlayContainCell(
+      canvasW,
+      canvasH,
+      rect,
+      overlayW,
+      overlayH,
+      options,
+    );
+  }
+
   /** Maps underlay texture UVs with contain-fit inside the same letterbox `rect` as the main image. */
   syncUnderlayLayout(
     canvasW: number,
@@ -477,6 +581,8 @@ export class RfrctRenderer {
     gl.bindTexture(gl.TEXTURE_2D, this.detailNormalTex);
     gl.activeTexture(gl.TEXTURE2);
     gl.bindTexture(gl.TEXTURE_2D, this.underlayTexture);
+    gl.activeTexture(gl.TEXTURE3);
+    gl.bindTexture(gl.TEXTURE_2D, this.overlayTexture);
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, this.texture);
 
@@ -504,6 +610,30 @@ export class RfrctRenderer {
       this.underlayTintRgb[0],
       this.underlayTintRgb[1],
       this.underlayTintRgb[2],
+    );
+    gl.uniform1f(
+      this.locs.u_overlayLayerActive,
+      this.overlayTexSource ? 1 : 0,
+    );
+    gl.uniform1f(this.locs.u_overlayOpacity, this.overlayOpacity);
+    gl.uniform4f(
+      this.locs.u_overlayCell,
+      this.overlayCell.ox,
+      this.overlayCell.oy,
+      this.overlayCell.sw,
+      this.overlayCell.sh,
+    );
+    gl.uniform1f(this.locs.u_overlayTintMode, this.overlayTintMode);
+    gl.uniform3f(
+      this.locs.u_overlayTintRgb,
+      this.overlayTintRgb[0],
+      this.overlayTintRgb[1],
+      this.overlayTintRgb[2],
+    );
+    gl.uniform1i(this.locs.u_overlayBlendMode, this.overlayBlendMode);
+    gl.uniform1f(
+      this.locs.u_overlayFollowDistort,
+      this.overlayFollowDistortion > 0.5 ? 1 : 0,
     );
     gl.uniform1f(
       this.locs.u_transparentSceneBg,
@@ -722,6 +852,7 @@ export class RfrctRenderer {
     if (this.disposed) return;
     this.reuploadImageTexture();
     this.reuploadUnderlayTexture();
+    this.reuploadOverlayTexture();
   }
 
   private reuploadUnderlayTexture(): void {
@@ -738,6 +869,33 @@ export class RfrctRenderer {
       this.underlayTexSource,
     );
     const { w, h } = textureDimensions(this.underlayTexSource);
+    if (isPowerOfTwo(w) && isPowerOfTwo(h)) {
+      gl.generateMipmap(gl.TEXTURE_2D);
+      gl.texParameteri(
+        gl.TEXTURE_2D,
+        gl.TEXTURE_MIN_FILTER,
+        gl.LINEAR_MIPMAP_LINEAR,
+      );
+    } else {
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    }
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+  }
+
+  private reuploadOverlayTexture(): void {
+    if (!this.overlayTexSource) return;
+    const gl = this.gl;
+    gl.bindTexture(gl.TEXTURE_2D, this.overlayTexture);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+    gl.texImage2D(
+      gl.TEXTURE_2D,
+      0,
+      gl.RGBA,
+      gl.RGBA,
+      gl.UNSIGNED_BYTE,
+      this.overlayTexSource,
+    );
+    const { w, h } = textureDimensions(this.overlayTexSource);
     if (isPowerOfTwo(w) && isPowerOfTwo(h)) {
       gl.generateMipmap(gl.TEXTURE_2D);
       gl.texParameteri(
@@ -887,6 +1045,7 @@ export class RfrctRenderer {
     this.bloomPipeline.dispose();
     this.gl.deleteTexture(this.detailNormalTex);
     this.gl.deleteTexture(this.underlayTexture);
+    this.gl.deleteTexture(this.overlayTexture);
     this.gl.deleteTexture(this.texture);
     this.gl.deleteVertexArray(this.vao);
     this.gl.deleteProgram(this.program);
