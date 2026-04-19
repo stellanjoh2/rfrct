@@ -133,6 +133,9 @@ export const SettingsSidebar = forwardRef<HTMLElement, SettingsSidebarProps>(
           aria-labelledby="tab-design"
           className="sidebar-tab-panel"
         >
+          <h2 title="Primary artwork upload, background, scale, and colour">
+            Layer 1
+          </h2>
           <UploadBlock onFile={onFile} />
           <AppearanceSection {...appearance} />
           <SecondaryLayerSection {...secondaryLayer} />

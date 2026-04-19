@@ -400,6 +400,66 @@ label.file-btn input[type="file"] {
   opacity: 0;
 }
 
+label.file-btn--disabled,
+label.file-btn:has(input[disabled]) {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.upload-block--in-row {
+  flex: 1;
+  min-width: 0;
+  margin-bottom: 0;
+}
+
+.field .row--layer2-upload {
+  align-items: stretch;
+}
+
+.field .row--layer2-upload .upload-block {
+  margin-bottom: 0;
+}
+
+/* Same footprint as label.file-btn; flex 1 pairs with Layer 2 upload. */
+.layer2-remove-btn {
+  flex: 1;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: stretch;
+  padding: 12px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  font-family: inherit;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--glass-text);
+  border-radius: var(--btn-radius);
+  border: 1px solid var(--glass-border);
+  background: rgba(255, 255, 255, 0.06);
+  cursor: pointer;
+  transition:
+    background var(--ui-duration) var(--ui-ease),
+    border-color var(--ui-duration) var(--ui-ease),
+    transform var(--ui-duration) var(--ui-ease);
+}
+
+.layer2-remove-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.28);
+}
+
+.layer2-remove-btn:active:not(:disabled) {
+  transform: scale(0.985);
+}
+
+.layer2-remove-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .mic-toggle {
   width: 100%;
   cursor: pointer;

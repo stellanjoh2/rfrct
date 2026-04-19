@@ -77,24 +77,30 @@ export function SecondaryLayerSection({
 
   return (
     <>
-      <h2 title="Optional second logo composited above the primary artwork">
-        Secondary layer
+      <h2 title="Optional second artwork composited above Layer 1">
+        Layer 2
       </h2>
       <section>
         <div className="field">
-          <label htmlFor="layer2-file">Add layer (SVG)</label>
-          <div className="row">
-            <input
-              id="layer2-file"
-              type="file"
-              accept=".svg,image/svg+xml"
-              disabled={disabled}
-              onChange={onLayer2File}
-              aria-label="Secondary SVG layer file"
-            />
+          <div className="row row--layer2-upload">
+            <div className="upload-block upload-block--in-row">
+              <label
+                className={`file-btn${disabled ? " file-btn--disabled" : ""}`}
+              >
+                Upload image
+                <input
+                  type="file"
+                  accept=".svg,image/svg+xml"
+                  disabled={disabled}
+                  onChange={onLayer2File}
+                  aria-label="Layer 2 SVG file"
+                />
+              </label>
+            </div>
             {hasLayer ? (
               <button
                 type="button"
+                className="layer2-remove-btn"
                 disabled={disabled}
                 onClick={onRemoveLayer2}
               >
@@ -104,7 +110,8 @@ export function SecondaryLayerSection({
           </div>
           {disabled ? (
             <p className="field-hint">
-              Upload a primary SVG first — the secondary layer shares its placement.
+              Upload a primary image in Layer 1 first — Layer 2 shares its
+              placement.
             </p>
           ) : null}
         </div>
@@ -113,7 +120,7 @@ export function SecondaryLayerSection({
           <>
             <div className="field">
               <label>
-                Layer scale
+                Layer 2 scale
                 <span className="val">{layer2Scale.toFixed(2)}×</span>
               </label>
               <input
@@ -126,7 +133,7 @@ export function SecondaryLayerSection({
               />
             </div>
             <div className="field">
-              <label htmlFor="layer2-tint-mode">Layer colour</label>
+              <label htmlFor="layer2-tint-mode">Layer 2 colour</label>
               <select
                 id="layer2-tint-mode"
                 className="field-select"
@@ -151,14 +158,14 @@ export function SecondaryLayerSection({
                     type="color"
                     value={layer2TintHex}
                     onChange={(e) => setLayer2TintHex(e.target.value)}
-                    aria-label="Secondary layer colour"
+                    aria-label="Layer 2 colour"
                   />
                   <input
                     type="text"
                     value={layer2TintHex}
                     onChange={(e) => setLayer2TintHex(e.target.value)}
                     spellCheck={false}
-                    aria-label="Secondary layer colour hex"
+                    aria-label="Layer 2 colour hex"
                   />
                 </div>
               </div>
@@ -195,7 +202,7 @@ export function SecondaryLayerSection({
             </div>
             <div className="field">
               <label>
-                Layer opacity
+                Layer 2 opacity
                 <span className="val">{layer2BaseOpacity.toFixed(2)}</span>
               </label>
               <input

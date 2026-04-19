@@ -58,11 +58,7 @@ export function AppearanceSection({
   youtubeActive,
 }: AppearanceSectionProps) {
   return (
-    <>
-      <h2 title="Background colour, image scale, and SVG colour controls">
-        Appearance
-      </h2>
-      <section>
+    <section aria-label="Layer 1 options">
         <div className="field">
           <label>
             Background
@@ -293,7 +289,6 @@ export function AppearanceSection({
             )}
           </>
         )}
-      </section>
-    </>
+    </section>
   );
 }

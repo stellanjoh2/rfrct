@@ -108,7 +108,7 @@ export function AudioSection({
   const invertStrobeHint = HINT_NEED_VJ_CHAIN;
   const layer2VjBlocked = !vjControlsEnabled || !hasSecondaryLayer;
   const layer2VjHint = !hasSecondaryLayer
-    ? "Add a secondary SVG layer in the Design tab first."
+    ? "Add Layer 2 in the Design tab first."
     : HINT_NEED_VJ_CHAIN;
 
   const pickLayer2Mode = (mode: Exclude<VjLayer2AutomationMode, "off">) => {
@@ -525,8 +525,8 @@ export function AudioSection({
         </div>
       </section>
 
-      <h2 title="Automation targets the second SVG from Design → Secondary layer (not the main logo)">
-        Secondary layer
+      <h2 title="Automation targets Layer 2 from Design (not the main logo)">
+        Layer 2
       </h2>
       <section>
         <div className="field field--checkbox field--audio-toggles field--audio-toggles--stack">
@@ -544,7 +544,7 @@ export function AudioSection({
               title={
                 layer2VjBlocked
                   ? layer2VjHint
-                  : "Sparse random dips in secondary layer opacity on HF transients"
+                  : "Sparse random dips in Layer 2 opacity on HF transients"
               }
             >
               Layer blink
@@ -584,7 +584,7 @@ export function AudioSection({
               title={
                 layer2VjBlocked
                   ? layer2VjHint
-                  : "Wobble secondary layer scale with loudness and spectral motion"
+                  : "Wobble Layer 2 scale with loudness and spectral motion"
               }
             >
               Layer scale + audio
