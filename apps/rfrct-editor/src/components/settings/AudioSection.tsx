@@ -42,6 +42,9 @@ export type AudioSectionProps = {
   /** Fullscreen difference invert bursts on high-frequency transients. */
   vjInvertStrobe: boolean;
   setVjInvertStrobe: Dispatch<SetStateAction<boolean>>;
+  /** 0–1 — how often invert strobe bursts may fire. */
+  vjInvertStrobeAmount: number;
+  setVjInvertStrobeAmount: (v: number) => void;
   /** Design → Secondary layer — required for layer VJ. */
   hasSecondaryLayer: boolean;
   vjLayer2AutomationMode: VjLayer2AutomationMode;
@@ -82,6 +85,8 @@ export function AudioSection({
   setVjDupRandomHoriz,
   vjInvertStrobe,
   setVjInvertStrobe,
+  vjInvertStrobeAmount,
+  setVjInvertStrobeAmount,
   hasSecondaryLayer,
   vjLayer2AutomationMode,
   setVjLayer2AutomationMode,
@@ -489,6 +494,33 @@ export function AudioSection({
             >
               Invert strobe
             </button>
+          </ClickBlockedHint>
+        </div>
+        <div className="field">
+          <label
+            title="How often invert strobe bursts can start after a high-frequency hit (lower = rarer flashes, higher = more frequent)"
+            htmlFor="vj-invert-strobe-amount"
+          >
+            Invert strobe amount
+            <span className="val">{Math.round(vjInvertStrobeAmount * 100)}%</span>
+          </label>
+          <ClickBlockedHint
+            blocked={invertStrobeBlocked}
+            hint={invertStrobeHint}
+            onBlockedClick={onFeatureBlockedHint}
+            fullWidth
+          >
+            <input
+              id="vj-invert-strobe-amount"
+              type="range"
+              min={0}
+              max={1}
+              step={0.02}
+              value={vjInvertStrobeAmount}
+              onChange={(e) => setVjInvertStrobeAmount(Number(e.target.value))}
+              disabled={invertStrobeBlocked}
+              aria-label="Invert strobe burst frequency"
+            />
           </ClickBlockedHint>
         </div>
       </section>

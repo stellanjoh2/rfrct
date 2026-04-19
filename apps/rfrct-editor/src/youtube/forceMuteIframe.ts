@@ -10,6 +10,11 @@ const COMMANDS: string[] = [
   JSON.stringify({ event: "command", func: "setVolume", args: [0] }),
 ];
 
+const PLAYBACK_CMD = {
+  pause: JSON.stringify({ event: "command", func: "pauseVideo", args: "" }),
+  play: JSON.stringify({ event: "command", func: "playVideo", args: "" }),
+} as const;
+
 /**
  * True when the iframe is not the initial same-origin `about:blank` document.
  * Until the YouTube URL loads, `contentWindow` is same-origin as the app, so
@@ -42,6 +47,24 @@ export function postYoutubeMute(iframe: HTMLIFrameElement): void {
       } catch {
         /* ignore */
       }
+    }
+  }
+}
+
+/** Pause or resume the embedded player (requires `enablejsapi=1` on embed URL). */
+export function postYoutubePlayback(
+  iframe: HTMLIFrameElement,
+  mode: "pause" | "play",
+): void {
+  if (!isYoutubeEmbedBrowsingContextReady(iframe)) return;
+  const w = iframe.contentWindow;
+  if (!w) return;
+  const cmd = PLAYBACK_CMD[mode];
+  for (const origin of YT_EMBED_ORIGINS) {
+    try {
+      w.postMessage(cmd, origin);
+    } catch {
+      /* ignore */
     }
   }
 }

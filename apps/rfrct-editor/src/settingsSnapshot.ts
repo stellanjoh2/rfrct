@@ -99,6 +99,8 @@ export type RfrctEditorSettingsSnapshotV1 = {
   vjDupRandomHoriz: boolean;
   /** VJ Extras: HF difference invert bursts (optional in older snapshots). */
   vjInvertStrobe: boolean;
+  /** 0–1 — how often invert strobe bursts may fire (optional in older snapshots). */
+  vjInvertStrobeAmount: number;
   vjPathScale: number;
   vjPathSpeed: number;
   vjGlassGradeMode: "off" | "tint" | "duotone";
@@ -358,6 +360,10 @@ export function parseSettingsSnapshot(
     vjDupSpeedShift: bool(p.vjDupSpeedShift, false),
     vjDupRandomHoriz: bool(p.vjDupRandomHoriz, false),
     vjInvertStrobe: bool(p.vjInvertStrobe, false),
+    vjInvertStrobeAmount: Math.min(
+      1,
+      Math.max(0, num(p.vjInvertStrobeAmount, 0.5)),
+    ),
     vjPathScale: num(p.vjPathScale, 1),
     vjPathSpeed: num(p.vjPathSpeed, DEFAULT_VJ_PATH_SPEED),
     vjGlassGradeMode,

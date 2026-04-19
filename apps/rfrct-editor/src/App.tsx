@@ -57,7 +57,7 @@ import {
   stepVjLayer2RandomBurst,
 } from "./audio/vjLayer2RandomBurst";
 import type { BackdropBlendMode } from "./videoBackdrop";
-import { postYoutubeMute } from "./youtube/forceMuteIframe";
+import { postYoutubeMute, postYoutubePlayback } from "./youtube/forceMuteIframe";
 import {
   createSettingsSnapshot,
   parseSettingsSnapshot,
@@ -254,6 +254,8 @@ export function App() {
   const [vjDupRandomHoriz, setVjDupRandomHoriz] = useState(false);
   /** VJ Extras: high-frequency–gated fullscreen difference invert bursts. */
   const [vjInvertStrobe, setVjInvertStrobe] = useState(false);
+  /** 0–1 — how often invert strobe may fire (trigger odds + cooldown between bursts). */
+  const [vjInvertStrobeAmount, setVjInvertStrobeAmount] = useState(0.5);
   /** VJ: secondary layer — at most one automation mode (mutually exclusive in UI). */
   const [vjLayer2AutomationMode, setVjLayer2AutomationMode] =
     useState<VjLayer2AutomationMode>("off");
@@ -283,6 +285,8 @@ export function App() {
   const vjInvertStrobeEnabledRef = useRef(false);
   vjInvertStrobeEnabledRef.current =
     micDrivingRefraction && vjMode && vjInvertStrobe;
+  const vjInvertStrobeAmountRef = useRef(0.5);
+  vjInvertStrobeAmountRef.current = vjInvertStrobeAmount;
   const vjLayer2BlinkStateRef = useRef(createVjLayer2BlinkState());
   const vjLayer2ScaleAudioStateRef = useRef(createVjLayer2ScaleAudioState());
   const vjLayer2RandomBurstStateRef = useRef(createVjLayer2RandomBurstState());
@@ -320,16 +324,41 @@ export function App() {
   );
   const mouseLoopPrevTRef = useRef(performance.now());
   const zoomFxActiveRef = useRef(false);
+  const pauseAnimationRef = useRef(pauseAnimation);
+  pauseAnimationRef.current = pauseAnimation;
+
+  /** Freezes shader time + VJ dup scroll; combine with wheel-zoom freeze. */
+  const syncAnimationFrozen = useCallback(() => {
+    rendererRef.current?.setAnimationTimeFrozen(
+      zoomFxActiveRef.current || pauseAnimationRef.current,
+    );
+  }, []);
 
   const setZoomFxActive = useCallback(
     (active: boolean) => {
       zoomFxActiveRef.current = active;
-      const r = rendererRef.current;
-      if (!r) return;
-      r.setAnimationTimeFrozen(active);
+      syncAnimationFrozen();
     },
-    [],
+    [syncAnimationFrozen],
   );
+
+  useEffect(() => {
+    syncAnimationFrozen();
+  }, [pauseAnimation, syncAnimationFrozen]);
+
+  /** Match spacebar pause: freeze embed playback too (JS API; requires enablejsapi). */
+  useEffect(() => {
+    if (!youtubeVideoId) return;
+    const iframe = youtubeIframeRef.current;
+    if (!iframe) return;
+
+    const apply = () =>
+      postYoutubePlayback(iframe, pauseAnimation ? "pause" : "play");
+    apply();
+    const onLoad = () => apply();
+    iframe.addEventListener("load", onLoad);
+    return () => iframe.removeEventListener("load", onLoad);
+  }, [pauseAnimation, youtubeVideoId, youtubeEmbedSrc]);
 
   useEffect(() => {
     if (!lensMouseInput) return;
@@ -377,7 +406,7 @@ export function App() {
     const degPerSec = 7.5;
     const envDeg = 130;
     const loop = () => {
-      if (zoomFxActiveRef.current) {
+      if (zoomFxActiveRef.current || pauseAnimationRef.current) {
         id = requestAnimationFrame(loop);
         return;
       }
@@ -815,7 +844,7 @@ export function App() {
     }
     setWebglError(null);
     rendererRef.current = renderer;
-    renderer.setAnimationTimeFrozen(zoomFxActiveRef.current);
+    syncAnimationFrozen();
     renderer.blob.centerX = blobCenterRef.current.x;
     renderer.blob.centerY = blobCenterRef.current.y;
     renderer.startLoop();
@@ -840,7 +869,7 @@ export function App() {
       renderer.destroy();
       rendererRef.current = null;
     };
-  }, []);
+  }, [syncAnimationFrozen]);
 
   useEffect(() => {
     const r = rendererRef.current;
@@ -994,6 +1023,10 @@ export function App() {
       const r = rendererRef.current;
       const raw = latestSyncRef.current;
       if (r && raw) {
+        if (pauseAnimationRef.current) {
+          id = requestAnimationFrame(loop);
+          return;
+        }
         const now = performance.now();
         const dt = Math.min(0.05, (now - micLoopPrevTRef.current) / 1000);
         micLoopPrevTRef.current = now;
@@ -1083,6 +1116,7 @@ export function App() {
               tickVj,
               dt,
               vjInvertStrobeStateRef.current,
+              vjInvertStrobeAmountRef.current,
             );
             invEl.style.opacity = String(op);
           } else {
@@ -1160,13 +1194,14 @@ export function App() {
       const dt = Math.min(0.05, (now - mouseLoopPrevTRef.current) / 1000);
       mouseLoopPrevTRef.current = now;
       const timeSec = now * 0.001;
-      const freezeZoomFx = zoomFxActiveRef.current;
+      const freezeMotion =
+        zoomFxActiveRef.current || pauseAnimationRef.current;
       const r = rendererRef.current;
       if (r) {
         const target = mouseLensTargetRef.current;
         const pos = mouseFluidPosRef.current;
         const vel = mouseFluidVelRef.current;
-        const step = freezeZoomFx
+        const step = freezeMotion
           ? { x: pos.x, y: pos.y, vx: 0, vy: 0 }
           : stepLensMouseFluid(
               dt,
@@ -1527,6 +1562,7 @@ export function App() {
       vjDupSpeedShift,
       vjDupRandomHoriz,
       vjInvertStrobe,
+      vjInvertStrobeAmount,
       vjPathScale,
     vjPathSpeed,
     vjGlassGradeMode,
@@ -1608,6 +1644,7 @@ export function App() {
       vjDupSpeedShift,
       vjDupRandomHoriz,
       vjInvertStrobe,
+      vjInvertStrobeAmount,
       vjPathScale,
       vjPathSpeed,
       vjGlassGradeMode,
@@ -1732,6 +1769,7 @@ export function App() {
     setVjDupRandomHoriz(d.vjDupRandomHoriz);
     resetVjDupHorizRandomState(vjDupHorizRandomStateRef.current);
     setVjInvertStrobe(d.vjInvertStrobe);
+    setVjInvertStrobeAmount(d.vjInvertStrobeAmount);
     resetVjInvertStrobeState(vjInvertStrobeStateRef.current);
     setVjPathScale(d.vjPathScale);
     setVjPathSpeed(d.vjPathSpeed);
@@ -1931,6 +1969,8 @@ export function App() {
         setVjDupRandomHoriz,
         vjInvertStrobe,
         setVjInvertStrobe,
+        vjInvertStrobeAmount,
+        setVjInvertStrobeAmount,
         hasSecondaryLayer: Boolean(layer2SourceUrl && layer2ImgDims),
         vjLayer2AutomationMode,
         setVjLayer2AutomationMode,
@@ -2048,6 +2088,7 @@ export function App() {
       vjDupSpeedShift,
       vjDupRandomHoriz,
       vjInvertStrobe,
+      vjInvertStrobeAmount,
       layer2SourceUrl,
       layer2ImgDims,
       layer2Scale,

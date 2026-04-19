@@ -9,8 +9,6 @@ import type { MicTickResult } from "./micAnalyzer";
 const HIGH_TRANSIENT_MIN = 0.092;
 /** Min sustained high-band energy so noise alone does not fire. */
 const HIGH_BAND_MIN = 0.036;
-/** Chance to actually start a burst when the above pass (keeps it sparse / random). */
-const TRIGGER_ROLL = 0.48;
 
 /**
  * Burst length and strobe rate are loosely based on common stage/DMX behaviour: a “macro”
@@ -67,13 +65,21 @@ export function resetVjInvertStrobeState(st: VjInvertStrobeState): void {
 }
 
 /**
+ * @param amount 0–1 — how often bursts are allowed (trigger chance + min gap after a burst).
  * @returns Opacity 0–1 for a white fullscreen layer with `mix-blend-mode: difference`.
  */
 export function stepVjInvertStrobe(
   tick: SpectralTick,
   dt: number,
   st: VjInvertStrobeState,
+  amount: number,
 ): number {
+  const a = Math.min(1, Math.max(0, amount));
+  /** ~legacy 0.48 when amount ≈ 0.5 */
+  const triggerRoll = 0.1 + a * 0.82;
+  const cooldownMin = 0.025 + (1 - a) * 0.14;
+  const cooldownSpan = 0.038 + (1 - a) * 0.1;
+
   st.cooldown = Math.max(0, st.cooldown - dt);
 
   if (!st.primed) {
@@ -88,7 +94,7 @@ export function stepVjInvertStrobe(
     if (
       th > HIGH_TRANSIENT_MIN &&
       hi > HIGH_BAND_MIN &&
-      Math.random() < TRIGGER_ROLL
+      Math.random() < triggerRoll
     ) {
       const dur = randomBurstDurationSec();
       st.burstLeft = dur;
@@ -111,7 +117,7 @@ export function stepVjInvertStrobe(
   st.burstLeft -= dt;
   if (st.burstLeft <= 0) {
     st.burstLeft = 0;
-    st.cooldown = 0.038 + Math.random() * 0.1;
+    st.cooldown = cooldownMin + Math.random() * cooldownSpan;
   }
 
   return out;
