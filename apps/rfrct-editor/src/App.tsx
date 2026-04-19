@@ -326,11 +326,16 @@ export function App() {
   const zoomFxActiveRef = useRef(false);
   const pauseAnimationRef = useRef(pauseAnimation);
   pauseAnimationRef.current = pauseAnimation;
+  /** True while the settings sidebar is scrolling (same GPU/CPU freeze intent as spacebar). */
+  const settingsMenuScrollFreezeRef = useRef(false);
+  const settingsSidebarRef = useRef<HTMLElement | null>(null);
 
-  /** Freezes shader time + VJ dup scroll; combine with wheel-zoom freeze. */
+  /** Freezes shader time + VJ dup scroll; wheel zoom, spacebar pause, or settings menu scroll. */
   const syncAnimationFrozen = useCallback(() => {
     rendererRef.current?.setAnimationTimeFrozen(
-      zoomFxActiveRef.current || pauseAnimationRef.current,
+      zoomFxActiveRef.current ||
+        pauseAnimationRef.current ||
+        settingsMenuScrollFreezeRef.current,
     );
   }, []);
 
@@ -345,6 +350,58 @@ export function App() {
   useEffect(() => {
     syncAnimationFrozen();
   }, [pauseAnimation, syncAnimationFrozen]);
+
+  useEffect(() => {
+    const el = settingsSidebarRef.current;
+    if (!el) return;
+
+    let endTimer: ReturnType<typeof window.setTimeout> | null = null;
+    const clearEndTimer = () => {
+      if (endTimer !== null) {
+        window.clearTimeout(endTimer);
+        endTimer = null;
+      }
+    };
+
+    const setMenuScrollFreeze = (frozen: boolean) => {
+      if (settingsMenuScrollFreezeRef.current === frozen) return;
+      settingsMenuScrollFreezeRef.current = frozen;
+      syncAnimationFrozen();
+    };
+
+    const supportsScrollEnd = "onscrollend" in el;
+
+    const onScroll = () => {
+      setMenuScrollFreeze(true);
+      if (!supportsScrollEnd) {
+        clearEndTimer();
+        endTimer = window.setTimeout(() => {
+          endTimer = null;
+          setMenuScrollFreeze(false);
+        }, 400);
+      }
+    };
+
+    const onScrollEnd = () => {
+      clearEndTimer();
+      setMenuScrollFreeze(false);
+    };
+
+    el.addEventListener("scroll", onScroll, { passive: true });
+    if (supportsScrollEnd) {
+      el.addEventListener("scrollend", onScrollEnd);
+    }
+
+    return () => {
+      el.removeEventListener("scroll", onScroll);
+      if (supportsScrollEnd) {
+        el.removeEventListener("scrollend", onScrollEnd);
+      }
+      clearEndTimer();
+      settingsMenuScrollFreezeRef.current = false;
+      syncAnimationFrozen();
+    };
+  }, [syncAnimationFrozen]);
 
   /** Match spacebar pause: freeze embed playback too (JS API; requires enablejsapi). */
   useEffect(() => {
@@ -406,7 +463,11 @@ export function App() {
     const degPerSec = 7.5;
     const envDeg = 130;
     const loop = () => {
-      if (zoomFxActiveRef.current || pauseAnimationRef.current) {
+      if (
+        zoomFxActiveRef.current ||
+        pauseAnimationRef.current ||
+        settingsMenuScrollFreezeRef.current
+      ) {
         id = requestAnimationFrame(loop);
         return;
       }
@@ -1023,7 +1084,11 @@ export function App() {
       const r = rendererRef.current;
       const raw = latestSyncRef.current;
       if (r && raw) {
-        if (pauseAnimationRef.current) {
+        if (
+          pauseAnimationRef.current ||
+          zoomFxActiveRef.current ||
+          settingsMenuScrollFreezeRef.current
+        ) {
           id = requestAnimationFrame(loop);
           return;
         }
@@ -1031,7 +1096,6 @@ export function App() {
         const dt = Math.min(0.05, (now - micLoopPrevTRef.current) / 1000);
         micLoopPrevTRef.current = now;
         const timeSec = now * 0.001;
-        const freezeZoomFx = zoomFxActiveRef.current;
 
         const tickVj = scaleTickForAudioBoost(tick, micRefractBoost);
 
@@ -1130,30 +1194,24 @@ export function App() {
           const target = mouseLensTargetRef.current;
           const pos = mouseFluidPosRef.current;
           const vel = mouseFluidVelRef.current;
-          const step = freezeZoomFx
-            ? { x: pos.x, y: pos.y, vx: 0, vy: 0 }
-            : stepLensMouseFluid(
-                dt,
-                target,
-                pos,
-                vel,
-                raw.fluidDensity,
-                timeSec,
-              );
+          const step = stepLensMouseFluid(
+            dt,
+            target,
+            pos,
+            vel,
+            raw.fluidDensity,
+            timeSec,
+          );
           mouseFluidPosRef.current = { x: step.x, y: step.y };
           mouseFluidVelRef.current = { x: step.vx, y: step.vy };
           blobCenterRef.current = { x: step.x, y: step.y };
           driven = { ...raw, blobCenterX: step.x, blobCenterY: step.y };
         } else if (vjMode && micDrivingRefraction) {
-          if (freezeZoomFx) {
-            driven = raw;
-          } else {
-            driven = applyVjDrive(raw, timeSec);
-            blobCenterRef.current = {
-              x: driven.blobCenterX,
-              y: driven.blobCenterY,
-            };
-          }
+          driven = applyVjDrive(raw, timeSec);
+          blobCenterRef.current = {
+            x: driven.blobCenterX,
+            y: driven.blobCenterY,
+          };
         } else {
           driven = raw;
         }
@@ -1195,7 +1253,9 @@ export function App() {
       mouseLoopPrevTRef.current = now;
       const timeSec = now * 0.001;
       const freezeMotion =
-        zoomFxActiveRef.current || pauseAnimationRef.current;
+        zoomFxActiveRef.current ||
+        pauseAnimationRef.current ||
+        settingsMenuScrollFreezeRef.current;
       const r = rendererRef.current;
       if (r) {
         const target = mouseLensTargetRef.current;
@@ -2260,6 +2320,7 @@ export function App() {
         </div>
 
         <SettingsSidebar
+          ref={settingsSidebarRef}
           uiVisible={uiVisible}
           onFile={onFile}
           appearance={sidebar.appearance}

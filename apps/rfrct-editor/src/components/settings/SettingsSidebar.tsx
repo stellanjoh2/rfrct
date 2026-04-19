@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { forwardRef, useEffect, useState } from "react";
 import { AppearanceSection } from "./AppearanceSection";
 import { AudioSection } from "./AudioSection";
 import { DupStackSection } from "./DupStackSection";
@@ -39,21 +39,25 @@ export type SettingsSidebarProps = {
   exportPage: ExportPageProps;
 };
 
-export function SettingsSidebar({
-  uiVisible,
-  onFile,
-  appearance,
-  secondaryLayer,
-  lens,
-  dupStack,
-  bloom,
-  effects,
-  audio,
-  videoBackdrop,
-  mouseInput,
-  shareSettings,
-  exportPage,
-}: SettingsSidebarProps) {
+export const SettingsSidebar = forwardRef<HTMLElement, SettingsSidebarProps>(
+  function SettingsSidebar(
+    {
+      uiVisible,
+      onFile,
+      appearance,
+      secondaryLayer,
+      lens,
+      dupStack,
+      bloom,
+      effects,
+      audio,
+      videoBackdrop,
+      mouseInput,
+      shareSettings,
+      exportPage,
+    },
+    ref,
+  ) {
   const [activeTab, setActiveTab] = useState<"design" | "vj" | "export">(
     "design",
   );
@@ -75,6 +79,7 @@ export function SettingsSidebar({
 
   return (
     <aside
+      ref={ref}
       className={`glass-sidebar panel ${uiVisible ? "" : "glass-sidebar--hidden"}`}
       aria-hidden={!uiVisible}
       aria-label="Settings"
@@ -160,4 +165,5 @@ export function SettingsSidebar({
       )}
     </aside>
   );
-}
+  },
+);
