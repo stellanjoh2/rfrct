@@ -59,6 +59,11 @@ import {
   resetVjLayer2RandomBurstState,
   stepVjLayer2RandomBurst,
 } from "./audio/vjLayer2RandomBurst";
+import {
+  createVjLayer2PixelGlitchState,
+  resetVjLayer2PixelGlitchState,
+  stepVjLayer2PixelGlitch,
+} from "./audio/vjLayer2PixelGlitch";
 import type { BackdropBlendMode } from "./videoBackdrop";
 import { postYoutubeMute, postYoutubePlayback } from "./youtube/forceMuteIframe";
 import {
@@ -317,6 +322,8 @@ export function App() {
     useState<VjLayer2AutomationMode>("off");
   /** Random burst only: ramp Layer 2 scale during each burst window, reset when it ends. */
   const [vjLayer2StrobeScale, setVjLayer2StrobeScale] = useState(false);
+  /** Layer 2 VJ: intermittently flash Pixels random filter at full size/strength. */
+  const [vjLayer2PixelGlitch, setVjLayer2PixelGlitch] = useState(false);
   /** VJ mode: squircle orbit radius multiplier (larger = lens travels closer to frame edges). */
   const [vjPathScale, setVjPathScale] = useState(1);
   const [vjPathSpeed, setVjPathSpeed] = useState(DEFAULT_VJ_PATH_SPEED);
@@ -348,6 +355,7 @@ export function App() {
   const vjLayer2BlinkStateRef = useRef(createVjLayer2BlinkState());
   const vjLayer2ScaleAudioStateRef = useRef(createVjLayer2ScaleAudioState());
   const vjLayer2RandomBurstStateRef = useRef(createVjLayer2RandomBurstState());
+  const vjLayer2PixelGlitchStateRef = useRef(createVjLayer2PixelGlitchState());
   const layer2VjOpacityMulRef = useRef(1);
   const layer2VjScaleMulRef = useRef(1);
   /** 1 when burst mode off; 0–1 strobe envelope when burst mode on. */
@@ -379,6 +387,8 @@ export function App() {
   vjLayer2AutomationModeRef.current = vjLayer2AutomationMode;
   const vjLayer2StrobeScaleRef = useRef(false);
   vjLayer2StrobeScaleRef.current = vjLayer2StrobeScale;
+  const vjLayer2PixelGlitchRef = useRef(false);
+  vjLayer2PixelGlitchRef.current = vjLayer2PixelGlitch;
   const layer2ReadyRef = useRef(false);
   layer2ReadyRef.current = Boolean(
     layer2SourceUrl && layer2ImgDims && imgDims,
@@ -654,6 +664,11 @@ export function App() {
     syncSecondaryOverlayRef.current();
   }, [vjLayer2AutomationMode]);
 
+  useEffect(() => {
+    if (vjLayer2PixelGlitch) return;
+    resetVjLayer2PixelGlitchState(vjLayer2PixelGlitchStateRef.current);
+  }, [vjLayer2PixelGlitch]);
+
   const runPngExport = useCallback(
     (scale: 1 | 2) => {
       const r = rendererRef.current;
@@ -908,9 +923,13 @@ export function App() {
   const focusImage = useCallback(() => {
     if (!imgDims) return;
     const t = Focus();
+    const hasLayer2Loaded = Boolean(layer2SourceUrl && layer2ImgDims);
+    const focusScale = hasLayer2Loaded
+      ? Math.min(20, Math.max(0.25, t.scale / Math.max(layer2Scale, 1e-4)))
+      : t.scale;
     setImagePan(t.pan);
-    setImageScale(t.scale);
-  }, [imgDims]);
+    setImageScale(focusScale);
+  }, [imgDims, layer2SourceUrl, layer2ImgDims, layer2Scale]);
 
   const onYoutubeApply = useCallback(() => {
     const id = parseYoutubeVideoId(youtubeUrlDraft);
@@ -981,11 +1000,12 @@ export function App() {
       }
       if (e.key === "f" || e.key === "F") {
         e.preventDefault();
-        if (e.shiftKey) {
-          focusImage();
-        } else {
-          setFpsHudVisible((v) => !v);
-        }
+        focusImage();
+        return;
+      }
+      if (e.key === "i" || e.key === "I") {
+        e.preventDefault();
+        setFpsHudVisible((v) => !v);
         return;
       }
       if (e.key === "c" || e.key === "C") {
@@ -1275,6 +1295,7 @@ export function App() {
       resetVjLayer2BlinkState(vjLayer2BlinkStateRef.current);
       resetVjLayer2ScaleAudioState(vjLayer2ScaleAudioStateRef.current);
       resetVjLayer2RandomBurstState(vjLayer2RandomBurstStateRef.current);
+      resetVjLayer2PixelGlitchState(vjLayer2PixelGlitchStateRef.current);
       layer2VjOpacityMulRef.current = 1;
       layer2VjScaleMulRef.current = 1;
       layer2VjBurstOpacityMulRef.current = 1;
@@ -1346,6 +1367,10 @@ export function App() {
           scrollVx = 0;
         }
 
+        let effectiveFilterMode = raw.filterMode;
+        let effectiveFilterStrength = raw.filterStrength;
+        let effectiveFilterScale = raw.filterScale;
+
         layer2VjOpacityMulRef.current = 1;
         layer2VjScaleMulRef.current = 1;
         layer2VjBurstOpacityMulRef.current = 1;
@@ -1389,10 +1414,25 @@ export function App() {
           } else {
             resetVjLayer2RandomBurstState(vjLayer2RandomBurstStateRef.current);
           }
+          if (vjLayer2PixelGlitchRef.current) {
+            const glitchBoost = stepVjLayer2PixelGlitch(
+              tickVj,
+              dt,
+              vjLayer2PixelGlitchStateRef.current,
+            );
+            if (glitchBoost > 0) {
+              effectiveFilterMode = 7;
+              effectiveFilterStrength = glitchBoost;
+              effectiveFilterScale = glitchBoost;
+            }
+          } else {
+            resetVjLayer2PixelGlitchState(vjLayer2PixelGlitchStateRef.current);
+          }
         } else {
           resetVjLayer2BlinkState(vjLayer2BlinkStateRef.current);
           resetVjLayer2ScaleAudioState(vjLayer2ScaleAudioStateRef.current);
           resetVjLayer2RandomBurstState(vjLayer2RandomBurstStateRef.current);
+          resetVjLayer2PixelGlitchState(vjLayer2PixelGlitchStateRef.current);
         }
 
         const invEl = vjInvertStrobeOverlayRef.current;
@@ -1445,6 +1485,9 @@ export function App() {
             micDrivingRefraction: true,
             micRefractBoost,
             micEnvelope: tick.envelope,
+            filterMode: effectiveFilterMode,
+            filterStrength: effectiveFilterStrength,
+            filterScale: effectiveFilterScale,
             vjDupScrollSpeed: scrollVy,
             vjDupScrollSpeedX: scrollVx,
             vjDupHorizStep: horizStep,
@@ -1876,6 +1919,7 @@ export function App() {
       layer2BaseOpacity,
       ...vjLayer2ModeToLegacyBools(vjLayer2AutomationMode),
       vjLayer2StrobeScale,
+      vjLayer2PixelGlitch,
     }),
     [
       bgHex,
@@ -1960,6 +2004,7 @@ export function App() {
       layer2BaseOpacity,
       vjLayer2AutomationMode,
       vjLayer2StrobeScale,
+      vjLayer2PixelGlitch,
     ],
   );
 
@@ -2091,6 +2136,7 @@ export function App() {
         ),
       );
       setVjLayer2StrobeScale(d.vjLayer2StrobeScale);
+      setVjLayer2PixelGlitch(d.vjLayer2PixelGlitch);
 
       if (full) {
         const r = rendererRef.current;
@@ -2310,6 +2356,8 @@ export function App() {
         setVjLayer2AutomationMode,
         vjLayer2StrobeScale,
         setVjLayer2StrobeScale,
+        vjLayer2PixelGlitch,
+        setVjLayer2PixelGlitch,
         onFeatureBlockedHint: showFeatureHint,
       },
       exportPage: {
@@ -2437,6 +2485,7 @@ export function App() {
       layer2BaseOpacity,
       vjLayer2AutomationMode,
       vjLayer2StrobeScale,
+      vjLayer2PixelGlitch,
       vjPathScale,
       showFeatureHint,
       vjPathSpeed,

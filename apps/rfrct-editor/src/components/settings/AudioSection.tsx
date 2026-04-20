@@ -52,6 +52,9 @@ export type AudioSectionProps = {
   /** Random burst: linear scale ramp during each strobe window. */
   vjLayer2StrobeScale: boolean;
   setVjLayer2StrobeScale: Dispatch<SetStateAction<boolean>>;
+  /** Randomly flashes pixels-random glass filter at max strength/size. */
+  vjLayer2PixelGlitch: boolean;
+  setVjLayer2PixelGlitch: Dispatch<SetStateAction<boolean>>;
   onFeatureBlockedHint: (message: string) => void;
 };
 
@@ -95,6 +98,8 @@ export function AudioSection({
   setVjLayer2AutomationMode,
   vjLayer2StrobeScale,
   setVjLayer2StrobeScale,
+  vjLayer2PixelGlitch,
+  setVjLayer2PixelGlitch,
   onFeatureBlockedHint,
 }: AudioSectionProps) {
   const vjControlsEnabled = micDrivingRefraction && vjMode;
@@ -638,6 +643,26 @@ export function AudioSection({
               }
             >
               Strobe scale
+            </button>
+          </ClickBlockedHint>
+          <ClickBlockedHint
+            blocked={layer2VjBlocked}
+            hint={layer2VjHint}
+            onBlockedClick={onFeatureBlockedHint}
+          >
+            <button
+              type="button"
+              className={`mic-toggle ${vjLayer2PixelGlitch ? "mic-toggle--on" : ""}`}
+              disabled={layer2VjBlocked}
+              onClick={() => setVjLayer2PixelGlitch((v) => !v)}
+              aria-pressed={vjLayer2PixelGlitch}
+              title={
+                layer2VjBlocked
+                  ? layer2VjHint
+                  : "Random bass-gated flashes force Pixels random glass filter at max size and strength"
+              }
+            >
+              Pixel glitch
             </button>
           </ClickBlockedHint>
         </div>

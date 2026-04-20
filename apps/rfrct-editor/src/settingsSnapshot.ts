@@ -125,6 +125,8 @@ export type RfrctEditorSettingsSnapshotV1 = {
   vjLayer2RandomBurst: boolean;
   /** Random burst: linear scale ramp (~+15%) while a burst window plays (optional in older snapshots). */
   vjLayer2StrobeScale: boolean;
+  /** Layer 2 VJ: random flashes force pixels-random glass filter (optional in older snapshots). */
+  vjLayer2PixelGlitch: boolean;
 };
 
 /**
@@ -392,6 +394,7 @@ export function parseSettingsSnapshot(
       ),
     ),
     vjLayer2StrobeScale: bool(p.vjLayer2StrobeScale, false),
+    vjLayer2PixelGlitch: bool(p.vjLayer2PixelGlitch, false),
   };
 
   return { ok: true, data };

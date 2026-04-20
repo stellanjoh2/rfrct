@@ -822,22 +822,27 @@ vec2 filterGlass(vec2 uv) {
   }
   if (u_filterMode == 7) {
     // Mosaic with per-tile random subdivision (mixed block sizes; motion drifts the chaos).
-    float M = mix(12.0, 4.0, sc);
-    M = max(M, 3.0);
+    float scRaw = max(u_filterScale, 0.0);
+    float scBase = clamp(scRaw, 0.0, 1.0);
+    float over = clamp((scRaw - 1.0) / 11.0, 0.0, 1.0);
+    float sizeBoost = mix(1.0, 14.0, over);
+    float M = mix(12.0, 4.0, scBase) / sizeBoost;
+    M = max(M, 1.0);
     vec2 c = floor(uvP * M);
     float ta = hash12(c + vec2(1.7, 0.0));
     float tb = hash12(c + vec2(0.0, 9.3));
     float tj = tf * (0.07 + mot * 0.04);
     float bx = fract(ta * 13.37 + tj * 0.71);
     float by = fract(tb * 11.09 - tj * 0.53);
-    float nMin = mix(10.0, 3.0, sc);
-    float nMax = mix(72.0, 14.0, sc);
+    float nMin = mix(10.0, 3.0, scBase);
+    float nMax = mix(72.0, 14.0, scBase);
     float Nx = mix(nMin, nMax, bx);
     float Ny = mix(nMin, nMax, by);
     vec2 fr = fract(uvP * M);
     vec2 snap = (floor(fr * vec2(Nx, Ny)) + vec2(0.5)) / vec2(Nx, Ny);
     vec2 center = (c + snap) / M;
-    float str = clamp(u_filterStrength, 0.0, 1.0);
+    float strRaw = clamp(u_filterStrength, 0.0, 12.0);
+    float str = clamp(strRaw, 0.0, 1.0) * mix(1.0, 12.0, clamp((strRaw - 1.0) / 11.0, 0.0, 1.0));
     return (center - uvP) * str;
   }
   if (u_filterMode == 8 || u_filterMode == 9) {
