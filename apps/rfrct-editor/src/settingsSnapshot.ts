@@ -111,6 +111,10 @@ export type RfrctEditorSettingsSnapshotV1 = {
   vjInvertStrobe: boolean;
   /** 0–1 — how often invert strobe bursts may fire (optional in older snapshots). */
   vjInvertStrobeAmount: number;
+  /** VJ: black out YouTube backdrop on bass hits (optional in older snapshots). */
+  vjYoutubeBeatBlackout: boolean;
+  /** 0–1 — bass hit sensitivity for YouTube beat blackout (optional in older snapshots). */
+  vjYoutubeBeatBlackoutSensitivity: number;
   vjPathScale: number;
   vjPathSpeed: number;
   vjGlassGradeMode: "off" | "tint" | "duotone";
@@ -387,6 +391,11 @@ export function parseSettingsSnapshot(
     vjInvertStrobeAmount: Math.min(
       1,
       Math.max(0, num(p.vjInvertStrobeAmount, 0.5)),
+    ),
+    vjYoutubeBeatBlackout: bool(p.vjYoutubeBeatBlackout, false),
+    vjYoutubeBeatBlackoutSensitivity: Math.min(
+      1,
+      Math.max(0, num(p.vjYoutubeBeatBlackoutSensitivity, 0)),
     ),
     vjPathScale: num(p.vjPathScale, 1),
     vjPathSpeed: num(p.vjPathSpeed, DEFAULT_VJ_PATH_SPEED),

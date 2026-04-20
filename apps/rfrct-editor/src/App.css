@@ -152,6 +152,16 @@ body {
   max-width: none;
 }
 
+/** VJ: fullscreen black over the iframe only (wrap stays under the WebGL canvas). */
+.viewport__youtube-beat-blackout {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: #000;
+  pointer-events: none;
+  opacity: 0;
+}
+
 /** Solid colour between YouTube (or page bg) and WebGL canvas (z-index stacking via DOM). */
 .viewport__solid-overlay {
   position: absolute;

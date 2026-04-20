@@ -51,6 +51,14 @@ export type AudioSectionProps = {
   /** 0–1 — how often invert strobe bursts may fire. */
   vjInvertStrobeAmount: number;
   setVjInvertStrobeAmount: (v: number) => void;
+  /** Black out the YouTube iframe on bass hits (Video backdrop). */
+  vjYoutubeBeatBlackout: boolean;
+  setVjYoutubeBeatBlackout: Dispatch<SetStateAction<boolean>>;
+  /** 0–1 — how often bass triggers a full black flash (not overlay strength). */
+  vjYoutubeBeatBlackoutSensitivity: number;
+  setVjYoutubeBeatBlackoutSensitivity: (v: number) => void;
+  /** Required for YouTube beat blackout. */
+  youtubeBackdropActive: boolean;
   /** Design → Secondary layer — required for layer VJ. */
   hasSecondaryLayer: boolean;
   vjLayer2AutomationMode: VjLayer2AutomationMode;
@@ -105,6 +113,11 @@ export function AudioSection({
   setVjInvertStrobe,
   vjInvertStrobeAmount,
   setVjInvertStrobeAmount,
+  vjYoutubeBeatBlackout,
+  setVjYoutubeBeatBlackout,
+  vjYoutubeBeatBlackoutSensitivity,
+  setVjYoutubeBeatBlackoutSensitivity,
+  youtubeBackdropActive,
   hasSecondaryLayer,
   vjLayer2AutomationMode,
   setVjLayer2AutomationMode,
@@ -132,6 +145,11 @@ export function AudioSection({
     : "Turn on Duplicate stack in the Design tab first.";
   const invertStrobeBlocked = !vjControlsEnabled;
   const invertStrobeHint = HINT_NEED_VJ_CHAIN;
+  const youtubeBeatBlackoutBlocked =
+    !vjControlsEnabled || !youtubeBackdropActive;
+  const youtubeBeatBlackoutHint = !vjControlsEnabled
+    ? HINT_NEED_VJ_CHAIN
+    : "Add a YouTube backdrop in the Video tab first.";
   const layer2VjBlocked = !vjControlsEnabled || !hasSecondaryLayer;
   const layer2VjHint = !hasSecondaryLayer
     ? "Add Layer 2 in the Design tab first."
@@ -551,6 +569,59 @@ export function AudioSection({
               onChange={(e) => setVjInvertStrobeAmount(Number(e.target.value))}
               disabled={invertStrobeBlocked}
               aria-label="Invert strobe burst frequency"
+            />
+          </ClickBlockedHint>
+        </div>
+        <div className="field field--checkbox field--audio-toggles">
+          <ClickBlockedHint
+            blocked={youtubeBeatBlackoutBlocked}
+            hint={youtubeBeatBlackoutHint}
+            onBlockedClick={onFeatureBlockedHint}
+          >
+            <button
+              type="button"
+              className={`mic-toggle ${vjYoutubeBeatBlackout ? "mic-toggle--on" : ""}`}
+              disabled={youtubeBeatBlackoutBlocked}
+              onClick={() => setVjYoutubeBeatBlackout((v) => !v)}
+              aria-pressed={vjYoutubeBeatBlackout}
+              title={
+                youtubeBeatBlackoutBlocked
+                  ? youtubeBeatBlackoutHint
+                  : "Black out the backdrop video on a bass hit; the next strong hit after ~1 s brings it back"
+              }
+            >
+              YouTube beat blackout
+            </button>
+          </ClickBlockedHint>
+        </div>
+        <div className="field">
+          <label
+            title="Low = fewer bass hits count (less flashing); high = more hits register and faster blackout cycles. Black is always full on or full off."
+            htmlFor="vj-yt-beat-blackout-sensitivity"
+          >
+            YT blackout sensitivity
+            <span className="val">
+              {Math.round(vjYoutubeBeatBlackoutSensitivity * 100)}%
+            </span>
+          </label>
+          <ClickBlockedHint
+            blocked={youtubeBeatBlackoutBlocked}
+            hint={youtubeBeatBlackoutHint}
+            onBlockedClick={onFeatureBlockedHint}
+            fullWidth
+          >
+            <input
+              id="vj-yt-beat-blackout-sensitivity"
+              type="range"
+              min={0}
+              max={1}
+              step={0.02}
+              value={vjYoutubeBeatBlackoutSensitivity}
+              onChange={(e) =>
+                setVjYoutubeBeatBlackoutSensitivity(Number(e.target.value))
+              }
+              disabled={youtubeBeatBlackoutBlocked}
+              aria-label="YouTube beat blackout bass sensitivity"
             />
           </ClickBlockedHint>
         </div>

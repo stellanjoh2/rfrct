@@ -45,6 +45,11 @@ import {
   stepVjInvertStrobe,
 } from "./audio/vjInvertStrobe";
 import {
+  createVjYoutubeBeatBlackoutState,
+  resetVjYoutubeBeatBlackoutState,
+  stepVjYoutubeBeatBlackout,
+} from "./audio/vjYoutubeBeatBlackout";
+import {
   createVjLayer2BlinkState,
   resetVjLayer2BlinkState,
   stepVjLayer2BlinkPair,
@@ -324,6 +329,11 @@ export function App() {
   const [vjInvertStrobe, setVjInvertStrobe] = useState(false);
   /** 0–1 — how often invert strobe may fire (trigger odds + cooldown between bursts). */
   const [vjInvertStrobeAmount, setVjInvertStrobeAmount] = useState(0.5);
+  /** VJ: black out YouTube backdrop on bass hits; clears on the next strong hit after ~1 s. */
+  const [vjYoutubeBeatBlackout, setVjYoutubeBeatBlackout] = useState(false);
+  /** 0–1 — lower spectral floor for bass “beats” (still FFT-driven). */
+  const [vjYoutubeBeatBlackoutSensitivity, setVjYoutubeBeatBlackoutSensitivity] =
+    useState(0);
   /** VJ: secondary layer — at most one automation mode (mutually exclusive in UI). */
   const [vjLayer2AutomationMode, setVjLayer2AutomationMode] =
     useState<VjLayer2AutomationMode>("off");
@@ -357,8 +367,18 @@ export function App() {
   const vjInvertStrobeEnabledRef = useRef(false);
   vjInvertStrobeEnabledRef.current =
     micDrivingRefraction && vjMode && vjInvertStrobe;
+  const vjYoutubeBeatBlackoutStateRef = useRef(createVjYoutubeBeatBlackoutState());
+  const vjYoutubeBeatBlackoutOverlayRef = useRef<HTMLDivElement>(null);
+  const vjYoutubeBeatBlackoutEnabledRef = useRef(false);
+  vjYoutubeBeatBlackoutEnabledRef.current =
+    micDrivingRefraction &&
+    vjMode &&
+    vjYoutubeBeatBlackout &&
+    youtubeEmbedActive;
   const vjInvertStrobeAmountRef = useRef(0.5);
   vjInvertStrobeAmountRef.current = vjInvertStrobeAmount;
+  const vjYoutubeBeatBlackoutSensitivityRef = useRef(0);
+  vjYoutubeBeatBlackoutSensitivityRef.current = vjYoutubeBeatBlackoutSensitivity;
   const vjLayer2BlinkStateRef = useRef(createVjLayer2BlinkState());
   const vjLayer2ScaleAudioStateRef = useRef(createVjLayer2ScaleAudioState());
   const vjLayer2RandomBurstStateRef = useRef(createVjLayer2RandomBurstState());
@@ -595,6 +615,13 @@ export function App() {
     const el = vjInvertStrobeOverlayRef.current;
     if (el) el.style.opacity = "0";
   }, [vjInvertStrobe]);
+
+  useEffect(() => {
+    if (vjYoutubeBeatBlackout) return;
+    resetVjYoutubeBeatBlackoutState(vjYoutubeBeatBlackoutStateRef.current);
+    const el = vjYoutubeBeatBlackoutOverlayRef.current;
+    if (el) el.style.opacity = "0";
+  }, [vjYoutubeBeatBlackout]);
 
   const latestSyncRef = useRef<RendererSyncSource | null>(null);
 
@@ -1305,6 +1332,7 @@ export function App() {
       resetVjDupSpeedShiftState(vjDupSpeedShiftStateRef.current);
       resetVjDupHorizRandomState(vjDupHorizRandomStateRef.current);
       resetVjInvertStrobeState(vjInvertStrobeStateRef.current);
+      resetVjYoutubeBeatBlackoutState(vjYoutubeBeatBlackoutStateRef.current);
       resetVjLayer2BlinkState(vjLayer2BlinkStateRef.current);
       resetVjLayer2ScaleAudioState(vjLayer2ScaleAudioStateRef.current);
       resetVjLayer2RandomBurstState(vjLayer2RandomBurstStateRef.current);
@@ -1314,6 +1342,8 @@ export function App() {
       layer2VjBurstOpacityMulRef.current = 1;
       const invEl = vjInvertStrobeOverlayRef.current;
       if (invEl) invEl.style.opacity = "0";
+      const ytBlackEl = vjYoutubeBeatBlackoutOverlayRef.current;
+      if (ytBlackEl) ytBlackEl.style.opacity = "0";
       return;
     }
     micLoopPrevTRef.current = performance.now();
@@ -1461,6 +1491,23 @@ export function App() {
           } else {
             resetVjInvertStrobeState(vjInvertStrobeStateRef.current);
             invEl.style.opacity = "0";
+          }
+        }
+
+        const ytBlackEl = vjYoutubeBeatBlackoutOverlayRef.current;
+        if (ytBlackEl) {
+          if (vjYoutubeBeatBlackoutEnabledRef.current) {
+            const opYt = stepVjYoutubeBeatBlackout(
+              tickVj,
+              dt,
+              vjYoutubeBeatBlackoutStateRef.current,
+              now,
+              vjYoutubeBeatBlackoutSensitivityRef.current,
+            );
+            ytBlackEl.style.opacity = String(opYt);
+          } else {
+            resetVjYoutubeBeatBlackoutState(vjYoutubeBeatBlackoutStateRef.current);
+            ytBlackEl.style.opacity = "0";
           }
         }
 
@@ -1932,6 +1979,8 @@ export function App() {
       vjDupRandomBlinkSensitivity,
       vjInvertStrobe,
       vjInvertStrobeAmount,
+      vjYoutubeBeatBlackout,
+      vjYoutubeBeatBlackoutSensitivity,
       vjPathScale,
     vjPathSpeed,
     vjGlassGradeMode,
@@ -2020,6 +2069,8 @@ export function App() {
       vjDupRandomBlinkSensitivity,
       vjInvertStrobe,
       vjInvertStrobeAmount,
+      vjYoutubeBeatBlackout,
+      vjYoutubeBeatBlackoutSensitivity,
       vjPathScale,
       vjPathSpeed,
       vjGlassGradeMode,
@@ -2148,6 +2199,9 @@ export function App() {
       setVjInvertStrobe(d.vjInvertStrobe);
       setVjInvertStrobeAmount(d.vjInvertStrobeAmount);
       resetVjInvertStrobeState(vjInvertStrobeStateRef.current);
+      setVjYoutubeBeatBlackout(d.vjYoutubeBeatBlackout);
+      setVjYoutubeBeatBlackoutSensitivity(d.vjYoutubeBeatBlackoutSensitivity);
+      resetVjYoutubeBeatBlackoutState(vjYoutubeBeatBlackoutStateRef.current);
       setVjPathScale(d.vjPathScale);
       setVjPathSpeed(d.vjPathSpeed);
       setVjGlassGradeMode(d.vjGlassGradeMode);
@@ -2390,6 +2444,11 @@ export function App() {
         setVjInvertStrobe,
         vjInvertStrobeAmount,
         setVjInvertStrobeAmount,
+        vjYoutubeBeatBlackout,
+        setVjYoutubeBeatBlackout,
+        vjYoutubeBeatBlackoutSensitivity,
+        setVjYoutubeBeatBlackoutSensitivity,
+        youtubeBackdropActive: youtubeEmbedActive,
         hasSecondaryLayer: Boolean(layer2SourceUrl && layer2ImgDims),
         vjLayer2AutomationMode,
         setVjLayer2AutomationMode,
@@ -2516,6 +2575,8 @@ export function App() {
       vjDupRandomBlinkSensitivity,
       vjInvertStrobe,
       vjInvertStrobeAmount,
+      vjYoutubeBeatBlackout,
+      vjYoutubeBeatBlackoutSensitivity,
       layer2SourceUrl,
       layer2FileName,
       layer2ImgDims,
@@ -2647,6 +2708,13 @@ export function App() {
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; web-share"
                 allowFullScreen
               />
+              {vjYoutubeBeatBlackout ? (
+                <div
+                  ref={vjYoutubeBeatBlackoutOverlayRef}
+                  className="viewport__youtube-beat-blackout"
+                  aria-hidden
+                />
+              ) : null}
             </div>
           )}
           {fpsHudVisible ? (
