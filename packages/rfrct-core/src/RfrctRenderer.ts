@@ -491,17 +491,11 @@ export class RfrctRenderer {
     gl.bindTexture(gl.TEXTURE_2D, this.overlayTexture);
     gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, source);
-    const { w, h } = textureDimensions(source);
-    if (isPowerOfTwo(w) && isPowerOfTwo(h)) {
-      gl.generateMipmap(gl.TEXTURE_2D);
-      gl.texParameteri(
-        gl.TEXTURE_2D,
-        gl.TEXTURE_MIN_FILTER,
-        gl.LINEAR_MIPMAP_LINEAR,
-      );
-    } else {
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-    }
+    /**
+     * Keep overlay sampling mip-free. Transparent SVG borders + mip chains can leak subtle
+     * bbox edges while scaling/distorting layer 2, even with clamp and UV guards.
+     */
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
     gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
   }
 
@@ -895,17 +889,7 @@ export class RfrctRenderer {
       gl.UNSIGNED_BYTE,
       this.overlayTexSource,
     );
-    const { w, h } = textureDimensions(this.overlayTexSource);
-    if (isPowerOfTwo(w) && isPowerOfTwo(h)) {
-      gl.generateMipmap(gl.TEXTURE_2D);
-      gl.texParameteri(
-        gl.TEXTURE_2D,
-        gl.TEXTURE_MIN_FILTER,
-        gl.LINEAR_MIPMAP_LINEAR,
-      );
-    } else {
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-    }
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
     gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
   }
 
@@ -948,8 +932,12 @@ export class RfrctRenderer {
       savedBg[1],
       savedBg[2],
     ];
+    const displayBgLuma =
+      0.2126 * displayBgRgb[0] + 0.7152 * displayBgRgb[1] + 0.0722 * displayBgRgb[2];
     const useWhiteDematteBg =
-      params.transparentBackground && !this.transparentSceneBg;
+      params.transparentBackground &&
+      !this.transparentSceneBg &&
+      displayBgLuma > 0.55;
     const dematteBgRgb: [number, number, number] = useWhiteDematteBg
       ? [1, 1, 1]
       : displayBgRgb;

@@ -47,3 +47,8 @@ export {
   DEFAULT_PNG_EXPORT_PARAMS,
   mergePngExportParams,
 } from "./pngExportSettings";
+
+export {
+  removeSolidBackgroundForPng,
+  trimCanvasToAlphaBounds,
+} from "./capture";

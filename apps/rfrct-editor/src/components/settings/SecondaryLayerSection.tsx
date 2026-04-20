@@ -38,6 +38,7 @@ const BLEND_OPTIONS: { value: SecondaryLayerBlendMode; label: string }[] = [
 export type SecondaryLayerSectionProps = {
   canUseLayer: boolean;
   layer2SourceUrl: string | null;
+  layer2FileName: string | null;
   onLayer2File: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onRemoveLayer2: () => void;
   layer2Scale: number;
@@ -57,6 +58,7 @@ export type SecondaryLayerSectionProps = {
 export function SecondaryLayerSection({
   canUseLayer,
   layer2SourceUrl,
+  layer2FileName,
   onLayer2File,
   onRemoveLayer2,
   layer2Scale,
@@ -84,29 +86,36 @@ export function SecondaryLayerSection({
         <div className="field">
           <div className="row row--layer2-upload">
             <div className="upload-block upload-block--in-row">
-              <label
-                className={`file-btn${disabled ? " file-btn--disabled" : ""}`}
-              >
-                Upload image
-                <input
-                  type="file"
-                  accept=".svg,image/svg+xml"
-                  disabled={disabled}
-                  onChange={onLayer2File}
-                  aria-label="Layer 2 SVG file"
-                />
-              </label>
+              <div className="file-btn-wrap">
+                <label
+                  className={`file-btn${disabled ? " file-btn--disabled" : ""}${hasLayer ? " file-btn--has-remove" : ""}`}
+                >
+                  <span className="file-btn__content">
+                    <span className="file-btn__name">
+                      {hasLayer ? layer2FileName ?? "Layer 2 image" : "Upload image"}
+                    </span>
+                  </span>
+                  <input
+                    type="file"
+                    accept="image/*,.svg,image/svg+xml"
+                    disabled={disabled}
+                    onChange={onLayer2File}
+                    aria-label="Layer 2 image file"
+                  />
+                </label>
+                {hasLayer ? (
+                  <button
+                    type="button"
+                    className="file-btn__remove"
+                    disabled={disabled}
+                    onClick={onRemoveLayer2}
+                    aria-label={`Remove ${layer2FileName ?? "Layer 2 image"}`}
+                  >
+                    ×
+                  </button>
+                ) : null}
+              </div>
             </div>
-            {hasLayer ? (
-              <button
-                type="button"
-                className="layer2-remove-btn"
-                disabled={disabled}
-                onClick={onRemoveLayer2}
-              >
-                Remove
-              </button>
-            ) : null}
           </div>
           {disabled ? (
             <p className="field-hint">

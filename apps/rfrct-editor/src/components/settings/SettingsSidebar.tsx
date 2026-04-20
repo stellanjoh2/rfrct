@@ -22,10 +22,14 @@ import { ShareSettingsSection } from "./ShareSettingsSection";
 import type { ShareSettingsSectionProps } from "./ShareSettingsSection";
 import { VideoBackdropSection } from "./VideoBackdropSection";
 import type { VideoBackdropSectionProps } from "./VideoBackdropSection";
+import { TemplatesSection } from "./TemplatesSection";
+import type { TemplatesSectionProps } from "./TemplatesSection";
 
 export type SettingsSidebarProps = {
   uiVisible: boolean;
   onFile: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  layer1FileName: string | null;
+  onRemoveLayer1: () => void;
   appearance: AppearanceSectionProps;
   secondaryLayer: SecondaryLayerSectionProps;
   lens: LensSectionProps;
@@ -37,6 +41,7 @@ export type SettingsSidebarProps = {
   mouseInput: MouseInputSectionProps;
   shareSettings: ShareSettingsSectionProps;
   exportPage: ExportPageProps;
+  templates: TemplatesSectionProps;
 };
 
 export const SettingsSidebar = forwardRef<HTMLElement, SettingsSidebarProps>(
@@ -44,6 +49,8 @@ export const SettingsSidebar = forwardRef<HTMLElement, SettingsSidebarProps>(
     {
       uiVisible,
       onFile,
+      layer1FileName,
+      onRemoveLayer1,
       appearance,
       secondaryLayer,
       lens,
@@ -55,6 +62,7 @@ export const SettingsSidebar = forwardRef<HTMLElement, SettingsSidebarProps>(
       mouseInput,
       shareSettings,
       exportPage,
+      templates,
     },
     ref,
   ) {
@@ -133,10 +141,15 @@ export const SettingsSidebar = forwardRef<HTMLElement, SettingsSidebarProps>(
           aria-labelledby="tab-design"
           className="sidebar-tab-panel"
         >
+          <TemplatesSection {...templates} />
           <h2 title="Primary artwork upload, background, scale, and colour">
             Layer 1
           </h2>
-          <UploadBlock onFile={onFile} />
+          <UploadBlock
+            onFile={onFile}
+            fileName={layer1FileName}
+            onRemoveFile={onRemoveLayer1}
+          />
           <AppearanceSection {...appearance} />
           <SecondaryLayerSection {...secondaryLayer} />
           <LensSection {...lens} />

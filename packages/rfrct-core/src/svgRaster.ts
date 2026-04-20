@@ -4,8 +4,14 @@ export function isSvgFile(file: File): boolean {
   return file.type === "image/svg+xml" || /\.svg$/i.test(file.name);
 }
 
-/** Extra pixels around tight opaque bounds so anti-aliased edges are not clipped. */
-const OPAQUE_PADDING_PX = 2;
+/**
+ * Extra transparent margin around tight opaque bounds:
+ * - Keeps anti-aliased strokes from clipping when we crop.
+ * - Gives headroom so lens distortion + GL clamp-to-edge on the overlay texture samples
+ *   **transparent** texels at the raster edge instead of the artwork (avoids a cardinal “tick”
+ *   cross where the shape meets its axis-aligned bbox).
+ */
+const OPAQUE_PADDING_PX = 24;
 
 /**
  * Texture pixel size so the on-screen footprint has enough texels (supersampled for refraction).

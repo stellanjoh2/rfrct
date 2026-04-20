@@ -424,7 +424,25 @@ vec4 sampleOverlayTex(vec2 uv) {
   vec2 local = (uv - u_imageRect.xy) / u_imageRect.zw;
   float uTex = (local.x - u_overlayCell.x) / max(u_overlayCell.z, 1e-6);
   float vTex = (local.y - u_overlayCell.y) / max(u_overlayCell.w, 1e-6);
+  /**
+   * Match primary-layer sampling semantics: out-of-bounds UV should be fully transparent.
+   * Clamping to edge can pull colored border texels back into frame under distortion and
+   * create visible axis-aligned artifacts on some SVGs.
+   */
   if (uTex < 0.0 || uTex > 1.0 || vTex < 0.0 || vTex > 1.0) {
+    return vec4(0.0);
+  }
+  /**
+   * Drop the outermost texel ring so scale/distortion cannot expose a thin bbox line from
+   * border interpolation when the sampled SVG edge sits right on the texture boundary.
+   */
+  vec2 edge = 1.0 / vec2(textureSize(u_overlayLayer, 0));
+  if (
+    uTex <= edge.x ||
+    uTex >= 1.0 - edge.x ||
+    vTex <= edge.y ||
+    vTex >= 1.0 - edge.y
+  ) {
     return vec4(0.0);
   }
   vec4 t = texture(u_overlayLayer, vec2(uTex, vTex));

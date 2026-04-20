@@ -13,7 +13,9 @@ import {
   mergePngExportParams,
   parseHexColor,
   rasterizeSvgForRfrct,
+  removeSolidBackgroundForPng,
   RfrctRenderer,
+  trimCanvasToAlphaBounds,
   type FilterMode,
   type RendererSyncSource,
   type ShapeMode,
@@ -67,10 +69,13 @@ import {
   vjLayer2ModeToLegacyBools,
   type HueApplyScope,
   type RfrctEditorSettingsSnapshotCopyPayload,
+  type RfrctEditorSettingsSnapshotV1,
   type VjLayer2AutomationMode,
 } from "./settingsSnapshot";
+import { DESIGN_TEMPLATES, type DesignTemplateId } from "./designTemplates";
 import { recordAnimatedGif } from "./export/recordAnimatedGif";
 import { saveGifBlob } from "./export/saveGifBlob";
+import { composeViewportFrame } from "./export/composeViewportFrame";
 import { buildYoutubeEmbedSrc, parseYoutubeVideoId } from "./youtube/embedUrl";
 import {
   secondaryLayerBlendToShaderId,
@@ -95,12 +100,55 @@ function normalizeHueDeg(x: number): number {
   return ((x % 360) + 360) % 360;
 }
 
+function parseHueRotateDegrees(filterValue: string): number {
+  const m = /hue-rotate\(\s*(-?\d+(?:\.\d+)?)deg\s*\)/.exec(filterValue);
+  if (!m) return 0;
+  const v = Number(m[1]);
+  return Number.isFinite(v) ? v : 0;
+}
+
+function downloadCanvasAsPng(canvas: HTMLCanvasElement, basename: string): void {
+  const name = `${basename}-${Date.now()}.png`;
+  canvas.toBlob(
+    (blob) => {
+      if (!blob) return;
+      const href = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = href;
+      a.download = name;
+      a.rel = "noopener";
+      a.style.display = "none";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.setTimeout(() => URL.revokeObjectURL(href), 800);
+    },
+    "image/png",
+    1,
+  );
+}
+
+async function captureExactViewportPng(
+  viewportEl: HTMLElement,
+  basename: string,
+): Promise<void> {
+  const html2canvas = (await import("html2canvas")).default;
+  const capture = await html2canvas(viewportEl, {
+    backgroundColor: null,
+    useCORS: true,
+    logging: false,
+    scale: Math.max(1, window.devicePixelRatio || 1),
+  });
+  downloadCanvasAsPng(capture, basename);
+}
+
 export function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<RfrctRenderer | null>(null);
 
   const [imgDims, setImgDims] = useState<{ w: number; h: number } | null>(null);
+  const [layer1FileName, setLayer1FileName] = useState<string | null>(null);
   const [svgSourceUrl, setSvgSourceUrl] = useState<string | null>(
     TEMPLATE_LOGO_SVG_URL,
   );
@@ -306,6 +354,7 @@ export function App() {
   const layer2VjBurstOpacityMulRef = useRef(1);
 
   const [layer2SourceUrl, setLayer2SourceUrl] = useState<string | null>(null);
+  const [layer2FileName, setLayer2FileName] = useState<string | null>(null);
   const [layer2ImgDims, setLayer2ImgDims] = useState<{ w: number; h: number } | null>(
     null,
   );
@@ -472,9 +521,14 @@ export function App() {
     else clearHue(solidEl);
 
     let id = 0;
+    let prevNow = performance.now();
+    let huePhaseDeg = 0;
     const degPerSec = 7.5;
     const envDeg = 130;
     const loop = () => {
+      const now = performance.now();
+      const dt = Math.min(0.05, (now - prevNow) / 1000);
+      prevNow = now;
       if (
         zoomFxActiveRef.current ||
         pauseAnimationRef.current ||
@@ -483,8 +537,8 @@ export function App() {
         id = requestAnimationFrame(loop);
         return;
       }
-      const t = performance.now() * 0.001;
-      let deg = (t * degPerSec) % 360;
+      huePhaseDeg = (huePhaseDeg + dt * degPerSec) % 360;
+      let deg = huePhaseDeg;
       if (solidOverlayHueAudio && micDrivingRefraction) {
         deg += micEnvelopeRef.current * micRefractBoost * envDeg;
       }
@@ -603,20 +657,114 @@ export function App() {
   const runPngExport = useCallback(
     (scale: 1 | 2) => {
       const r = rendererRef.current;
-      if (!r) return;
-      r.exportPng(
-        mergePngExportParams(DEFAULT_PNG_EXPORT_PARAMS, {
-          scale,
-          transparentBackground: exportTransparent,
-          region: imgDims && exportRegion === "image" ? "image" : "full",
-        }),
-        "refrct",
-        () => {
-          syncLayout();
-        },
-      );
+      const sourceCanvas = canvasRef.current;
+      if (!r || !sourceCanvas) return;
+      const fallbackRenderExport = () => {
+        const bg = parseHexColor(bgHex);
+        const solidFilter = solidOverlayRef.current
+          ? window.getComputedStyle(solidOverlayRef.current).filter ?? ""
+          : "";
+        const hasSolidOverlay = solidOverlayOpacity > 1e-5;
+        const hasViewportHue =
+          hueApplyScope === "viewport" &&
+          Math.abs(((globalHueShift % 360) + 360) % 360) > 1e-4;
+        const hasViewportFx =
+          canvasBackdropBlend !== "normal" ||
+          hasSolidOverlay ||
+          hasViewportHue ||
+          vjInvertStrobe;
+        if (hasViewportFx) {
+          const composite = composeViewportFrame({
+            sourceCanvas,
+            backgroundRgb: [bg[0], bg[1], bg[2]],
+            canvasBlendMode: canvasBackdropBlend,
+            viewportHueDeg:
+              hueApplyScope === "viewport" ? normalizeHueDeg(globalHueShift) : 0,
+            solidOverlay: {
+              enabled: hasSolidOverlay,
+              rgb: (() => {
+                const c = parseHexColor(solidOverlayHex);
+                return [c[0], c[1], c[2]] as [number, number, number];
+              })(),
+              opacity: solidOverlayOpacity,
+              blendMode: solidOverlayBlend,
+              hueRotateDeg: parseHueRotateDegrees(solidFilter),
+            },
+            invertStrobeOverlay: {
+              enabled: vjInvertStrobe,
+              opacity: Number(
+                vjInvertStrobeOverlayRef.current
+                  ? window.getComputedStyle(vjInvertStrobeOverlayRef.current).opacity
+                  : "0",
+              ),
+            },
+          });
+          const out =
+            scale === 1
+              ? composite
+              : (() => {
+                  const c = document.createElement("canvas");
+                  c.width = Math.max(1, composite.width * 2);
+                  c.height = Math.max(1, composite.height * 2);
+                  const cctx = c.getContext("2d");
+                  if (!cctx) return composite;
+                  cctx.imageSmoothingEnabled = false;
+                  cctx.drawImage(composite, 0, 0, c.width, c.height);
+                  return c;
+                })();
+          if (exportTransparent) {
+            let target = removeSolidBackgroundForPng(out, [bg[0], bg[1], bg[2]]);
+            if (imgDims && exportRegion === "image") {
+              target = trimCanvasToAlphaBounds(target, 1, 8);
+            }
+            downloadCanvasAsPng(target, "refrct");
+          } else {
+            downloadCanvasAsPng(out, "refrct");
+          }
+          return;
+        }
+        r.exportPng(
+          mergePngExportParams(DEFAULT_PNG_EXPORT_PARAMS, {
+            scale,
+            transparentBackground: exportTransparent,
+            region: imgDims && exportRegion === "image" ? "image" : "full",
+          }),
+          "refrct",
+          () => {
+            syncLayout();
+          },
+        );
+      };
+      if (
+        scale === 1 &&
+        !exportTransparent &&
+        exportRegion === "full" &&
+        wrapRef.current
+      ) {
+        void captureExactViewportPng(wrapRef.current, "refrct").catch((e) => {
+          console.error(e);
+          setFeatureHint("Exact screenshot failed — using render export.");
+          fallbackRenderExport();
+        });
+        return;
+      }
+      fallbackRenderExport();
     },
-    [exportTransparent, exportRegion, imgDims, syncLayout],
+    [
+      bgHex,
+      canvasBackdropBlend,
+      exportTransparent,
+      exportRegion,
+      globalHueShift,
+      hueApplyScope,
+      imgDims,
+      solidOverlayBlend,
+      solidOverlayHex,
+      solidOverlayOpacity,
+      syncLayout,
+      vjInvertStrobe,
+      setFeatureHint,
+    ],
   );
 
   const captureScreenshot = useCallback(() => {
@@ -668,6 +816,43 @@ export function App() {
     try {
       const blob = await recordAnimatedGif({
         canvas,
+        getFrameCanvas: () => {
+          const needsDomComposite =
+            canvasBackdropBlend !== "normal" ||
+            (solidOverlayOpacity > 0 && solidOverlayBlend !== "normal");
+          if (!needsDomComposite) {
+            return canvas;
+          }
+          const bg = parseHexColor(bgHex);
+          const solidFilter = solidOverlayRef.current
+            ? window.getComputedStyle(solidOverlayRef.current).filter ?? ""
+            : "";
+          return composeViewportFrame({
+            sourceCanvas: canvas,
+            backgroundRgb: [bg[0], bg[1], bg[2]],
+            canvasBlendMode: canvasBackdropBlend,
+            viewportHueDeg:
+              hueApplyScope === "viewport" ? normalizeHueDeg(globalHueShift) : 0,
+            solidOverlay: {
+              enabled: solidOverlayOpacity > 1e-5,
+              rgb: (() => {
+                const c = parseHexColor(solidOverlayHex);
+                return [c[0], c[1], c[2]] as [number, number, number];
+              })(),
+              opacity: solidOverlayOpacity,
+              blendMode: solidOverlayBlend,
+              hueRotateDeg: parseHueRotateDegrees(solidFilter),
+            },
+            invertStrobeOverlay: {
+              enabled: vjInvertStrobe,
+              opacity: Number(
+                vjInvertStrobeOverlayRef.current
+                  ? window.getComputedStyle(vjInvertStrobeOverlayRef.current).opacity
+                  : "0",
+              ),
+            },
+          });
+        },
         fps: gifFps,
         durationSec: gifDurationSec,
         maxWidth: gifMaxWidthEnabled ? gifMaxWidth : null,
@@ -710,6 +895,14 @@ export function App() {
     gifMaxColors,
     gifPixelArtResize,
     gifInfiniteLoop,
+    bgHex,
+    canvasBackdropBlend,
+    globalHueShift,
+    hueApplyScope,
+    solidOverlayHex,
+    solidOverlayOpacity,
+    solidOverlayBlend,
+    vjInvertStrobe,
   ]);
 
   const focusImage = useCallback(() => {
@@ -1103,6 +1296,7 @@ export function App() {
           zoomFxActiveRef.current ||
           settingsMenuScrollFreezeRef.current
         ) {
+          micLoopPrevTRef.current = performance.now();
           id = requestAnimationFrame(loop);
           return;
         }
@@ -1416,7 +1610,8 @@ export function App() {
 
   const onLayer2File = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !isSvgFile(file)) return;
+    if (!file) return;
+    setLayer2FileName(file.name);
     const url = URL.createObjectURL(file);
     setLayer2SourceUrl((prev) => {
       revokeSvgObjectUrlIfBlob(prev);
@@ -1427,13 +1622,26 @@ export function App() {
 
   const removeLayer2 = useCallback(() => {
     setLayer2SourceUrl(null);
+    setLayer2FileName(null);
     setLayer2ImgDims(null);
     rendererRef.current?.clearOverlay();
+  }, []);
+
+  const removeLayer1 = useCallback(() => {
+    setSvgSourceUrl((prev) => {
+      revokeSvgObjectUrlIfBlob(prev);
+      return null;
+    });
+    setLayer1FileName(null);
+    setImgDims(null);
+    rendererRef.current?.clearImage();
+    setImagePan({ x: 0, y: 0 });
   }, []);
 
   const onFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setLayer1FileName(file.name);
     const url = URL.createObjectURL(file);
 
     if (isSvgFile(file)) {
@@ -1442,6 +1650,7 @@ export function App() {
         revokeSvgObjectUrlIfBlob(prev);
         return url;
       });
+      e.target.value = "";
       return;
     }
 
@@ -1479,6 +1688,7 @@ export function App() {
     };
     img.onerror = () => URL.revokeObjectURL(url);
     img.src = url;
+    e.target.value = "";
   };
 
   const onPointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -1769,6 +1979,135 @@ export function App() {
     }
   }, [settingsSnapshotPayload]);
 
+  const applySettingsFromSnapshot = useCallback(
+    (d: RfrctEditorSettingsSnapshotV1, mode: "full" | "designTemplate") => {
+      const full = mode === "full";
+
+      if (full) {
+        micAnalyzerRef.current?.stop();
+        micAnalyzerRef.current = null;
+        micEnvelopeRef.current = 0;
+        setMicDrivingRefraction(false);
+        setMicError(null);
+
+        blobCenterRef.current = { ...d.blobCenter };
+        mouseLensTargetRef.current = { ...d.blobCenter };
+        mouseFluidPosRef.current = { ...d.blobCenter };
+        mouseFluidVelRef.current = { x: 0, y: 0 };
+
+        setImageScale(d.imageScale);
+        setImagePan(d.imagePan);
+      }
+
+      setBgHex(d.bgHex);
+      setSvgTintMode(d.svgTintMode);
+      setSvgTintHex(d.svgTintHex);
+      setSvgGradientBlend(d.svgGradientBlend);
+      setSvgGradientHex2(d.svgGradientHex2);
+      setSvgGradientHex3(d.svgGradientHex3);
+      setSvgGradientThreeStops(d.svgGradientThreeStops);
+      setSvgGradientAngleDeg(d.svgGradientAngleDeg);
+      setSvgGradientScale(d.svgGradientScale);
+      setSvgGradientPosition(d.svgGradientPosition);
+      setBlobSize(d.blobSize);
+      setPauseAnimation(d.pauseAnimation);
+      setBlobSpeed(d.blobSpeed);
+      setWaveFreq(d.waveFreq);
+      setWaveAmp(d.waveAmp);
+      setRefract(d.refract);
+      setEdgeSoft(d.edgeSoft);
+      setFrostBlur(d.frostBlur);
+      setBlurQuality(Math.round(Math.min(5, Math.max(1, d.blurQuality))));
+      setGlobalHueShift(d.globalHueShift);
+      setHueApplyScope(d.hueApplyScope);
+      setGrainStrength(d.grainStrength);
+      setChroma(d.chroma);
+      setBloomStrength(d.bloomStrength);
+      setBloomRadius(d.bloomRadius);
+      setBloomThreshold(d.bloomThreshold);
+      setShapeMode(d.shapeMode);
+      setFilterMode(d.filterMode);
+      setFilterStrength(d.filterStrength);
+      setFilterScale(d.filterScale);
+      setFilterMotionSpeed(d.filterMotionSpeed);
+      setDetailDistortionStrength(d.detailDistortionStrength);
+      setDetailDistortionScale(d.detailDistortionScale);
+      setDetailDirtStrength(d.detailDirtStrength);
+      setDetailDirtHex(d.detailDirtHex);
+      setLensMouseInput(d.lensMouseInput);
+      setFluidDensity(d.fluidDensity);
+      if (full) {
+        setExportTransparent(d.exportTransparent);
+        setExportRegion(d.exportRegion);
+        setGifFps(d.gifFps);
+        setGifMaxWidthEnabled(d.gifMaxWidthEnabled);
+        setGifMaxWidth(d.gifMaxWidth);
+        setGifMaxColors(d.gifMaxColors);
+        setGifDurationSec(d.gifDurationSec);
+        setGifPixelArtResize(d.gifPixelArtResize);
+        setGifInfiniteLoop(d.gifInfiniteLoop);
+        setYoutubeVideoId(d.youtubeVideoId);
+        setYoutubeUrlDraft(d.youtubeUrlDraft);
+        setYoutubeError(null);
+      }
+      setCanvasBackdropBlend(d.canvasBackdropBlend);
+      setSolidOverlayHex(d.solidOverlayHex);
+      setSolidOverlayOpacity(d.solidOverlayOpacity);
+      setSolidOverlayBlend(d.solidOverlayBlend);
+      setSolidOverlayVjHueShift(d.solidOverlayVjHueShift);
+      setSolidOverlayHueAudio(d.solidOverlayHueAudio);
+      setAudioInputMode(d.audioInputMode);
+      setMicRefractBoost(d.micRefractBoost);
+      setVjMode(d.vjMode);
+      setVjDupVertical(d.vjDupVertical);
+      setVjDupGap(d.vjDupGap);
+      setVjDupHorizStep(d.vjDupHorizStep);
+      setVjDupScrollSpeed(d.vjDupScrollSpeed);
+      setVjDupSpeedShift(d.vjDupSpeedShift);
+      resetVjDupSpeedShiftState(vjDupSpeedShiftStateRef.current);
+      setVjDupRandomHoriz(d.vjDupRandomHoriz);
+      resetVjDupHorizRandomState(vjDupHorizRandomStateRef.current);
+      setVjInvertStrobe(d.vjInvertStrobe);
+      setVjInvertStrobeAmount(d.vjInvertStrobeAmount);
+      resetVjInvertStrobeState(vjInvertStrobeStateRef.current);
+      setVjPathScale(d.vjPathScale);
+      setVjPathSpeed(d.vjPathSpeed);
+      setVjGlassGradeMode(d.vjGlassGradeMode);
+      setVjGlassNeonAHex(d.vjGlassNeonAHex);
+      setVjGlassNeonBHex(d.vjGlassNeonBHex);
+      setVjGlassGradeIntensity(d.vjGlassGradeIntensity);
+      setLayer2Scale(d.layer2Scale);
+      setLayer2TintMode(d.layer2TintMode);
+      setLayer2TintHex(d.layer2TintHex);
+      setLayer2BlendMode(d.layer2BlendMode);
+      setLayer2FollowDistort(d.layer2FollowDistort);
+      setLayer2BaseOpacity(d.layer2BaseOpacity);
+      setVjLayer2AutomationMode(
+        vjLayer2ModeFromLegacyBools(
+          d.vjLayer2RandomBlink,
+          d.vjLayer2BlinkInverse,
+          d.vjLayer2RandomScale,
+          d.vjLayer2RandomBurst,
+        ),
+      );
+      setVjLayer2StrobeScale(d.vjLayer2StrobeScale);
+
+      if (full) {
+        const r = rendererRef.current;
+        if (r) {
+          r.blob.centerX = d.blobCenter.x;
+          r.blob.centerY = d.blobCenter.y;
+        }
+
+        setSettingsPasteDraft("");
+        setFeatureHint("Settings applied.");
+      } else {
+        setFeatureHint("Template applied — colours and effects only; logos unchanged.");
+      }
+    },
+    [],
+  );
+
   const applyPastedSettingsFromDraft = useCallback(() => {
     const raw = settingsPasteDraft.trim();
     if (!raw) {
@@ -1780,121 +2119,19 @@ export function App() {
       setFeatureHint(parsed.error);
       return;
     }
-    const d = parsed.data;
+    applySettingsFromSnapshot(parsed.data, "full");
+  }, [settingsPasteDraft, applySettingsFromSnapshot, setFeatureHint]);
 
-    micAnalyzerRef.current?.stop();
-    micAnalyzerRef.current = null;
-    micEnvelopeRef.current = 0;
-    setMicDrivingRefraction(false);
-    setMicError(null);
-
-    blobCenterRef.current = { ...d.blobCenter };
-    mouseLensTargetRef.current = { ...d.blobCenter };
-    mouseFluidPosRef.current = { ...d.blobCenter };
-    mouseFluidVelRef.current = { x: 0, y: 0 };
-
-    setBgHex(d.bgHex);
-    setImageScale(d.imageScale);
-    setImagePan(d.imagePan);
-    setSvgTintMode(d.svgTintMode);
-    setSvgTintHex(d.svgTintHex);
-    setSvgGradientBlend(d.svgGradientBlend);
-    setSvgGradientHex2(d.svgGradientHex2);
-    setSvgGradientHex3(d.svgGradientHex3);
-    setSvgGradientThreeStops(d.svgGradientThreeStops);
-    setSvgGradientAngleDeg(d.svgGradientAngleDeg);
-    setSvgGradientScale(d.svgGradientScale);
-    setSvgGradientPosition(d.svgGradientPosition);
-    setBlobSize(d.blobSize);
-    setPauseAnimation(d.pauseAnimation);
-    setBlobSpeed(d.blobSpeed);
-    setWaveFreq(d.waveFreq);
-    setWaveAmp(d.waveAmp);
-    setRefract(d.refract);
-    setEdgeSoft(d.edgeSoft);
-    setFrostBlur(d.frostBlur);
-    setBlurQuality(Math.round(Math.min(5, Math.max(1, d.blurQuality))));
-    setGlobalHueShift(d.globalHueShift);
-    setHueApplyScope(d.hueApplyScope);
-    setGrainStrength(d.grainStrength);
-    setChroma(d.chroma);
-    setBloomStrength(d.bloomStrength);
-    setBloomRadius(d.bloomRadius);
-    setBloomThreshold(d.bloomThreshold);
-    setShapeMode(d.shapeMode);
-    setFilterMode(d.filterMode);
-    setFilterStrength(d.filterStrength);
-    setFilterScale(d.filterScale);
-    setFilterMotionSpeed(d.filterMotionSpeed);
-    setDetailDistortionStrength(d.detailDistortionStrength);
-    setDetailDistortionScale(d.detailDistortionScale);
-    setDetailDirtStrength(d.detailDirtStrength);
-    setDetailDirtHex(d.detailDirtHex);
-    setLensMouseInput(d.lensMouseInput);
-    setFluidDensity(d.fluidDensity);
-    setExportTransparent(d.exportTransparent);
-    setExportRegion(d.exportRegion);
-    setGifFps(d.gifFps);
-    setGifMaxWidthEnabled(d.gifMaxWidthEnabled);
-    setGifMaxWidth(d.gifMaxWidth);
-    setGifMaxColors(d.gifMaxColors);
-    setGifDurationSec(d.gifDurationSec);
-    setGifPixelArtResize(d.gifPixelArtResize);
-    setGifInfiniteLoop(d.gifInfiniteLoop);
-    setYoutubeVideoId(d.youtubeVideoId);
-    setYoutubeUrlDraft(d.youtubeUrlDraft);
-    setYoutubeError(null);
-    setCanvasBackdropBlend(d.canvasBackdropBlend);
-    setSolidOverlayHex(d.solidOverlayHex);
-    setSolidOverlayOpacity(d.solidOverlayOpacity);
-    setSolidOverlayBlend(d.solidOverlayBlend);
-    setSolidOverlayVjHueShift(d.solidOverlayVjHueShift);
-    setSolidOverlayHueAudio(d.solidOverlayHueAudio);
-    setAudioInputMode(d.audioInputMode);
-    setMicRefractBoost(d.micRefractBoost);
-    setVjMode(d.vjMode);
-    setVjDupVertical(d.vjDupVertical);
-    setVjDupGap(d.vjDupGap);
-    setVjDupHorizStep(d.vjDupHorizStep);
-    setVjDupScrollSpeed(d.vjDupScrollSpeed);
-    setVjDupSpeedShift(d.vjDupSpeedShift);
-    resetVjDupSpeedShiftState(vjDupSpeedShiftStateRef.current);
-    setVjDupRandomHoriz(d.vjDupRandomHoriz);
-    resetVjDupHorizRandomState(vjDupHorizRandomStateRef.current);
-    setVjInvertStrobe(d.vjInvertStrobe);
-    setVjInvertStrobeAmount(d.vjInvertStrobeAmount);
-    resetVjInvertStrobeState(vjInvertStrobeStateRef.current);
-    setVjPathScale(d.vjPathScale);
-    setVjPathSpeed(d.vjPathSpeed);
-    setVjGlassGradeMode(d.vjGlassGradeMode);
-    setVjGlassNeonAHex(d.vjGlassNeonAHex);
-    setVjGlassNeonBHex(d.vjGlassNeonBHex);
-    setVjGlassGradeIntensity(d.vjGlassGradeIntensity);
-    setLayer2Scale(d.layer2Scale);
-    setLayer2TintMode(d.layer2TintMode);
-    setLayer2TintHex(d.layer2TintHex);
-    setLayer2BlendMode(d.layer2BlendMode);
-    setLayer2FollowDistort(d.layer2FollowDistort);
-    setLayer2BaseOpacity(d.layer2BaseOpacity);
-    setVjLayer2AutomationMode(
-      vjLayer2ModeFromLegacyBools(
-        d.vjLayer2RandomBlink,
-        d.vjLayer2BlinkInverse,
-        d.vjLayer2RandomScale,
-        d.vjLayer2RandomBurst,
-      ),
-    );
-    setVjLayer2StrobeScale(d.vjLayer2StrobeScale);
-
-    const r = rendererRef.current;
-    if (r) {
-      r.blob.centerX = d.blobCenter.x;
-      r.blob.centerY = d.blobCenter.y;
-    }
-
-    setSettingsPasteDraft("");
-    setFeatureHint("Settings applied.");
-  }, [settingsPasteDraft, setFeatureHint]);
+  const applyDesignTemplate = useCallback(
+    (id: DesignTemplateId) => {
+      const t = DESIGN_TEMPLATES.find((x) => x.id === id);
+      if (!t) {
+        return;
+      }
+      applySettingsFromSnapshot(t.snapshot, "designTemplate");
+    },
+    [applySettingsFromSnapshot],
+  );
 
   const sidebar = useMemo(
     () => ({
@@ -1925,8 +2162,9 @@ export function App() {
         youtubeActive: youtubeEmbedActive,
       },
       secondaryLayer: {
-        canUseLayer: Boolean(svgSourceUrl && imgDims),
+        canUseLayer: Boolean(imgDims),
         layer2SourceUrl,
+        layer2FileName,
         onLayer2File,
         onRemoveLayer2: removeLayer2,
         layer2Scale,
@@ -2189,6 +2427,7 @@ export function App() {
       vjInvertStrobe,
       vjInvertStrobeAmount,
       layer2SourceUrl,
+      layer2FileName,
       layer2ImgDims,
       layer2Scale,
       layer2TintMode,
@@ -2369,6 +2608,8 @@ export function App() {
           ref={settingsSidebarRef}
           uiVisible={uiVisible}
           onFile={onFile}
+          layer1FileName={layer1FileName}
+          onRemoveLayer1={removeLayer1}
           appearance={sidebar.appearance}
           secondaryLayer={sidebar.secondaryLayer}
           lens={sidebar.lens}
@@ -2380,6 +2621,7 @@ export function App() {
           mouseInput={sidebar.mouseInput}
           shareSettings={sidebar.shareSettings}
           exportPage={sidebar.exportPage}
+          templates={{ onApplyTemplate: applyDesignTemplate }}
         />
         {(micError || youtubeError || featureHint) && (
           <div

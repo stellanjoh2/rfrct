@@ -2,6 +2,8 @@ import { GIFEncoder, applyPalette, quantize } from "gifenc";
 
 export type RecordAnimatedGifOptions = {
   canvas: HTMLCanvasElement;
+  /** Optional per-frame compositor (e.g. DOM backdrop + blend stack). */
+  getFrameCanvas?: () => HTMLCanvasElement;
   fps: number;
   durationSec: number;
   /** When set, scales the capture so width does not exceed this (aspect preserved). */
@@ -55,6 +57,7 @@ export async function recordAnimatedGif(
 ): Promise<Blob> {
   const {
     canvas,
+    getFrameCanvas,
     fps,
     durationSec,
     maxWidth,
@@ -65,8 +68,9 @@ export async function recordAnimatedGif(
     signal,
   } = opts;
 
-  const cw = canvas.width;
-  const ch = canvas.height;
+  const source0 = getFrameCanvas ? getFrameCanvas() : canvas;
+  const cw = source0.width;
+  const ch = source0.height;
   const { w: tw, h: th } = outputDimensions(cw, ch, maxWidth);
   const frameDur = 1000 / Math.max(1, fps);
   const rawTotal = Math.ceil(Math.max(0.25, durationSec) * fps);
@@ -134,8 +138,9 @@ export async function recordAnimatedGif(
     await waitUntil(start + i * frameDur, signal);
     await new Promise<void>((r) => requestAnimationFrame(() => r()));
 
+    const frameCanvas = getFrameCanvas ? getFrameCanvas() : canvas;
     if (useSupersampleDownscale && superCanvas && superCtx) {
-      superCtx.drawImage(canvas, 0, 0, superCanvas.width, superCanvas.height);
+      superCtx.drawImage(frameCanvas, 0, 0, superCanvas.width, superCanvas.height);
       ctx.drawImage(
         superCanvas,
         0,
@@ -148,7 +153,7 @@ export async function recordAnimatedGif(
         th,
       );
     } else {
-      ctx.drawImage(canvas, 0, 0, tw, th);
+      ctx.drawImage(frameCanvas, 0, 0, tw, th);
     }
     const img = ctx.getImageData(0, 0, tw, th);
     const palette = quantize(img.data, maxColors);

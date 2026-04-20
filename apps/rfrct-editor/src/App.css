@@ -368,6 +368,7 @@ label.file-btn {
   align-items: center;
   justify-content: center;
   width: 100%;
+  min-width: 0;
   cursor: pointer;
   padding: 12px 16px;
   font-size: 13px;
@@ -382,6 +383,64 @@ label.file-btn {
     background var(--ui-duration) var(--ui-ease),
     border-color var(--ui-duration) var(--ui-ease),
     transform var(--ui-duration) var(--ui-ease);
+}
+
+.file-btn-wrap {
+  position: relative;
+  width: 100%;
+}
+
+.file-btn--has-remove {
+  padding-right: 42px;
+}
+
+.file-btn__content {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+}
+
+.file-btn__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
+  text-transform: none;
+  letter-spacing: 0.02em;
+}
+
+.file-btn__remove {
+  width: 20px;
+  height: 20px;
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--glass-text);
+  font-size: 13px;
+  line-height: 1;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.file-btn__remove:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.file-btn__remove:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 label.file-btn:hover {
