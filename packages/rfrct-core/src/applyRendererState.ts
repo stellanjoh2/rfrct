@@ -32,6 +32,10 @@ export type RendererSyncParams = {
   vjDupScrollSpeed: number;
   /** Dup horizontal scroll rate (UV x units per second; signed). */
   vjDupScrollSpeedX: number;
+  /** 0/1 — random duplicate-row blink. */
+  vjDupRandomBlink: number;
+  /** Blink steps per second for random duplicate blink. */
+  vjDupRandomBlinkSpeed: number;
   /** VJ-only neon colour grade inside the lens (independent of SVG tint). */
   glassGrade: GlassGradeParams;
   /** Normal-map micro-refraction layered on the main lens displacement. */
@@ -56,6 +60,8 @@ export type RendererStateTarget = {
   vjDupHorizStep: number;
   vjDupScrollSpeed: number;
   vjDupScrollSpeedX: number;
+  vjDupRandomBlink: number;
+  vjDupRandomBlinkSpeed: number;
   glassGrade: GlassGradeParams;
   detailDistortion: DetailDistortionParams;
   underlayTintRgb: [number, number, number];
@@ -94,6 +100,8 @@ export function applyRendererState(
   r.vjDupHorizStep = p.vjDupHorizStep;
   r.vjDupScrollSpeed = p.vjDupScrollSpeed;
   r.vjDupScrollSpeedX = p.vjDupScrollSpeedX;
+  r.vjDupRandomBlink = p.vjDupRandomBlink;
+  r.vjDupRandomBlinkSpeed = p.vjDupRandomBlinkSpeed;
   r.glassGrade = {
     mode: p.glassGrade.mode,
     rgbA: [p.glassGrade.rgbA[0], p.glassGrade.rgbA[1], p.glassGrade.rgbA[2]],
@@ -203,6 +211,12 @@ export type RendererSyncSource = {
   vjDupSpeedShift?: boolean;
   /** When true with live audio, horizontal stair spacing is randomized (VJ Extras). */
   vjDupRandomHoriz?: boolean;
+  /** When true, random duplicate rows blink on/off continuously. */
+  vjDupRandomBlink?: boolean;
+  /** Blink steps per second for random duplicate-row blink. */
+  vjDupRandomBlinkSpeed?: number;
+  /** 0–1 — how strongly audio drives random duplicate blinking. */
+  vjDupRandomBlinkSensitivity?: number;
   /** VJ orbit / lens path scale (1 = default squircle radius; &gt;1 pushes motion toward the edges). */
   vjPathScale: number;
   /** VJ squircle orbit rate in full laps per second (0 = hold start angle). */
@@ -371,6 +385,11 @@ export function buildRendererSyncParams(
 
   const lensTexForDup = s.hasLensTexture ?? Boolean(s.svgSourceUrl);
   const dupShaderOn = lensTexForDup && s.vjDupVertical;
+  const randomBlinkOn =
+    dupShaderOn &&
+    Boolean(s.vjDupRandomBlink) &&
+    s.micDrivingRefraction &&
+    s.vjMode;
 
   const glassGrade: GlassGradeParams = (() => {
     const off: GlassGradeParams = {
@@ -418,6 +437,10 @@ export function buildRendererSyncParams(
     vjDupHorizStep: dupShaderOn ? Math.max(0, s.vjDupHorizStep) : 0,
     vjDupScrollSpeed: dupShaderOn ? Math.max(0, s.vjDupScrollSpeed) : 0,
     vjDupScrollSpeedX: dupShaderOn ? s.vjDupScrollSpeedX ?? 0 : 0,
+    vjDupRandomBlink: randomBlinkOn ? 1 : 0,
+    vjDupRandomBlinkSpeed: randomBlinkOn
+      ? Math.min(20, Math.max(0.2, s.vjDupRandomBlinkSpeed ?? 4))
+      : 4,
     glassGrade,
     detailDistortion: {
       enabled: detailEnabled,

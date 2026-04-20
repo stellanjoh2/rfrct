@@ -39,6 +39,12 @@ export type AudioSectionProps = {
   setVjDupSpeedShift: Dispatch<SetStateAction<boolean>>;
   vjDupRandomHoriz: boolean;
   setVjDupRandomHoriz: Dispatch<SetStateAction<boolean>>;
+  vjDupRandomBlink: boolean;
+  setVjDupRandomBlink: Dispatch<SetStateAction<boolean>>;
+  vjDupRandomBlinkSpeed: number;
+  setVjDupRandomBlinkSpeed: (v: number) => void;
+  vjDupRandomBlinkSensitivity: number;
+  setVjDupRandomBlinkSensitivity: (v: number) => void;
   /** Fullscreen difference invert bursts on high-frequency transients. */
   vjInvertStrobe: boolean;
   setVjInvertStrobe: Dispatch<SetStateAction<boolean>>;
@@ -89,6 +95,12 @@ export function AudioSection({
   setVjDupSpeedShift,
   vjDupRandomHoriz,
   setVjDupRandomHoriz,
+  vjDupRandomBlink,
+  setVjDupRandomBlink,
+  vjDupRandomBlinkSpeed,
+  setVjDupRandomBlinkSpeed,
+  vjDupRandomBlinkSensitivity,
+  setVjDupRandomBlinkSensitivity,
   vjInvertStrobe,
   setVjInvertStrobe,
   vjInvertStrobeAmount,
@@ -112,6 +124,10 @@ export function AudioSection({
     : "Turn on hue shift first.";
   const speedShiftBlocked = !vjControlsEnabled || !vjDupVertical;
   const speedShiftHint = !vjControlsEnabled
+    ? HINT_NEED_VJ_CHAIN
+    : "Turn on Duplicate stack in the Design tab first.";
+  const randomBlinkBlocked = !vjControlsEnabled || !vjDupVertical;
+  const randomBlinkHint = !vjControlsEnabled
     ? HINT_NEED_VJ_CHAIN
     : "Turn on Duplicate stack in the Design tab first.";
   const invertStrobeBlocked = !vjControlsEnabled;
@@ -535,6 +551,86 @@ export function AudioSection({
               onChange={(e) => setVjInvertStrobeAmount(Number(e.target.value))}
               disabled={invertStrobeBlocked}
               aria-label="Invert strobe burst frequency"
+            />
+          </ClickBlockedHint>
+        </div>
+      </section>
+
+      <h2 title="Random duplicate row blinking with independent speed">
+        Random blink
+      </h2>
+      <section>
+        <div className="field field--checkbox field--audio-toggles">
+          <ClickBlockedHint
+            blocked={randomBlinkBlocked}
+            hint={randomBlinkHint}
+            onBlockedClick={onFeatureBlockedHint}
+          >
+            <button
+              type="button"
+              className={`mic-toggle ${vjDupRandomBlink ? "mic-toggle--on" : ""}`}
+              disabled={randomBlinkBlocked}
+              onClick={() => setVjDupRandomBlink((v) => !v)}
+              aria-pressed={vjDupRandomBlink}
+              title={
+                randomBlinkBlocked
+                  ? randomBlinkHint
+                  : "Audio-reactive random blinking across duplicate rows."
+              }
+            >
+              Random duplicate blink
+            </button>
+          </ClickBlockedHint>
+        </div>
+        <div className="field">
+          <label htmlFor="vj-random-blink-speed">
+            Blink speed
+            <span className="val">{vjDupRandomBlinkSpeed.toFixed(1)} steps/s</span>
+          </label>
+          <ClickBlockedHint
+            blocked={randomBlinkBlocked}
+            hint={randomBlinkHint}
+            onBlockedClick={onFeatureBlockedHint}
+            fullWidth
+          >
+            <input
+              id="vj-random-blink-speed"
+              type="range"
+              min={0.2}
+              max={20}
+              step={0.1}
+              value={vjDupRandomBlinkSpeed}
+              onChange={(e) => setVjDupRandomBlinkSpeed(Number(e.target.value))}
+              disabled={randomBlinkBlocked}
+              aria-label="Random duplicate blink speed in steps per second"
+            />
+          </ClickBlockedHint>
+        </div>
+        <div className="field">
+          <label htmlFor="vj-random-blink-sensitivity">
+            Audio sensitivity
+            <span className="val">
+              {Math.round(vjDupRandomBlinkSensitivity * 100)}%
+            </span>
+          </label>
+          <ClickBlockedHint
+            blocked={randomBlinkBlocked}
+            hint={randomBlinkHint}
+            onBlockedClick={onFeatureBlockedHint}
+            fullWidth
+          >
+            <input
+              id="vj-random-blink-sensitivity"
+              type="range"
+              min={0}
+              max={1}
+              step={0.02}
+              value={vjDupRandomBlinkSensitivity}
+              onChange={(e) =>
+                setVjDupRandomBlinkSensitivity(Number(e.target.value))
+              }
+              disabled={randomBlinkBlocked}
+              aria-label="Audio sensitivity for random duplicate blink"
             />
           </ClickBlockedHint>
         </div>

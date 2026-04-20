@@ -313,6 +313,13 @@ export function App() {
   const [vjDupSpeedShift, setVjDupSpeedShift] = useState(false);
   /** VJ: randomize duplicate horizontal stair spacing while audio is on. */
   const [vjDupRandomHoriz, setVjDupRandomHoriz] = useState(false);
+  /** VJ: random duplicate-row blinking. */
+  const [vjDupRandomBlink, setVjDupRandomBlink] = useState(false);
+  /** Blink steps per second for random duplicate-row blinking. */
+  const [vjDupRandomBlinkSpeed, setVjDupRandomBlinkSpeed] = useState(4);
+  /** 0–1 — how strongly audio drives random duplicate blinking. */
+  const [vjDupRandomBlinkSensitivity, setVjDupRandomBlinkSensitivity] =
+    useState(0.65);
   /** VJ Extras: high-frequency–gated fullscreen difference invert bursts. */
   const [vjInvertStrobe, setVjInvertStrobe] = useState(false);
   /** 0–1 — how often invert strobe may fire (trigger odds + cooldown between bursts). */
@@ -1209,6 +1216,9 @@ export function App() {
         vjDupGap,
         vjDupHorizStep,
         vjDupScrollSpeed,
+        vjDupRandomBlink,
+        vjDupRandomBlinkSpeed,
+        vjDupRandomBlinkSensitivity,
         vjPathScale,
         vjPathSpeed,
         youtubeEmbedActive,
@@ -1269,6 +1279,9 @@ export function App() {
     vjDupScrollSpeed,
     vjDupSpeedShift,
     vjDupRandomHoriz,
+    vjDupRandomBlink,
+    vjDupRandomBlinkSpeed,
+    vjDupRandomBlinkSensitivity,
     vjPathScale,
     vjPathSpeed,
     youtubeEmbedActive,
@@ -1478,6 +1491,15 @@ export function App() {
           driven = raw;
         }
 
+        const blinkSensitivity = raw.vjDupRandomBlinkSensitivity ?? 0.65;
+        const blinkAudioDrive =
+          tick.envelope * (0.15 + blinkSensitivity * 2.4) +
+          tickVj.bandTransient.high * (0.22 + blinkSensitivity * 2.8);
+        const reactiveBlinkSpeed = Math.max(
+          0.2,
+          (raw.vjDupRandomBlinkSpeed ?? 4) * (0.15 + blinkAudioDrive),
+        );
+
         applyRendererState(
           r,
           buildRendererSyncParams({
@@ -1490,6 +1512,8 @@ export function App() {
             filterScale: effectiveFilterScale,
             vjDupScrollSpeed: scrollVy,
             vjDupScrollSpeedX: scrollVx,
+            vjDupRandomBlink: raw.vjDupRandomBlink,
+            vjDupRandomBlinkSpeed: reactiveBlinkSpeed,
             vjDupHorizStep: horizStep,
           }),
         );
@@ -1903,6 +1927,9 @@ export function App() {
       vjDupScrollSpeed,
       vjDupSpeedShift,
       vjDupRandomHoriz,
+      vjDupRandomBlink,
+      vjDupRandomBlinkSpeed,
+      vjDupRandomBlinkSensitivity,
       vjInvertStrobe,
       vjInvertStrobeAmount,
       vjPathScale,
@@ -1988,6 +2015,9 @@ export function App() {
       vjDupScrollSpeed,
       vjDupSpeedShift,
       vjDupRandomHoriz,
+      vjDupRandomBlink,
+      vjDupRandomBlinkSpeed,
+      vjDupRandomBlinkSensitivity,
       vjInvertStrobe,
       vjInvertStrobeAmount,
       vjPathScale,
@@ -2111,6 +2141,9 @@ export function App() {
       setVjDupSpeedShift(d.vjDupSpeedShift);
       resetVjDupSpeedShiftState(vjDupSpeedShiftStateRef.current);
       setVjDupRandomHoriz(d.vjDupRandomHoriz);
+      setVjDupRandomBlink(d.vjDupRandomBlink);
+      setVjDupRandomBlinkSpeed(d.vjDupRandomBlinkSpeed);
+      setVjDupRandomBlinkSensitivity(d.vjDupRandomBlinkSensitivity);
       resetVjDupHorizRandomState(vjDupHorizRandomStateRef.current);
       setVjInvertStrobe(d.vjInvertStrobe);
       setVjInvertStrobeAmount(d.vjInvertStrobeAmount);
@@ -2347,6 +2380,12 @@ export function App() {
         setVjDupSpeedShift,
         vjDupRandomHoriz,
         setVjDupRandomHoriz,
+        vjDupRandomBlink,
+        setVjDupRandomBlink,
+        vjDupRandomBlinkSpeed,
+        setVjDupRandomBlinkSpeed,
+        vjDupRandomBlinkSensitivity,
+        setVjDupRandomBlinkSensitivity,
         vjInvertStrobe,
         setVjInvertStrobe,
         vjInvertStrobeAmount,
@@ -2472,6 +2511,9 @@ export function App() {
       vjDupScrollSpeed,
       vjDupSpeedShift,
       vjDupRandomHoriz,
+      vjDupRandomBlink,
+      vjDupRandomBlinkSpeed,
+      vjDupRandomBlinkSensitivity,
       vjInvertStrobe,
       vjInvertStrobeAmount,
       layer2SourceUrl,
@@ -2555,6 +2597,9 @@ export function App() {
     vjDupScrollSpeed,
     vjDupSpeedShift,
     vjDupRandomHoriz,
+    vjDupRandomBlink,
+    vjDupRandomBlinkSpeed,
+    vjDupRandomBlinkSensitivity,
     vjPathScale,
     vjPathSpeed,
     youtubeEmbedActive,

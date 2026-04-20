@@ -48,6 +48,10 @@ uniform float u_vjDupHorizStep;
 uniform float u_vjDupScrollTime;
 /** Horizontal dup scroll phase (viewport-normalized; can be negative). */
 uniform float u_vjDupScrollTimeX;
+/** 0/1 — random duplicate-row blink. */
+uniform float u_vjDupRandomBlink;
+/** Continuous phase for random duplicate blink (advanced in renderer). */
+uniform float u_vjDupRandomBlinkPhase;
 /** One logo’s contain-fit size in normalized viewport UV (from image rect). */
 uniform float u_vjSpanH;
 uniform float u_vjSpanW;
@@ -360,6 +364,14 @@ vec4 sampleSceneTex(vec2 uv) {
     float yInStride = y - row * strideY;
     if (yInStride < 0.0 || yInStride > u_vjSpanH) {
       return vec4(0.0);
+    }
+    if (u_vjDupRandomBlink > 0.5) {
+      float tick = floor(u_vjDupRandomBlinkPhase);
+      float blinkRnd = fract(sin((row + 1.0) * 127.1 + tick * 311.7) * 43758.5453);
+      // Keep the stack alive but blinking: about half the rows visible per tick.
+      if (blinkRnd > 0.48) {
+        return vec4(0.0);
+      }
     }
     float vTex = yInStride / max(u_vjSpanH, 1e-6);
     float rowPhase = mod(row, VJ_STAIR_CYCLE);
