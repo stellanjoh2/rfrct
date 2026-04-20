@@ -61,16 +61,17 @@ jobs:
           cache-dependency-path: package-lock.json
 
       - run: npm ci
+      # Vitest (esbuild) and Vite build (Rollup) need platform binaries; npm can omit optional deps on some runners.
+      - name: Ensure Rollup + esbuild Linux binaries
+        if: runner.os == 'Linux'
+        run: |
+          node -e "require('\@rollup/rollup-linux-x64-gnu')" 2>/dev/null || npm i --no-save @rollup/rollup-linux-x64-gnu
+          node -e "require('esbuild').transformSync('0',{loader:'js'})" 2>/dev/null || npm i --no-save @esbuild/linux-x64
+          node -e "require('\@rollup/rollup-linux-x64-gnu'); require('esbuild').transformSync('0',{loader:'js'}); console.log('native bins: ok')"
       - name: Lint
         run: npm run lint
       - name: Test
         run: npm run test
-      # Workaround for npm optional-deps bug that can skip Rollup's Linux binary on runners.
-      - name: Ensure Rollup Linux binary is present
-        if: runner.os == 'Linux'
-        run: |
-          node -e "require('\@rollup/rollup-linux-x64-gnu')" 2>/dev/null || npm i --no-save @rollup/rollup-linux-x64-gnu
-          node -e "require('\@rollup/rollup-linux-x64-gnu'); console.log('rollup linux binary: ok')"
 
       # Split so logs show whether tsc or Vite failed (single `npm run build` hides the boundary).
       - name: Diagnostics
