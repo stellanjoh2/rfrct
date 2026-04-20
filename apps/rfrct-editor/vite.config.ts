@@ -14,4 +14,8 @@ export default defineConfig(({ command }) => ({
     strictPort: false,
     open: true,
   },
+  test: {
+    environment: "node",
+    include: ["src/**/*.test.ts"],
+  },
 }));

@@ -1,0 +1,7 @@
+node_modules
+**/dist
+**/.vite
+coverage
+package-lock.json
+tmp-pages-index.js
+**/*.min.js

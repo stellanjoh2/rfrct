@@ -17,6 +17,21 @@
     "build:all": "npm run build -w rfrct-editor && npm run build -w blod",
     "preview:editor": "npm run preview -w rfrct-editor",
     "preview:blod": "npm run preview -w blod",
-    "push:blod": "bash scripts/push-blod-to-blod-repo.sh"
+    "push:blod": "bash scripts/push-blod-to-blod-repo.sh",
+    "lint": "eslint apps/rfrct-editor/src packages/rfrct-core/src",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "npm run test -w rfrct-editor"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.17.0",
+    "eslint": "^9.17.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-react": "^7.37.3",
+    "eslint-plugin-react-hooks": "^5.1.0",
+    "eslint-plugin-react-refresh": "^0.4.16",
+    "globals": "^15.14.0",
+    "prettier": "^3.4.2",
+    "typescript-eslint": "^8.18.2"
   }
 }

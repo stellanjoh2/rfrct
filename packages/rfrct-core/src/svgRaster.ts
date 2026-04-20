@@ -165,8 +165,8 @@ function clampSvgSourceRect(
 ): { sx: number; sy: number; sw: number; sh: number } {
   const W = Math.max(1, iw);
   const H = Math.max(1, ih);
-  let sxp = Math.max(0, Math.min(sx, W - 1e-6));
-  let syp = Math.max(0, Math.min(sy, H - 1e-6));
+  const sxp = Math.max(0, Math.min(sx, W - 1e-6));
+  const syp = Math.max(0, Math.min(sy, H - 1e-6));
   let swp = Math.max(1e-6, sw);
   let shp = Math.max(1e-6, sh);
   if (sxp + swp > W) swp = W - sxp;

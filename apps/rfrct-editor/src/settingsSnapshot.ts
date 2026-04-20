@@ -3,7 +3,7 @@ import type { AudioInputMode } from "./audio/micAnalyzer";
 import type {
   SecondaryLayerBlendMode,
   SecondaryLayerTintMode,
-} from "./components/settings/SecondaryLayerSection";
+} from "./components/settings/secondaryLayerBlend";
 import {
   BACKDROP_BLEND_OPTIONS,
   type BackdropBlendMode,

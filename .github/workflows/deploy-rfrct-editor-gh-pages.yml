@@ -25,6 +25,9 @@ on:
       - "packages/rfrct-core/**"
       - "package.json"
       - "package-lock.json"
+      - "eslint.config.js"
+      - ".prettierrc"
+      - ".prettierignore"
       - ".github/workflows/deploy-rfrct-editor-gh-pages.yml"
   workflow_dispatch:
 
@@ -58,6 +61,10 @@ jobs:
           cache-dependency-path: package-lock.json
 
       - run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Test
+        run: npm run test
       # Workaround for npm optional-deps bug that can skip Rollup's Linux binary on runners.
       - name: Ensure Rollup Linux binary is present
         if: runner.os == 'Linux'

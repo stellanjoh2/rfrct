@@ -16,8 +16,8 @@ export function stepLensMouseFluid(
   const k = 10 + (1 - dCl) * 38;
   const damp = 3.5 + dCl * 12.5;
 
-  let ax = (target.x - pos.x) * k - vel.x * damp;
-  let ay = (target.y - pos.y) * k - vel.y * damp;
+  const ax = (target.x - pos.x) * k - vel.x * damp;
+  const ay = (target.y - pos.y) * k - vel.y * damp;
   let vx = vel.x + ax * dtCl;
   let vy = vel.y + ay * dtCl;
   let x = pos.x + vx * dtCl;

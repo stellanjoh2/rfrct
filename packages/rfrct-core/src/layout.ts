@@ -74,8 +74,8 @@ export function computeUnderlayContainCell(
   const s = Math.min(cellW / underlayW, cellH / underlayH) * scale;
   const dw = underlayW * s;
   const dh = underlayH * s;
-  let x0 = (cellW - dw) * 0.5;
-  let y0 = (cellH - dh) * 0.5 - offsetDown;
+  const x0 = (cellW - dw) * 0.5;
+  const y0 = (cellH - dh) * 0.5 - offsetDown;
   return {
     ox: x0 / cellW,
     oy: y0 / cellH,

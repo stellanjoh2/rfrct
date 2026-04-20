@@ -4,7 +4,6 @@ import { Focus } from "./focus";
 import {
   applyPanToRect,
   applyRendererState,
-  applyVjDrive,
   buildRendererSyncParams,
   computeImageRect,
   DEFAULT_PNG_EXPORT_PARAMS,
@@ -24,50 +23,40 @@ import {
 import {
   INACTIVE_MIC_TICK,
   MicAnalyzer,
-  scaleTickForAudioBoost,
   type AudioInputMode,
   audioCaptureErrorMessage,
 } from "./audio/micAnalyzer";
-import { AUDIBLE_DB_NORM_MIN } from "./audio/audibleGate";
 import {
   createVjDupHorizRandomState,
   resetVjDupHorizRandomState,
-  stepVjDupHorizRandom,
 } from "./audio/vjDupHorizRandom";
 import {
   createVjDupSpeedShiftState,
   resetVjDupSpeedShiftState,
-  stepVjDupSpeedShift,
 } from "./audio/vjDupSpeedShift";
 import {
   createVjInvertStrobeState,
   resetVjInvertStrobeState,
-  stepVjInvertStrobe,
 } from "./audio/vjInvertStrobe";
 import {
   createVjYoutubeBeatBlackoutState,
   resetVjYoutubeBeatBlackoutState,
-  stepVjYoutubeBeatBlackout,
 } from "./audio/vjYoutubeBeatBlackout";
 import {
   createVjLayer2BlinkState,
   resetVjLayer2BlinkState,
-  stepVjLayer2BlinkPair,
 } from "./audio/vjLayer2Blink";
 import {
   createVjLayer2ScaleAudioState,
   resetVjLayer2ScaleAudioState,
-  stepVjLayer2ScaleAudio,
 } from "./audio/vjLayer2ScaleAudio";
 import {
   createVjLayer2RandomBurstState,
   resetVjLayer2RandomBurstState,
-  stepVjLayer2RandomBurst,
 } from "./audio/vjLayer2RandomBurst";
 import {
   createVjLayer2PixelGlitchState,
   resetVjLayer2PixelGlitchState,
-  stepVjLayer2PixelGlitch,
 } from "./audio/vjLayer2PixelGlitch";
 import type { BackdropBlendMode } from "./videoBackdrop";
 import { postYoutubeMute, postYoutubePlayback } from "./youtube/forceMuteIframe";
@@ -87,11 +76,21 @@ import { recordAnimatedGif } from "./export/recordAnimatedGif";
 import { saveGifBlob } from "./export/saveGifBlob";
 import { composeViewportFrame } from "./export/composeViewportFrame";
 import { buildYoutubeEmbedSrc, parseYoutubeVideoId } from "./youtube/embedUrl";
+import type {
+  SecondaryLayerBlendMode,
+  SecondaryLayerTintMode,
+} from "./components/settings/secondaryLayerBlend";
+import { secondaryLayerBlendToShaderId } from "./components/settings/secondaryLayerBlend";
+import { revokeSvgObjectUrlIfBlob } from "./app/blobUrl";
 import {
-  secondaryLayerBlendToShaderId,
-  type SecondaryLayerBlendMode,
-  type SecondaryLayerTintMode,
-} from "./components/settings/SecondaryLayerSection";
+  captureExactViewportPng,
+  downloadCanvasAsPng,
+} from "./app/capturePng";
+import {
+  applyMicDrivingRendererFrame,
+  type MicDrivingFrameRefs,
+} from "./app/micDrivingFrame";
+import { normalizeHueDeg, parseHueRotateDegrees } from "./app/hueUtils";
 
 /** Pause lens shader time while scroll-zooming; resume after last wheel event. */
 const ZOOM_ANIM_RESUME_MS = 120;
@@ -100,57 +99,6 @@ const SVG_RASTER_DEBOUNCE_MS = 320;
 
 /** Default wordmark in `public/`; `BASE_URL` keeps paths valid on GitHub Pages (`base: "./"`). */
 const TEMPLATE_LOGO_SVG_URL = `${import.meta.env.BASE_URL}rfrct-logo.svg`;
-
-function revokeSvgObjectUrlIfBlob(url: string | null) {
-  if (url?.startsWith("blob:")) URL.revokeObjectURL(url);
-}
-
-function normalizeHueDeg(x: number): number {
-  if (!Number.isFinite(x)) return 0;
-  return ((x % 360) + 360) % 360;
-}
-
-function parseHueRotateDegrees(filterValue: string): number {
-  const m = /hue-rotate\(\s*(-?\d+(?:\.\d+)?)deg\s*\)/.exec(filterValue);
-  if (!m) return 0;
-  const v = Number(m[1]);
-  return Number.isFinite(v) ? v : 0;
-}
-
-function downloadCanvasAsPng(canvas: HTMLCanvasElement, basename: string): void {
-  const name = `${basename}-${Date.now()}.png`;
-  canvas.toBlob(
-    (blob) => {
-      if (!blob) return;
-      const href = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = href;
-      a.download = name;
-      a.rel = "noopener";
-      a.style.display = "none";
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.setTimeout(() => URL.revokeObjectURL(href), 800);
-    },
-    "image/png",
-    1,
-  );
-}
-
-async function captureExactViewportPng(
-  viewportEl: HTMLElement,
-  basename: string,
-): Promise<void> {
-  const html2canvas = (await import("html2canvas")).default;
-  const capture = await html2canvas(viewportEl, {
-    backgroundColor: null,
-    useCORS: true,
-    logging: false,
-    scale: Math.max(1, window.devicePixelRatio || 1),
-  });
-  downloadCanvasAsPng(capture, basename);
-}
 
 export function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -690,6 +638,39 @@ export function App() {
 
   const syncSecondaryOverlayRef = useRef(syncSecondaryOverlay);
   syncSecondaryOverlayRef.current = syncSecondaryOverlay;
+
+  /** Ref bundle for {@link applyMicDrivingRendererFrame}; ref objects are stable — empty deps intentional. */
+  const micDrivingFrameRefs = useMemo(
+    (): MicDrivingFrameRefs => ({
+      vjDupSpeedShiftStateRef,
+      vjDupHorizRandomStateRef,
+      vjLayer2BlinkStateRef,
+      vjLayer2ScaleAudioStateRef,
+      vjLayer2RandomBurstStateRef,
+      vjLayer2PixelGlitchStateRef,
+      vjInvertStrobeStateRef,
+      vjYoutubeBeatBlackoutStateRef,
+      mouseLensTargetRef,
+      mouseFluidPosRef,
+      mouseFluidVelRef,
+      blobCenterRef,
+      layer2ReadyRef,
+      vjLayer2AutomationModeRef,
+      vjLayer2StrobeScaleRef,
+      vjLayer2PixelGlitchRef,
+      vjInvertStrobeEnabledRef,
+      vjInvertStrobeAmountRef,
+      vjYoutubeBeatBlackoutEnabledRef,
+      vjYoutubeBeatBlackoutSensitivityRef,
+      vjInvertStrobeOverlayRef,
+      vjYoutubeBeatBlackoutOverlayRef,
+      layer2VjOpacityMulRef,
+      layer2VjScaleMulRef,
+      layer2VjBurstOpacityMulRef,
+      syncSecondaryOverlayRef,
+    }),
+    [],
+  );
 
   useEffect(() => {
     if (vjLayer2AutomationMode === "randomBurst") return;
@@ -1369,202 +1350,18 @@ export function App() {
         micLoopPrevTRef.current = now;
         const timeSec = now * 0.001;
 
-        const tickVj = scaleTickForAudioBoost(tick, micRefractBoost);
-
-        const baseScroll = raw.vjDupScrollSpeed;
-        let scrollVy = baseScroll;
-        let scrollVx = 0;
-        if (
-          raw.vjDupSpeedShift &&
-          raw.vjMode &&
-          raw.vjDupVertical
-        ) {
-          const stepped = stepVjDupSpeedShift(
-            baseScroll,
-            tickVj,
-            dt,
-            vjDupSpeedShiftStateRef.current,
-          );
-          scrollVy = stepped.vy;
-          scrollVx = stepped.vx;
-        } else {
-          resetVjDupSpeedShiftState(vjDupSpeedShiftStateRef.current);
-        }
-
-        let horizStep = raw.vjDupHorizStep;
-        if (raw.vjDupRandomHoriz && raw.vjMode && raw.vjDupVertical) {
-          horizStep = stepVjDupHorizRandom(dt, vjDupHorizRandomStateRef.current, {
-            highTransient: tickVj.bandTransient.high,
-            dbNorm: tickVj.dbNorm,
-          });
-        } else {
-          resetVjDupHorizRandomState(vjDupHorizRandomStateRef.current);
-        }
-
-        if (
-          raw.vjMode &&
-          raw.vjDupVertical &&
-          tickVj.dbNorm < AUDIBLE_DB_NORM_MIN
-        ) {
-          scrollVy = 0;
-          scrollVx = 0;
-        }
-
-        let effectiveFilterMode = raw.filterMode;
-        let effectiveFilterStrength = raw.filterStrength;
-        let effectiveFilterScale = raw.filterScale;
-
-        layer2VjOpacityMulRef.current = 1;
-        layer2VjScaleMulRef.current = 1;
-        layer2VjBurstOpacityMulRef.current = 1;
-        const layer2Vj =
-          raw.vjMode && layer2ReadyRef.current && micDrivingRefraction;
-        if (layer2Vj) {
-          const l2Mode = vjLayer2AutomationModeRef.current;
-          if (l2Mode === "randomBlink" || l2Mode === "blinkInverse") {
-            const { dip, inverse } = stepVjLayer2BlinkPair(
-              tickVj,
-              dt,
-              vjLayer2BlinkStateRef.current,
-            );
-            let m = 1;
-            if (l2Mode === "randomBlink") m *= dip;
-            if (l2Mode === "blinkInverse") m *= inverse;
-            layer2VjOpacityMulRef.current = Math.max(0, Math.min(1, m));
-          } else {
-            resetVjLayer2BlinkState(vjLayer2BlinkStateRef.current);
-          }
-          if (l2Mode === "randomScale") {
-            layer2VjScaleMulRef.current = stepVjLayer2ScaleAudio(
-              tickVj,
-              dt,
-              vjLayer2ScaleAudioStateRef.current,
-              micRefractBoost,
-            );
-          } else {
-            resetVjLayer2ScaleAudioState(vjLayer2ScaleAudioStateRef.current);
-          }
-          if (l2Mode === "randomBurst") {
-            const burst = stepVjLayer2RandomBurst(
-              tickVj,
-              dt,
-              vjLayer2RandomBurstStateRef.current,
-            );
-            layer2VjBurstOpacityMulRef.current = burst.opacity;
-            if (vjLayer2StrobeScaleRef.current) {
-              layer2VjScaleMulRef.current *= burst.strobeScaleMul;
-            }
-          } else {
-            resetVjLayer2RandomBurstState(vjLayer2RandomBurstStateRef.current);
-          }
-          if (vjLayer2PixelGlitchRef.current) {
-            const glitchBoost = stepVjLayer2PixelGlitch(
-              tickVj,
-              dt,
-              vjLayer2PixelGlitchStateRef.current,
-            );
-            if (glitchBoost > 0) {
-              effectiveFilterMode = 7;
-              effectiveFilterStrength = glitchBoost;
-              effectiveFilterScale = glitchBoost;
-            }
-          } else {
-            resetVjLayer2PixelGlitchState(vjLayer2PixelGlitchStateRef.current);
-          }
-        } else {
-          resetVjLayer2BlinkState(vjLayer2BlinkStateRef.current);
-          resetVjLayer2ScaleAudioState(vjLayer2ScaleAudioStateRef.current);
-          resetVjLayer2RandomBurstState(vjLayer2RandomBurstStateRef.current);
-          resetVjLayer2PixelGlitchState(vjLayer2PixelGlitchStateRef.current);
-        }
-
-        const invEl = vjInvertStrobeOverlayRef.current;
-        if (invEl) {
-          if (vjInvertStrobeEnabledRef.current) {
-            const op = stepVjInvertStrobe(
-              tickVj,
-              dt,
-              vjInvertStrobeStateRef.current,
-              vjInvertStrobeAmountRef.current,
-            );
-            invEl.style.opacity = String(op);
-          } else {
-            resetVjInvertStrobeState(vjInvertStrobeStateRef.current);
-            invEl.style.opacity = "0";
-          }
-        }
-
-        const ytBlackEl = vjYoutubeBeatBlackoutOverlayRef.current;
-        if (ytBlackEl) {
-          if (vjYoutubeBeatBlackoutEnabledRef.current) {
-            const opYt = stepVjYoutubeBeatBlackout(
-              tickVj,
-              dt,
-              vjYoutubeBeatBlackoutStateRef.current,
-              now,
-              vjYoutubeBeatBlackoutSensitivityRef.current,
-            );
-            ytBlackEl.style.opacity = String(opYt);
-          } else {
-            resetVjYoutubeBeatBlackoutState(vjYoutubeBeatBlackoutStateRef.current);
-            ytBlackEl.style.opacity = "0";
-          }
-        }
-
-        let driven: RendererSyncSource;
-        if (raw.lensMouseInput) {
-          const target = mouseLensTargetRef.current;
-          const pos = mouseFluidPosRef.current;
-          const vel = mouseFluidVelRef.current;
-          const step = stepLensMouseFluid(
-            dt,
-            target,
-            pos,
-            vel,
-            raw.fluidDensity,
-            timeSec,
-          );
-          mouseFluidPosRef.current = { x: step.x, y: step.y };
-          mouseFluidVelRef.current = { x: step.vx, y: step.vy };
-          blobCenterRef.current = { x: step.x, y: step.y };
-          driven = { ...raw, blobCenterX: step.x, blobCenterY: step.y };
-        } else if (vjMode && micDrivingRefraction) {
-          driven = applyVjDrive(raw, timeSec);
-          blobCenterRef.current = {
-            x: driven.blobCenterX,
-            y: driven.blobCenterY,
-          };
-        } else {
-          driven = raw;
-        }
-
-        const blinkSensitivity = raw.vjDupRandomBlinkSensitivity ?? 0.65;
-        const blinkAudioDrive =
-          tick.envelope * (0.15 + blinkSensitivity * 2.4) +
-          tickVj.bandTransient.high * (0.22 + blinkSensitivity * 2.8);
-        const reactiveBlinkSpeed = Math.max(
-          0.2,
-          (raw.vjDupRandomBlinkSpeed ?? 4) * (0.15 + blinkAudioDrive),
-        );
-
-        applyRendererState(
+        applyMicDrivingRendererFrame(
           r,
-          buildRendererSyncParams({
-            ...driven,
-            micDrivingRefraction: true,
-            micRefractBoost,
-            micEnvelope: tick.envelope,
-            filterMode: effectiveFilterMode,
-            filterStrength: effectiveFilterStrength,
-            filterScale: effectiveFilterScale,
-            vjDupScrollSpeed: scrollVy,
-            vjDupScrollSpeedX: scrollVx,
-            vjDupRandomBlink: raw.vjDupRandomBlink,
-            vjDupRandomBlinkSpeed: reactiveBlinkSpeed,
-            vjDupHorizStep: horizStep,
-          }),
+          raw,
+          tick,
+          now,
+          dt,
+          timeSec,
+          micRefractBoost,
+          vjMode,
+          micDrivingRefraction,
+          micDrivingFrameRefs,
         );
-        syncSecondaryOverlayRef.current();
       }
       id = requestAnimationFrame(loop);
     };
@@ -1576,6 +1373,7 @@ export function App() {
     vjMode,
     lensMouseInput,
     fluidDensity,
+    micDrivingFrameRefs,
   ]);
 
   useEffect(() => {
@@ -1722,7 +1520,7 @@ export function App() {
     };
   }, [layer2SourceUrl]);
 
-  const onLayer2File = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const onLayer2File = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setLayer2FileName(file.name);
@@ -1732,7 +1530,7 @@ export function App() {
       return url;
     });
     e.target.value = "";
-  };
+  }, []);
 
   const removeLayer2 = useCallback(() => {
     setLayer2SourceUrl(null);
@@ -1982,11 +1780,11 @@ export function App() {
       vjYoutubeBeatBlackout,
       vjYoutubeBeatBlackoutSensitivity,
       vjPathScale,
-    vjPathSpeed,
-    vjGlassGradeMode,
-    vjGlassNeonAHex,
-    vjGlassNeonBHex,
-    vjGlassGradeIntensity,
+      vjPathSpeed,
+      vjGlassGradeMode,
+      vjGlassNeonAHex,
+      vjGlassNeonBHex,
+      vjGlassGradeIntensity,
       layer2Scale,
       layer2TintMode,
       layer2TintHex,
@@ -2074,9 +1872,9 @@ export function App() {
       vjPathScale,
       vjPathSpeed,
       vjGlassGradeMode,
-    vjGlassNeonAHex,
-    vjGlassNeonBHex,
-    vjGlassGradeIntensity,
+      vjGlassNeonAHex,
+      vjGlassNeonBHex,
+      vjGlassGradeIntensity,
       layer2Scale,
       layer2TintMode,
       layer2TintHex,
@@ -2609,6 +2407,8 @@ export function App() {
       copySettingsToClipboard,
       settingsPasteDraft,
       applyPastedSettingsFromDraft,
+      onLayer2File,
+      removeLayer2,
     ],
   );
 
