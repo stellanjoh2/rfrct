@@ -305,7 +305,7 @@ export function parseSettingsSnapshot(
     imageScale: num(p.imageScale, 1),
     imagePan: pan,
     svgTintMode: stm,
-    svgTintHex: str(p.svgTintHex, "#ffffff"),
+    svgTintHex: str(p.svgTintHex, "#beee98"),
     svgGradientBlend,
     svgGradientHex2: str(p.svgGradientHex2, "#000000"),
     svgGradientHex3: str(p.svgGradientHex3, "#ffffff"),

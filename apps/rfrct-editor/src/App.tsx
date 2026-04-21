@@ -100,6 +100,15 @@ const SVG_RASTER_DEBOUNCE_MS = 320;
 /** Default wordmark in `public/`; `BASE_URL` keeps paths valid on GitHub Pages (`base: "./"`). */
 const TEMPLATE_LOGO_SVG_URL = `${import.meta.env.BASE_URL}rfrct-logo.svg`;
 
+function readCssBrandHex(): string | null {
+  if (typeof window === "undefined") return null;
+  const raw = window
+    .getComputedStyle(document.documentElement)
+    .getPropertyValue("--brand")
+    .trim();
+  return raw.startsWith("#") ? raw : null;
+}
+
 export function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -112,8 +121,8 @@ export function App() {
   );
   const [svgTintMode, setSvgTintMode] = useState<
     "original" | "multiply" | "replace" | "gradient"
-  >("original");
-  const [svgTintHex, setSvgTintHex] = useState("#ffffff");
+  >("replace");
+  const [svgTintHex, setSvgTintHex] = useState("#beee98");
   const [svgGradientBlend, setSvgGradientBlend] = useState<
     "multiply" | "replace"
   >("replace");
@@ -124,6 +133,15 @@ export function App() {
   const [svgGradientScale, setSvgGradientScale] = useState(1);
   const [svgGradientPosition, setSvgGradientPosition] = useState(0);
   const [viewportPx, setViewportPx] = useState({ w: 0, h: 0 });
+
+  // Keep the default startup logo tinted to the current CSS brand token.
+  useEffect(() => {
+    if (svgSourceUrl !== TEMPLATE_LOGO_SVG_URL) return;
+    const brand = readCssBrandHex();
+    if (!brand) return;
+    setSvgTintMode("replace");
+    setSvgTintHex(brand);
+  }, [svgSourceUrl]);
 
   const [bgHex, setBgHex] = useState("#252525");
   const [backdropImageUrl, setBackdropImageUrl] = useState<string | null>(null);
