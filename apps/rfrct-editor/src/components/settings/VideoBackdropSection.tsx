@@ -89,7 +89,7 @@ export function VideoBackdropSection({
               type="color"
               value={solidOverlayHex}
               onChange={(e) => setSolidOverlayHex(e.target.value)}
-              aria-label="Solid overlay colour"
+              aria-label="Solid overlay color"
             />
             <input
               type="text"

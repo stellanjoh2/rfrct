@@ -118,7 +118,7 @@ export function SecondaryLayerSection({
               />
             </div>
             <div className="field">
-              <label htmlFor="layer2-tint-mode">Layer 2 colour</label>
+              <label htmlFor="layer2-tint-mode">Layer 2 color</label>
               <select
                 id="layer2-tint-mode"
                 className="field-select"
@@ -143,14 +143,14 @@ export function SecondaryLayerSection({
                     type="color"
                     value={layer2TintHex}
                     onChange={(e) => setLayer2TintHex(e.target.value)}
-                    aria-label="Layer 2 colour"
+                    aria-label="Layer 2 color"
                   />
                   <input
                     type="text"
                     value={layer2TintHex}
                     onChange={(e) => setLayer2TintHex(e.target.value)}
                     spellCheck={false}
-                    aria-label="Layer 2 colour hex"
+                    aria-label="Layer 2 color hex"
                   />
                 </div>
               </div>

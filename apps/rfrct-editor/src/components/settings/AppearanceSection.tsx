@@ -5,8 +5,6 @@ export type SvgTintModeUi =
   | "gradient";
 
 export type AppearanceSectionProps = {
-  bgHex: string;
-  setBgHex: (v: string) => void;
   imageScale: number;
   setImageScale: (v: number) => void;
   svgSourceUrl: string | null;
@@ -28,12 +26,9 @@ export type AppearanceSectionProps = {
   setSvgGradientScale: (v: number) => void;
   svgGradientPosition: number;
   setSvgGradientPosition: (v: number) => void;
-  youtubeActive: boolean;
 };
 
 export function AppearanceSection({
-  bgHex,
-  setBgHex,
   imageScale,
   setImageScale,
   svgSourceUrl,
@@ -55,32 +50,9 @@ export function AppearanceSection({
   setSvgGradientScale,
   svgGradientPosition,
   setSvgGradientPosition,
-  youtubeActive,
 }: AppearanceSectionProps) {
   return (
     <section aria-label="Layer 1 options">
-        <div className="field">
-          <label>
-            Background
-            <span className="val">{bgHex}</span>
-          </label>
-          <div className="row">
-            <input
-              type="color"
-              value={bgHex}
-              onChange={(e) => setBgHex(e.target.value)}
-              aria-label="Background color"
-              disabled={youtubeActive}
-            />
-            <input
-              type="text"
-              value={bgHex}
-              onChange={(e) => setBgHex(e.target.value)}
-              spellCheck={false}
-              disabled={youtubeActive}
-            />
-          </div>
-        </div>
         <div className="field">
           <label>
             Image scale
@@ -158,7 +130,7 @@ export function AppearanceSection({
                 </div>
                 <div className="field">
                   <label>
-                    Colour 1
+                    Color 1
                     <span className="val">{svgTintHex}</span>
                   </label>
                   <div className="row">
@@ -166,20 +138,20 @@ export function AppearanceSection({
                       type="color"
                       value={svgTintHex}
                       onChange={(e) => setSvgTintHex(e.target.value)}
-                      aria-label="SVG gradient colour 1"
+                      aria-label="SVG gradient color 1"
                     />
                     <input
                       type="text"
                       value={svgTintHex}
                       onChange={(e) => setSvgTintHex(e.target.value)}
                       spellCheck={false}
-                      aria-label="SVG gradient colour 1 hex"
+                      aria-label="SVG gradient color 1 hex"
                     />
                   </div>
                 </div>
                 <div className="field">
                   <label>
-                    Colour 2
+                    Color 2
                     <span className="val">{svgGradientHex2}</span>
                   </label>
                   <div className="row">
@@ -187,14 +159,14 @@ export function AppearanceSection({
                       type="color"
                       value={svgGradientHex2}
                       onChange={(e) => setSvgGradientHex2(e.target.value)}
-                      aria-label="SVG gradient colour 2"
+                      aria-label="SVG gradient color 2"
                     />
                     <input
                       type="text"
                       value={svgGradientHex2}
                       onChange={(e) => setSvgGradientHex2(e.target.value)}
                       spellCheck={false}
-                      aria-label="SVG gradient colour 2 hex"
+                      aria-label="SVG gradient color 2 hex"
                     />
                   </div>
                 </div>
@@ -206,15 +178,15 @@ export function AppearanceSection({
                       onChange={(e) =>
                         setSvgGradientThreeStops(e.target.checked)
                       }
-                      aria-label="Use third gradient colour"
+                      aria-label="Use third gradient color"
                     />
-                    Third colour (middle stop)
+                    Third color (middle stop)
                   </label>
                 </div>
                 {svgGradientThreeStops && (
                   <div className="field">
                     <label>
-                      Colour 3
+                      Color 3
                       <span className="val">{svgGradientHex3}</span>
                     </label>
                     <div className="row">
@@ -222,14 +194,14 @@ export function AppearanceSection({
                         type="color"
                         value={svgGradientHex3}
                         onChange={(e) => setSvgGradientHex3(e.target.value)}
-                        aria-label="SVG gradient colour 3"
+                        aria-label="SVG gradient color 3"
                       />
                       <input
                         type="text"
                         value={svgGradientHex3}
                         onChange={(e) => setSvgGradientHex3(e.target.value)}
                         spellCheck={false}
-                        aria-label="SVG gradient colour 3 hex"
+                        aria-label="SVG gradient color 3 hex"
                       />
                     </div>
                   </div>

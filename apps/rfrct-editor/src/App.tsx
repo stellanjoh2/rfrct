@@ -126,6 +126,10 @@ export function App() {
   const [viewportPx, setViewportPx] = useState({ w: 0, h: 0 });
 
   const [bgHex, setBgHex] = useState("#000000");
+  const [backdropImageUrl, setBackdropImageUrl] = useState<string | null>(null);
+  const [backdropImageFileName, setBackdropImageFileName] = useState<string | null>(
+    null,
+  );
   const [imageScale, setImageScale] = useState(1);
   const imageScaleRef = useRef(1);
   imageScaleRef.current = imageScale;
@@ -1230,6 +1234,8 @@ export function App() {
         vjPathScale,
         vjPathSpeed,
         youtubeEmbedActive,
+        transparentSceneDomUnderlay:
+          Boolean(backdropImageUrl) && !youtubeEmbedActive,
         vjGlassGradeMode,
         vjGlassNeonAHex,
         vjGlassNeonBHex,
@@ -1278,6 +1284,7 @@ export function App() {
     svgGradientAngleDeg,
     svgGradientScale,
     svgGradientPosition,
+    backdropImageUrl,
     micDrivingRefraction,
     micRefractBoost,
     vjMode,
@@ -1293,6 +1300,7 @@ export function App() {
     vjPathScale,
     vjPathSpeed,
     youtubeEmbedActive,
+    backdropImageUrl,
     vjGlassGradeMode,
     vjGlassNeonAHex,
     vjGlassNeonBHex,
@@ -1519,6 +1527,35 @@ export function App() {
       revokeSvgObjectUrlIfBlob(layer2SourceUrl);
     };
   }, [layer2SourceUrl]);
+
+  useEffect(() => {
+    return () => {
+      revokeSvgObjectUrlIfBlob(backdropImageUrl);
+    };
+  }, [backdropImageUrl]);
+
+  const onBackdropImageFile = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      setBackdropImageFileName(file.name);
+      const url = URL.createObjectURL(file);
+      setBackdropImageUrl((prev) => {
+        revokeSvgObjectUrlIfBlob(prev);
+        return url;
+      });
+      e.target.value = "";
+    },
+    [],
+  );
+
+  const removeBackdropImage = useCallback(() => {
+    setBackdropImageUrl((prev) => {
+      revokeSvgObjectUrlIfBlob(prev);
+      return null;
+    });
+    setBackdropImageFileName(null);
+  }, []);
 
   const onLayer2File = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -1797,6 +1834,10 @@ export function App() {
     }),
     [
       bgHex,
+      backdropImageUrl,
+      backdropImageFileName,
+      onBackdropImageFile,
+      removeBackdropImage,
       imageScale,
       imagePan,
       svgTintMode,
@@ -2033,7 +2074,7 @@ export function App() {
         setSettingsPasteDraft("");
         setFeatureHint("Settings applied.");
       } else {
-        setFeatureHint("Template applied — colours and effects only; logos unchanged.");
+        setFeatureHint("Template applied — colors and effects only; logos unchanged.");
       }
     },
     [],
@@ -2067,8 +2108,6 @@ export function App() {
   const sidebar = useMemo(
     () => ({
       appearance: {
-        bgHex,
-        setBgHex,
         imageScale,
         setImageScale,
         svgSourceUrl,
@@ -2090,7 +2129,14 @@ export function App() {
         setSvgGradientScale,
         svgGradientPosition,
         setSvgGradientPosition,
-        youtubeActive: youtubeEmbedActive,
+      },
+      backdrop: {
+        backdropHex: bgHex,
+        setBackdropHex: setBgHex,
+        backdropImageFileName,
+        onBackdropImageFile,
+        onRemoveBackdropImage: removeBackdropImage,
+        hasBackdropImage: Boolean(backdropImageUrl),
       },
       secondaryLayer: {
         canUseLayer: Boolean(imgDims),
@@ -2464,6 +2510,8 @@ export function App() {
     vjPathScale,
     vjPathSpeed,
     youtubeEmbedActive,
+    transparentSceneDomUnderlay:
+      Boolean(backdropImageUrl) && !youtubeEmbedActive,
     vjGlassGradeMode,
     vjGlassNeonAHex,
     vjGlassNeonBHex,
@@ -2489,7 +2537,15 @@ export function App() {
           className="viewport"
           ref={wrapRef}
           style={{
-            background: youtubeEmbedActive ? "transparent" : bgHex,
+            backgroundColor: youtubeEmbedActive ? "transparent" : bgHex,
+            ...(backdropImageUrl && !youtubeEmbedActive
+              ? {
+                  backgroundImage: `url("${backdropImageUrl}")`,
+                  backgroundSize: "cover",
+                  backgroundPosition: "center",
+                  backgroundRepeat: "no-repeat",
+                }
+              : {}),
             isolation: "isolate",
             ...(hueApplyScope === "viewport"
               ? {
@@ -2573,6 +2629,7 @@ export function App() {
           layer1FileName={layer1FileName}
           onRemoveLayer1={removeLayer1}
           appearance={sidebar.appearance}
+          backdrop={sidebar.backdrop}
           secondaryLayer={sidebar.secondaryLayer}
           lens={sidebar.lens}
           dupStack={sidebar.dupStack}

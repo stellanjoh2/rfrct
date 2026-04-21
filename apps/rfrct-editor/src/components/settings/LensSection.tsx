@@ -325,20 +325,20 @@ export function LensSection({
           />
         </div>
         <div className="field">
-          <label>Dirt colour</label>
+          <label>Dirt color</label>
           <div className="row">
             <input
               type="color"
               value={detailDirtHex}
               onChange={(e) => setDetailDirtHex(e.target.value)}
-              aria-label="Dirt multiply colour"
+              aria-label="Dirt multiply color"
             />
             <input
               type="text"
               value={detailDirtHex}
               onChange={(e) => setDetailDirtHex(e.target.value)}
               spellCheck={false}
-              aria-label="Dirt colour hex"
+              aria-label="Dirt color hex"
             />
           </div>
         </div>

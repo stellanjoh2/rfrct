@@ -162,7 +162,7 @@ body {
   opacity: 0;
 }
 
-/** Solid colour between YouTube (or page bg) and WebGL canvas (z-index stacking via DOM). */
+/** Solid color between YouTube (or page bg) and WebGL canvas (z-index stacking via DOM). */
 .viewport__solid-overlay {
   position: absolute;
   inset: 0;
@@ -581,6 +581,10 @@ label.file-btn:has(input[disabled]) {
   font-size: 11px;
   line-height: 1.45;
   color: var(--glass-muted);
+}
+
+.templates-section__hint {
+  margin-top: 8px;
 }
 
 .field-hint--error {
@@ -1083,6 +1087,11 @@ button.gif-export__path:disabled {
   color: var(--glass-text);
   font-size: 12px;
   opacity: 0.85;
+}
+
+.field label span.val.backdrop-active-indicator {
+  color: var(--brand);
+  opacity: 1;
 }
 
 .field input[type="range"] {

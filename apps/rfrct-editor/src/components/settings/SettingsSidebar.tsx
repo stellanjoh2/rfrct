@@ -1,5 +1,6 @@
 import { forwardRef, useEffect, useState } from "react";
 import { AppearanceSection } from "./AppearanceSection";
+import { BackdropSection } from "./BackdropSection";
 import { AudioSection } from "./AudioSection";
 import { DupStackSection } from "./DupStackSection";
 import { BloomSection } from "./BloomSection";
@@ -10,6 +11,7 @@ import { LensSection } from "./LensSection";
 import { MouseInputSection } from "./MouseInputSection";
 import { UploadBlock } from "./UploadBlock";
 import type { AppearanceSectionProps } from "./AppearanceSection";
+import type { BackdropSectionProps } from "./BackdropSection";
 import { SecondaryLayerSection } from "./SecondaryLayerSection";
 import type { SecondaryLayerSectionProps } from "./SecondaryLayerSection";
 import type { AudioSectionProps } from "./AudioSection";
@@ -31,6 +33,7 @@ export type SettingsSidebarProps = {
   layer1FileName: string | null;
   onRemoveLayer1: () => void;
   appearance: AppearanceSectionProps;
+  backdrop: BackdropSectionProps;
   secondaryLayer: SecondaryLayerSectionProps;
   lens: LensSectionProps;
   dupStack: DupStackSectionProps;
@@ -52,6 +55,7 @@ export const SettingsSidebar = forwardRef<HTMLElement, SettingsSidebarProps>(
       layer1FileName,
       onRemoveLayer1,
       appearance,
+      backdrop,
       secondaryLayer,
       lens,
       dupStack,
@@ -142,7 +146,9 @@ export const SettingsSidebar = forwardRef<HTMLElement, SettingsSidebarProps>(
           className="sidebar-tab-panel"
         >
           <TemplatesSection {...templates} />
-          <h2 title="Primary artwork upload, background, scale, and colour">
+          <BackdropSection {...backdrop} />
+          <VideoBackdropSection {...videoBackdrop} />
+          <h2 title="Primary artwork upload, scale, and color">
             Layer 1
           </h2>
           <UploadBlock
@@ -156,7 +162,6 @@ export const SettingsSidebar = forwardRef<HTMLElement, SettingsSidebarProps>(
           <BloomSection {...bloom} />
           <EffectsSection {...effects} />
           <DupStackSection {...dupStack} />
-          <VideoBackdropSection {...videoBackdrop} />
           <MouseInputSection {...mouseInput} />
           <ShareSettingsSection {...shareSettings} />
         </div>

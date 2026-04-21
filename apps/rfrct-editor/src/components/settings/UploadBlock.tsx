@@ -2,9 +2,17 @@ type UploadBlockProps = {
   onFile: (e: React.ChangeEvent<HTMLInputElement>) => void;
   fileName: string | null;
   onRemoveFile: () => void;
+  accept?: string;
+  uploadAriaLabel?: string;
 };
 
-export function UploadBlock({ onFile, fileName, onRemoveFile }: UploadBlockProps) {
+export function UploadBlock({
+  onFile,
+  fileName,
+  onRemoveFile,
+  accept = "image/*,.svg+xml",
+  uploadAriaLabel = "Upload raster or SVG image",
+}: UploadBlockProps) {
   const hasFile = Boolean(fileName);
   return (
     <div className="upload-block">
@@ -15,9 +23,9 @@ export function UploadBlock({ onFile, fileName, onRemoveFile }: UploadBlockProps
           </span>
           <input
             type="file"
-            accept="image/*,.svg+xml"
+            accept={accept}
             onChange={onFile}
-            aria-label="Upload raster or SVG image"
+            aria-label={uploadAriaLabel}
           />
         </label>
         {hasFile ? (

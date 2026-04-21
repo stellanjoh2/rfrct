@@ -13,14 +13,14 @@ export function TemplatesSection({ onApplyTemplate }: TemplatesSectionProps) {
 
   return (
     <>
-      <h2 title="Colour and effect presets — your Layer 1 and Layer 2 uploads are unchanged">
+      <h2 title="Color and effect presets — your Layer 1 and Layer 2 uploads are unchanged">
         Templates
       </h2>
       <section className="field">
-        <label htmlFor="design-template-select">Template</label>
         <select
           id="design-template-select"
           className="field-select"
+          aria-label="Template"
           value={value}
           onChange={(e) => {
             const id = e.target.value as DesignTemplateId | "";
@@ -38,8 +38,8 @@ export function TemplatesSection({ onApplyTemplate }: TemplatesSectionProps) {
             </option>
           ))}
         </select>
-        <p className="field-hint">
-          Colours, lens, bloom, effects, backdrop, and VJ options only — not your logos
+        <p className="field-hint templates-section__hint">
+          Colors, lens, bloom, effects, backdrop, and VJ options only — not your logos
           or images.
         </p>
       </section>

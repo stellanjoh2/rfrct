@@ -354,7 +354,7 @@ export function AudioSection({
                     value={vjGlassNeonAHex}
                     onChange={(e) => setVjGlassNeonAHex(e.target.value)}
                     disabled={!vjControlsEnabled}
-                    aria-label="Neon bright colour"
+                    aria-label="Neon bright color"
                   />
                   <input
                     type="text"
@@ -383,7 +383,7 @@ export function AudioSection({
                     value={vjGlassNeonBHex}
                     onChange={(e) => setVjGlassNeonBHex(e.target.value)}
                     disabled={!vjControlsEnabled}
-                    aria-label="Neon shadow colour"
+                    aria-label="Neon shadow color"
                   />
                   <input
                     type="text"
