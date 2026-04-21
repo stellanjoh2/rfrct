@@ -71,6 +71,7 @@ import {
   type RfrctEditorSettingsSnapshotV1,
   type VjLayer2AutomationMode,
 } from "./settingsSnapshot";
+import { DEFAULT_STARTUP_SETTINGS_V1 as D } from "./defaultStartupSettings";
 import { DESIGN_TEMPLATES, type DesignTemplateId } from "./designTemplates";
 import { recordAnimatedGif } from "./export/recordAnimatedGif";
 import { saveGifBlob } from "./export/saveGifBlob";
@@ -113,7 +114,6 @@ export function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<RfrctRenderer | null>(null);
-  const startupLogoClampDoneRef = useRef(false);
 
   const [imgDims, setImgDims] = useState<{ w: number; h: number } | null>(null);
   const [layer1FileName, setLayer1FileName] = useState<string | null>(null);
@@ -122,17 +122,23 @@ export function App() {
   );
   const [svgTintMode, setSvgTintMode] = useState<
     "original" | "multiply" | "replace" | "gradient"
-  >("replace");
-  const [svgTintHex, setSvgTintHex] = useState("#beee98");
+  >(D.svgTintMode);
+  const [svgTintHex, setSvgTintHex] = useState(D.svgTintHex);
   const [svgGradientBlend, setSvgGradientBlend] = useState<
     "multiply" | "replace"
-  >("replace");
-  const [svgGradientHex2, setSvgGradientHex2] = useState("#000000");
-  const [svgGradientHex3, setSvgGradientHex3] = useState("#ffffff");
-  const [svgGradientThreeStops, setSvgGradientThreeStops] = useState(false);
-  const [svgGradientAngleDeg, setSvgGradientAngleDeg] = useState(90);
-  const [svgGradientScale, setSvgGradientScale] = useState(1);
-  const [svgGradientPosition, setSvgGradientPosition] = useState(0);
+  >(D.svgGradientBlend);
+  const [svgGradientHex2, setSvgGradientHex2] = useState(D.svgGradientHex2);
+  const [svgGradientHex3, setSvgGradientHex3] = useState(D.svgGradientHex3);
+  const [svgGradientThreeStops, setSvgGradientThreeStops] = useState(
+    D.svgGradientThreeStops,
+  );
+  const [svgGradientAngleDeg, setSvgGradientAngleDeg] = useState(
+    D.svgGradientAngleDeg,
+  );
+  const [svgGradientScale, setSvgGradientScale] = useState(D.svgGradientScale);
+  const [svgGradientPosition, setSvgGradientPosition] = useState(
+    D.svgGradientPosition,
+  );
   const [viewportPx, setViewportPx] = useState({ w: 0, h: 0 });
 
   // Keep the default startup logo tinted to the current CSS brand token.
@@ -144,38 +150,17 @@ export function App() {
     setSvgTintHex(brand);
   }, [svgSourceUrl]);
 
-  const [bgHex, setBgHex] = useState("#252525");
+  const [bgHex, setBgHex] = useState(D.bgHex);
   const [backdropImageUrl, setBackdropImageUrl] = useState<string | null>(null);
   const [backdropImageFileName, setBackdropImageFileName] = useState<string | null>(
     null,
   );
-  const [imageScale, setImageScale] = useState(1);
-  const imageScaleRef = useRef(1);
+  const [imageScale, setImageScale] = useState(D.imageScale);
+  const imageScaleRef = useRef(D.imageScale);
   imageScaleRef.current = imageScale;
 
-  // Startup only: clamp default logo so it doesn't exceed 66% of viewport width.
-  // Users can still zoom freely after startup.
-  useEffect(() => {
-    if (startupLogoClampDoneRef.current) return;
-    if (svgSourceUrl !== TEMPLATE_LOGO_SVG_URL) return;
-    if (!imgDims) return;
-    if (viewportPx.w <= 0 || viewportPx.h <= 0) return;
-
-    const baseContainW = Math.min(
-      viewportPx.w,
-      viewportPx.h * (imgDims.w / Math.max(1e-6, imgDims.h)),
-    );
-    const maxW = viewportPx.w * 0.66;
-    const maxScale = maxW / Math.max(1e-6, baseContainW);
-
-    if (imageScale > maxScale) {
-      setImageScale(maxScale);
-    }
-    startupLogoClampDoneRef.current = true;
-  }, [svgSourceUrl, imgDims, viewportPx.w, viewportPx.h, imageScale]);
-
   /** Target resolution for SVG texture; debounced from imageScale so wheel-zoom stays smooth. */
-  const [svgRasterScale, setSvgRasterScale] = useState(1);
+  const [svgRasterScale, setSvgRasterScale] = useState(D.imageScale);
   useEffect(() => {
     const t = window.setTimeout(() => {
       setSvgRasterScale(imageScale);
@@ -183,41 +168,52 @@ export function App() {
     return () => clearTimeout(t);
   }, [imageScale]);
 
-  const [imagePan, setImagePan] = useState({ x: 0, y: 0 });
-  const imagePanRef = useRef(imagePan);
+  const [imagePan, setImagePan] = useState(D.imagePan);
+  const imagePanRef = useRef(D.imagePan);
   imagePanRef.current = imagePan;
-  const [blobSize, setBlobSize] = useState(0.22);
-  const [blobSpeed, setBlobSpeed] = useState(1);
-  const [pauseAnimation, setPauseAnimation] = useState(false);
-  const [waveFreq, setWaveFreq] = useState(5);
-  const [waveAmp, setWaveAmp] = useState(0.16);
-  const [refract, setRefract] = useState(0.12);
-  const [edgeSoft, setEdgeSoft] = useState(0.012);
-  const [frostBlur, setFrostBlur] = useState(0);
-  const [blurQuality, setBlurQuality] = useState(1);
-  const [globalHueShift, setGlobalHueShift] = useState(0);
-  const [hueApplyScope, setHueApplyScope] = useState<HueApplyScope>("scene");
-  const [grainStrength, setGrainStrength] = useState(0);
-  const [chroma, setChroma] = useState(0);
-  const [bloomStrength, setBloomStrength] = useState(0);
-  const [bloomRadius, setBloomRadius] = useState(0.2);
-  const [bloomThreshold, setBloomThreshold] = useState(0.88);
-  const [shapeMode, setShapeMode] = useState<ShapeMode>(0);
-  const [filterMode, setFilterMode] = useState<FilterMode>(0);
-  const [filterStrength, setFilterStrength] = useState(0);
-  const [filterScale, setFilterScale] = useState(0.5);
-  const [filterMotionSpeed, setFilterMotionSpeed] = useState(1);
-  const [detailDistortionStrength, setDetailDistortionStrength] =
-    useState(0);
-  const [detailDistortionScale, setDetailDistortionScale] = useState(3.2);
-  const [detailDirtStrength, setDetailDirtStrength] = useState(0);
-  const [detailDirtHex, setDetailDirtHex] = useState("#665648");
+  const [blobSize, setBlobSize] = useState(D.blobSize);
+  const [blobSpeed, setBlobSpeed] = useState(D.blobSpeed);
+  const [pauseAnimation, setPauseAnimation] = useState(D.pauseAnimation);
+  const [waveFreq, setWaveFreq] = useState(D.waveFreq);
+  const [waveAmp, setWaveAmp] = useState(D.waveAmp);
+  const [refract, setRefract] = useState(D.refract);
+  const [edgeSoft, setEdgeSoft] = useState(D.edgeSoft);
+  const [frostBlur, setFrostBlur] = useState(D.frostBlur);
+  const [blurQuality, setBlurQuality] = useState(
+    Math.round(Math.min(5, Math.max(1, D.blurQuality))),
+  );
+  const [globalHueShift, setGlobalHueShift] = useState(D.globalHueShift);
+  const [hueApplyScope, setHueApplyScope] = useState<HueApplyScope>(
+    D.hueApplyScope,
+  );
+  const [grainStrength, setGrainStrength] = useState(D.grainStrength);
+  const [chroma, setChroma] = useState(D.chroma);
+  const [bloomStrength, setBloomStrength] = useState(D.bloomStrength);
+  const [bloomRadius, setBloomRadius] = useState(D.bloomRadius);
+  const [bloomThreshold, setBloomThreshold] = useState(D.bloomThreshold);
+  const [shapeMode, setShapeMode] = useState<ShapeMode>(D.shapeMode);
+  const [filterMode, setFilterMode] = useState<FilterMode>(D.filterMode);
+  const [filterStrength, setFilterStrength] = useState(D.filterStrength);
+  const [filterScale, setFilterScale] = useState(D.filterScale);
+  const [filterMotionSpeed, setFilterMotionSpeed] = useState(
+    D.filterMotionSpeed,
+  );
+  const [detailDistortionStrength, setDetailDistortionStrength] = useState(
+    D.detailDistortionStrength,
+  );
+  const [detailDistortionScale, setDetailDistortionScale] = useState(
+    D.detailDistortionScale,
+  );
+  const [detailDirtStrength, setDetailDirtStrength] = useState(
+    D.detailDirtStrength,
+  );
+  const [detailDirtHex, setDetailDirtHex] = useState(D.detailDirtHex);
   const detailDistortionEnabled = detailDistortionStrength > 1e-4;
-  const [lensMouseInput, setLensMouseInput] = useState(false);
+  const [lensMouseInput, setLensMouseInput] = useState(D.lensMouseInput);
   /** 0 = light / snappy follow, 1 = heavy / sluggish liquid. */
-  const [fluidDensity, setFluidDensity] = useState(0.45);
+  const [fluidDensity, setFluidDensity] = useState(D.fluidDensity);
 
-  const blobCenterRef = useRef({ x: 0.5, y: 0.5 });
+  const blobCenterRef = useRef({ ...D.blobCenter });
   const dragModeRef = useRef<"none" | "pan" | "fx">("none");
   const lastPointerRef = useRef({ x: 0, y: 0 });
   const [pointerDrag, setPointerDrag] = useState<"pan" | "fx" | null>(null);
@@ -228,16 +224,24 @@ export function App() {
   const [fpsHudValue, setFpsHudValue] = useState(0);
   const [webglError, setWebglError] = useState<string | null>(null);
 
-  const [exportTransparent, setExportTransparent] = useState(false);
-  const [exportRegion, setExportRegion] = useState<"full" | "image">("full");
+  const [exportTransparent, setExportTransparent] = useState(
+    D.exportTransparent,
+  );
+  const [exportRegion, setExportRegion] = useState<"full" | "image">(
+    D.exportRegion,
+  );
 
-  const [gifFps, setGifFps] = useState(24);
-  const [gifMaxWidthEnabled, setGifMaxWidthEnabled] = useState(true);
-  const [gifMaxWidth, setGifMaxWidth] = useState(600);
-  const [gifMaxColors, setGifMaxColors] = useState<128 | 256>(256);
-  const [gifDurationSec, setGifDurationSec] = useState(6);
-  const [gifPixelArtResize, setGifPixelArtResize] = useState(false);
-  const [gifInfiniteLoop, setGifInfiniteLoop] = useState(true);
+  const [gifFps, setGifFps] = useState(D.gifFps);
+  const [gifMaxWidthEnabled, setGifMaxWidthEnabled] = useState(
+    D.gifMaxWidthEnabled,
+  );
+  const [gifMaxWidth, setGifMaxWidth] = useState(D.gifMaxWidth);
+  const [gifMaxColors, setGifMaxColors] = useState<128 | 256>(D.gifMaxColors);
+  const [gifDurationSec, setGifDurationSec] = useState(D.gifDurationSec);
+  const [gifPixelArtResize, setGifPixelArtResize] = useState(
+    D.gifPixelArtResize,
+  );
+  const [gifInfiniteLoop, setGifInfiniteLoop] = useState(D.gifInfiniteLoop);
   const [gifRecording, setGifRecording] = useState(false);
   const [gifRecordProgress, setGifRecordProgress] = useState<{
     current: number;
@@ -246,17 +250,25 @@ export function App() {
   const gifAbortRef = useRef<AbortController | null>(null);
   const gifExportBusyRef = useRef(false);
 
-  const [youtubeVideoId, setYoutubeVideoId] = useState<string | null>(null);
-  const [youtubeUrlDraft, setYoutubeUrlDraft] = useState("");
+  const [youtubeVideoId, setYoutubeVideoId] = useState<string | null>(
+    D.youtubeVideoId,
+  );
+  const [youtubeUrlDraft, setYoutubeUrlDraft] = useState(D.youtubeUrlDraft);
   const [youtubeError, setYoutubeError] = useState<string | null>(null);
   const [canvasBackdropBlend, setCanvasBackdropBlend] =
-    useState<BackdropBlendMode>("normal");
-  const [solidOverlayHex, setSolidOverlayHex] = useState("#000000");
-  const [solidOverlayOpacity, setSolidOverlayOpacity] = useState(0);
+    useState<BackdropBlendMode>(D.canvasBackdropBlend);
+  const [solidOverlayHex, setSolidOverlayHex] = useState(D.solidOverlayHex);
+  const [solidOverlayOpacity, setSolidOverlayOpacity] = useState(
+    D.solidOverlayOpacity,
+  );
   const [solidOverlayBlend, setSolidOverlayBlend] =
-    useState<BackdropBlendMode>("normal");
-  const [solidOverlayVjHueShift, setSolidOverlayVjHueShift] = useState(false);
-  const [solidOverlayHueAudio, setSolidOverlayHueAudio] = useState(true);
+    useState<BackdropBlendMode>(D.solidOverlayBlend);
+  const [solidOverlayVjHueShift, setSolidOverlayVjHueShift] = useState(
+    D.solidOverlayVjHueShift,
+  );
+  const [solidOverlayHueAudio, setSolidOverlayHueAudio] = useState(
+    D.solidOverlayHueAudio,
+  );
   const solidOverlayRef = useRef<HTMLDivElement>(null);
   const youtubeEmbedActive = youtubeVideoId !== null;
   const youtubeEmbedSrc = useMemo(
@@ -271,6 +283,27 @@ export function App() {
   );
 
   const youtubeIframeRef = useRef<HTMLIFrameElement>(null);
+
+  /**
+   * Fade-in for the default template logo (1s opacity ramp).
+   * No “run once” ref — React Strict Mode would cancel the first rAF and skip rescheduling.
+   */
+  const [viewportStartupDim, setViewportStartupDim] = useState(true);
+  useEffect(() => {
+    if (svgSourceUrl !== TEMPLATE_LOGO_SVG_URL) {
+      setViewportStartupDim(false);
+      return;
+    }
+    const id = requestAnimationFrame(() => setViewportStartupDim(false));
+    return () => cancelAnimationFrame(id);
+  }, [svgSourceUrl]);
+
+  /** Settings panel: same landing fade as the canvas (independent of template logo). */
+  const [sidebarStartupDim, setSidebarStartupDim] = useState(true);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setSidebarStartupDim(false));
+    return () => cancelAnimationFrame(id);
+  }, []);
 
   /** Embed is mute=1; re-send mute on load and on an interval so audio never stays on. */
   useEffect(() => {
@@ -293,64 +326,83 @@ export function App() {
 
   const [micDrivingRefraction, setMicDrivingRefraction] = useState(false);
   const [audioInputMode, setAudioInputMode] =
-    useState<AudioInputMode>("mic");
-  const [micRefractBoost, setMicRefractBoost] = useState(0.65);
-  const [vjMode, setVjMode] = useState(false);
-  const [vjDupVertical, setVjDupVertical] = useState(false);
+    useState<AudioInputMode>(D.audioInputMode);
+  const [micRefractBoost, setMicRefractBoost] = useState(D.micRefractBoost);
+  const [vjMode, setVjMode] = useState(D.vjMode);
+  const [vjDupVertical, setVjDupVertical] = useState(D.vjDupVertical);
   /** Extra vertical space between dup rows (fraction of viewport height, 0 = touching). */
-  const [vjDupGap, setVjDupGap] = useState(0);
+  const [vjDupGap, setVjDupGap] = useState(D.vjDupGap);
   /** Horizontal stair step per row phase (cycles every 8 rows). */
-  const [vjDupHorizStep, setVjDupHorizStep] = useState(0.03);
+  const [vjDupHorizStep, setVjDupHorizStep] = useState(D.vjDupHorizStep);
   /** Duplicate (stack) vertical scroll (UV y / sec); independent of blob animation speed. */
-  const [vjDupScrollSpeed, setVjDupScrollSpeed] = useState(0.11);
+  const [vjDupScrollSpeed, setVjDupScrollSpeed] = useState(D.vjDupScrollSpeed);
   /** VJ: loudness-driven dup scroll bursts (Design → Duplicate stack). */
-  const [vjDupSpeedShift, setVjDupSpeedShift] = useState(false);
+  const [vjDupSpeedShift, setVjDupSpeedShift] = useState(D.vjDupSpeedShift);
   /** VJ: randomize duplicate horizontal stair spacing while audio is on. */
-  const [vjDupRandomHoriz, setVjDupRandomHoriz] = useState(false);
+  const [vjDupRandomHoriz, setVjDupRandomHoriz] = useState(D.vjDupRandomHoriz);
   /** VJ: random duplicate-row blinking. */
-  const [vjDupRandomBlink, setVjDupRandomBlink] = useState(false);
+  const [vjDupRandomBlink, setVjDupRandomBlink] = useState(D.vjDupRandomBlink);
   /** Blink steps per second for random duplicate-row blinking. */
-  const [vjDupRandomBlinkSpeed, setVjDupRandomBlinkSpeed] = useState(4);
+  const [vjDupRandomBlinkSpeed, setVjDupRandomBlinkSpeed] = useState(
+    D.vjDupRandomBlinkSpeed,
+  );
   /** 0–1 — how strongly audio drives random duplicate blinking. */
   const [vjDupRandomBlinkSensitivity, setVjDupRandomBlinkSensitivity] =
-    useState(0.65);
+    useState(D.vjDupRandomBlinkSensitivity);
   /** VJ Extras: high-frequency–gated fullscreen difference invert bursts. */
-  const [vjInvertStrobe, setVjInvertStrobe] = useState(false);
+  const [vjInvertStrobe, setVjInvertStrobe] = useState(D.vjInvertStrobe);
   /** 0–1 — how often invert strobe may fire (trigger odds + cooldown between bursts). */
-  const [vjInvertStrobeAmount, setVjInvertStrobeAmount] = useState(0.5);
+  const [vjInvertStrobeAmount, setVjInvertStrobeAmount] = useState(
+    D.vjInvertStrobeAmount,
+  );
   /** VJ: black out YouTube backdrop on bass hits; clears on the next strong hit after ~1 s. */
-  const [vjYoutubeBeatBlackout, setVjYoutubeBeatBlackout] = useState(false);
+  const [vjYoutubeBeatBlackout, setVjYoutubeBeatBlackout] = useState(
+    D.vjYoutubeBeatBlackout,
+  );
   /** 0–1 — lower spectral floor for bass “beats” (still FFT-driven). */
   const [vjYoutubeBeatBlackoutSensitivity, setVjYoutubeBeatBlackoutSensitivity] =
-    useState(0);
+    useState(D.vjYoutubeBeatBlackoutSensitivity);
   /** VJ: secondary layer — at most one automation mode (mutually exclusive in UI). */
   const [vjLayer2AutomationMode, setVjLayer2AutomationMode] =
-    useState<VjLayer2AutomationMode>("off");
+    useState<VjLayer2AutomationMode>(
+      vjLayer2ModeFromLegacyBools(
+        D.vjLayer2RandomBlink,
+        D.vjLayer2BlinkInverse,
+        D.vjLayer2RandomScale,
+        D.vjLayer2RandomBurst,
+      ),
+    );
   /** Random burst only: ramp Layer 2 scale during each burst window, reset when it ends. */
-  const [vjLayer2StrobeScale, setVjLayer2StrobeScale] = useState(false);
+  const [vjLayer2StrobeScale, setVjLayer2StrobeScale] = useState(
+    D.vjLayer2StrobeScale,
+  );
   /** Layer 2 VJ: intermittently flash Pixels random filter at full size/strength. */
-  const [vjLayer2PixelGlitch, setVjLayer2PixelGlitch] = useState(false);
+  const [vjLayer2PixelGlitch, setVjLayer2PixelGlitch] = useState(
+    D.vjLayer2PixelGlitch,
+  );
   const [vjLayer3AutomationMode, setVjLayer3AutomationMode] =
     useState<VjLayer2AutomationMode>("off");
   const [vjLayer3StrobeScale, setVjLayer3StrobeScale] = useState(false);
   const [vjLayer3PixelGlitch, setVjLayer3PixelGlitch] = useState(false);
   /** VJ mode: squircle orbit radius multiplier (larger = lens travels closer to frame edges). */
-  const [vjPathScale, setVjPathScale] = useState(1);
-  const [vjPathSpeed, setVjPathSpeed] = useState(DEFAULT_VJ_PATH_SPEED);
+  const [vjPathScale, setVjPathScale] = useState(D.vjPathScale);
+  const [vjPathSpeed, setVjPathSpeed] = useState(D.vjPathSpeed);
   const [vjGlassGradeMode, setVjGlassGradeMode] = useState<
     "off" | "tint" | "duotone"
-  >("off");
-  const [vjGlassNeonAHex, setVjGlassNeonAHex] = useState("#ff00ee");
-  const [vjGlassNeonBHex, setVjGlassNeonBHex] = useState("#1a0055");
-  const [vjGlassGradeIntensity, setVjGlassGradeIntensity] = useState(0);
+  >(D.vjGlassGradeMode);
+  const [vjGlassNeonAHex, setVjGlassNeonAHex] = useState(D.vjGlassNeonAHex);
+  const [vjGlassNeonBHex, setVjGlassNeonBHex] = useState(D.vjGlassNeonBHex);
+  const [vjGlassGradeIntensity, setVjGlassGradeIntensity] = useState(
+    D.vjGlassGradeIntensity,
+  );
   const [micError, setMicError] = useState<string | null>(null);
   const [featureHint, setFeatureHint] = useState<string | null>(null);
   /** JSON buffer for Share settings — literal paste (Cmd/Ctrl+V) into the textarea. */
   const [settingsPasteDraft, setSettingsPasteDraft] = useState("");
   const micAnalyzerRef = useRef<MicAnalyzer | null>(null);
   const micEnvelopeRef = useRef(0);
-  const mouseLensTargetRef = useRef({ x: 0.5, y: 0.5 });
-  const mouseFluidPosRef = useRef({ x: 0.5, y: 0.5 });
+  const mouseLensTargetRef = useRef({ ...D.blobCenter });
+  const mouseFluidPosRef = useRef({ ...D.blobCenter });
   const mouseFluidVelRef = useRef({ x: 0, y: 0 });
   const micLoopPrevTRef = useRef(performance.now());
   const vjDupSpeedShiftStateRef = useRef(createVjDupSpeedShiftState());
@@ -393,10 +445,10 @@ export function App() {
   const [layer2ImgDims, setLayer2ImgDims] = useState<{ w: number; h: number } | null>(
     null,
   );
-  const [layer2Scale, setLayer2Scale] = useState(0.55);
-  const layer2ScaleRef = useRef(0.55);
+  const [layer2Scale, setLayer2Scale] = useState(D.layer2Scale);
+  const layer2ScaleRef = useRef(D.layer2Scale);
   layer2ScaleRef.current = layer2Scale;
-  const [layer2RasterScale, setLayer2RasterScale] = useState(0.55);
+  const [layer2RasterScale, setLayer2RasterScale] = useState(D.layer2Scale);
   useEffect(() => {
     const t = window.setTimeout(() => {
       setLayer2RasterScale(layer2Scale);
@@ -404,12 +456,16 @@ export function App() {
     return () => clearTimeout(t);
   }, [layer2Scale]);
   const [layer2TintMode, setLayer2TintMode] =
-    useState<SecondaryLayerTintMode>("original");
-  const [layer2TintHex, setLayer2TintHex] = useState("#ffffff");
+    useState<SecondaryLayerTintMode>(D.layer2TintMode);
+  const [layer2TintHex, setLayer2TintHex] = useState(D.layer2TintHex);
   const [layer2BlendMode, setLayer2BlendMode] =
-    useState<SecondaryLayerBlendMode>("normal");
-  const [layer2FollowDistort, setLayer2FollowDistort] = useState(true);
-  const [layer2BaseOpacity, setLayer2BaseOpacity] = useState(1);
+    useState<SecondaryLayerBlendMode>(D.layer2BlendMode);
+  const [layer2FollowDistort, setLayer2FollowDistort] = useState(
+    D.layer2FollowDistort,
+  );
+  const [layer2BaseOpacity, setLayer2BaseOpacity] = useState(
+    D.layer2BaseOpacity,
+  );
   const vjLayer2AutomationModeRef = useRef<VjLayer2AutomationMode>("off");
   vjLayer2AutomationModeRef.current = vjLayer2AutomationMode;
   const vjLayer2StrobeScaleRef = useRef(false);
@@ -2725,7 +2781,7 @@ export function App() {
       )}
       <div className="main">
         <div
-          className="viewport"
+          className={`viewport${viewportStartupDim ? " viewport--startup-dim" : ""}`}
           ref={wrapRef}
           style={{
             backgroundColor: youtubeEmbedActive ? "transparent" : bgHex,
@@ -2815,6 +2871,7 @@ export function App() {
 
         <SettingsSidebar
           ref={settingsSidebarRef}
+          className={sidebarStartupDim ? "glass-sidebar--startup-dim" : undefined}
           uiVisible={uiVisible}
           onFile={onFile}
           layer1FileName={layer1FileName}

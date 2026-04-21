@@ -30,6 +30,8 @@ import { TemplatesSection } from "./TemplatesSection";
 import type { TemplatesSectionProps } from "./TemplatesSection";
 
 export type SettingsSidebarProps = {
+  /** Extra class names on the root aside (e.g. startup fade). */
+  className?: string;
   uiVisible: boolean;
   onFile: (e: React.ChangeEvent<HTMLInputElement>) => void;
   layer1FileName: string | null;
@@ -53,6 +55,7 @@ export type SettingsSidebarProps = {
 export const SettingsSidebar = forwardRef<HTMLElement, SettingsSidebarProps>(
   function SettingsSidebar(
     {
+      className,
       uiVisible,
       onFile,
       layer1FileName,
@@ -96,7 +99,14 @@ export const SettingsSidebar = forwardRef<HTMLElement, SettingsSidebarProps>(
   return (
     <aside
       ref={ref}
-      className={`glass-sidebar panel ${uiVisible ? "" : "glass-sidebar--hidden"}`}
+      className={[
+        "glass-sidebar",
+        "panel",
+        uiVisible ? "" : "glass-sidebar--hidden",
+        className ?? "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
       aria-hidden={!uiVisible}
       aria-label="Settings"
       onPointerDownCapture={(e) => {

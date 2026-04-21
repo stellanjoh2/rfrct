@@ -153,6 +153,12 @@ body {
   background: #fff;
   /* Avoid 1px gaps at edges when layout uses fractional pixels during pan/zoom. */
   overflow: hidden;
+  transition: opacity 1s ease;
+}
+
+/** Default template logo: brief opacity ramp on first paint (see App.tsx). */
+.viewport--startup-dim {
+  opacity: 0;
 }
 
 /**
@@ -280,7 +286,13 @@ body {
 
   transition:
     transform var(--ui-duration-slow) var(--ui-ease),
-    opacity var(--ui-duration-slow) var(--ui-ease);
+    opacity 1s var(--ui-ease);
+}
+
+/** Initial page load — fades in with canvas (see App.tsx); pointer-events off while invisible */
+.glass-sidebar--startup-dim {
+  opacity: 0;
+  pointer-events: none;
 }
 
 /* Firefox only: brand-colored scrollbar. Omit on Chromium so ::-webkit-scrollbar
