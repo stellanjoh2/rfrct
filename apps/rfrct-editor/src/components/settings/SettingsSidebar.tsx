@@ -29,6 +29,8 @@ import type { VideoBackdropSectionProps } from "./VideoBackdropSection";
 import { TemplatesSection } from "./TemplatesSection";
 import type { TemplatesSectionProps } from "./TemplatesSection";
 
+const SIDEBAR_BRAND_LOGO_URL = `${import.meta.env.BASE_URL}rfrct-logo.svg`;
+
 export type SettingsSidebarProps = {
   uiVisible: boolean;
   onFile: (e: React.ChangeEvent<HTMLInputElement>) => void;
@@ -106,7 +108,16 @@ export const SettingsSidebar = forwardRef<HTMLElement, SettingsSidebarProps>(
         }
       }}
     >
-      <p className="sidebar-brand">Refrct</p>
+      <div className="sidebar-brand" aria-label="Refrct">
+        <span
+          className="sidebar-brand-logo"
+          aria-hidden
+          style={{
+            WebkitMaskImage: `url("${SIDEBAR_BRAND_LOGO_URL}")`,
+            maskImage: `url("${SIDEBAR_BRAND_LOGO_URL}")`,
+          }}
+        />
+      </div>
       <div className="sidebar-tabs" role="tablist" aria-label="Editor modes">
         <button
           type="button"

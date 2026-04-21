@@ -125,7 +125,7 @@ export function App() {
   const [svgGradientPosition, setSvgGradientPosition] = useState(0);
   const [viewportPx, setViewportPx] = useState({ w: 0, h: 0 });
 
-  const [bgHex, setBgHex] = useState("#000000");
+  const [bgHex, setBgHex] = useState("#252525");
   const [backdropImageUrl, setBackdropImageUrl] = useState<string | null>(null);
   const [backdropImageFileName, setBackdropImageFileName] = useState<string | null>(
     null,

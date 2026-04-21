@@ -301,7 +301,7 @@ export function parseSettingsSnapshot(
   const data: RfrctEditorSettingsSnapshotV1 = {
     schema: SETTINGS_SNAPSHOT_SCHEMA,
     version: SETTINGS_SNAPSHOT_VERSION,
-    bgHex: str(p.bgHex, "#000000"),
+    bgHex: str(p.bgHex, "#252525"),
     imageScale: num(p.imageScale, 1),
     imagePan: pan,
     svgTintMode: stm,

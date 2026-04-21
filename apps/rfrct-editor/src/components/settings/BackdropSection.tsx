@@ -1,3 +1,8 @@
+import type { Dispatch, SetStateAction } from "react";
+import {
+  BACKDROP_BLEND_OPTIONS,
+  type BackdropBlendMode,
+} from "../../videoBackdrop";
 import { UploadBlock } from "./UploadBlock";
 
 export type BackdropSectionProps = {
@@ -7,6 +12,8 @@ export type BackdropSectionProps = {
   onBackdropImageFile: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onRemoveBackdropImage: () => void;
   hasBackdropImage: boolean;
+  canvasBackdropBlend: BackdropBlendMode;
+  setCanvasBackdropBlend: Dispatch<SetStateAction<BackdropBlendMode>>;
 };
 
 export function BackdropSection({
@@ -16,6 +23,8 @@ export function BackdropSection({
   onBackdropImageFile,
   onRemoveBackdropImage,
   hasBackdropImage,
+  canvasBackdropBlend,
+  setCanvasBackdropBlend,
 }: BackdropSectionProps) {
   return (
     <>
@@ -59,6 +68,24 @@ export function BackdropSection({
           accept="image/*"
           uploadAriaLabel="Upload backdrop image"
         />
+        <div className="field">
+          <label htmlFor="canvas-backdrop-blend">Blend on background</label>
+          <select
+            id="canvas-backdrop-blend"
+            className="field-select"
+            value={canvasBackdropBlend}
+            onChange={(e) =>
+              setCanvasBackdropBlend(e.target.value as BackdropBlendMode)
+            }
+            aria-label="Canvas blend mode over background"
+          >
+            {BACKDROP_BLEND_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </div>
       </section>
     </>
   );

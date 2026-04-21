@@ -1,14 +1,14 @@
 :root {
   /**
-   * Brand — primary neon yellow. Master token for UI chrome, accents, and
-   * future brand surfaces. Use `var(--brand)` / `rgba(var(--brand-rgb), a)`.
+   * Brand — master token for UI chrome, accents, and future brand surfaces.
+   * Use `var(--brand)` / `rgba(var(--brand-rgb), a)`.
    * `--accent` is kept as an alias for older rules.
    */
-  --brand: #e6ff00;
-  --brand-rgb: 230, 255, 0;
+  --brand: #beee98;
+  --brand-rgb: 190, 238, 152;
   --accent: var(--brand);
 
-  --glass-bg: rgba(18, 20, 32, 0.52);
+  --glass-bg: rgba(37, 37, 37, 0.72);
   --glass-border: rgba(255, 255, 255, 0.14);
   --glass-highlight: rgba(255, 255, 255, 0.22);
   --glass-text: rgba(255, 255, 255, 0.94);
@@ -37,7 +37,7 @@ body {
   font-family: "Space Mono", ui-monospace, monospace;
   font-size: 14px;
   color: var(--glass-text);
-  background: #0a0a12;
+  background: #252525;
 }
 
 .app {
@@ -305,11 +305,22 @@ body {
 }
 
 .sidebar-brand {
-  font-size: 19px;
-  font-weight: 700;
-  letter-spacing: -0.03em;
-  margin: 0 0 12px;
-  color: var(--glass-text);
+  display: flex;
+  align-items: center;
+  margin: 0 0 24px;
+}
+
+.sidebar-brand-logo {
+  display: block;
+  width: 147px;
+  height: 35px;
+  background: var(--brand);
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: left center;
+  mask-position: left center;
+  -webkit-mask-size: contain;
+  mask-size: contain;
 }
 
 .sidebar-tabs {
@@ -359,7 +370,8 @@ body {
 .sidebar-tab--active {
   border-color: rgba(var(--brand-rgb), 0.56);
   background: rgba(var(--brand-rgb), 0.15);
-  color: #0a0a12;
+  color: var(--brand);
+  text-shadow: 0 0 14px rgba(var(--brand-rgb), 0.28);
 }
 
 .sidebar-tab-panel {
