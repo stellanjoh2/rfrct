@@ -95,7 +95,7 @@ export function VideoBackdropSection({
           />
         </div>
         <div className="field">
-          <label htmlFor="solid-overlay-blend">Overlay blend</label>
+          <label htmlFor="solid-overlay-blend">Blend mode</label>
           <select
             id="solid-overlay-blend"
             className="field-select"

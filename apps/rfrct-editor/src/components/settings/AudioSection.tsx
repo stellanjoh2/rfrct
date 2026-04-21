@@ -275,13 +275,12 @@ export function AudioSection({
             </button>
           </ClickBlockedHint>
         </div>
-        <h3 className="settings-subhead">Path</h3>
         <div className="field">
           <label
             title="Radius of the lens squircle orbit (1 = default). Larger values keep the same smooth path; the lens can move off-screen and back (no sliding along the frame edges)."
             htmlFor="vj-path-scale"
           >
-            Path scale
+            Scale
             <span className="val">{vjPathScale.toFixed(2)}×</span>
           </label>
           <ClickBlockedHint
@@ -308,7 +307,7 @@ export function AudioSection({
             title="How fast the lens travels the squircle path (full loops per second). 0 = hold start position. Separate from Lens “Animation speed” (blob ripple)."
             htmlFor="vj-path-speed"
           >
-            Path speed
+            Speed
             <span className="val">
               {vjPathSpeed < 1e-4
                 ? "paused"
@@ -334,9 +333,10 @@ export function AudioSection({
             />
           </ClickBlockedHint>
         </div>
-        <h3 className="settings-subhead">Neon</h3>
+        <h3 id="vj-neon-heading" className="settings-subhead">
+          Neon
+        </h3>
         <div className="field">
-          <label htmlFor="vj-glass-grade-mode">Glass neon</label>
           <ClickBlockedHint
             blocked={!vjControlsEnabled}
             hint={HINT_NEED_VJ_CHAIN}
@@ -353,7 +353,7 @@ export function AudioSection({
                 )
               }
               disabled={!vjControlsEnabled}
-              aria-label="Glass neon mode"
+              aria-labelledby="vj-neon-heading"
             >
               <option value="off">Off</option>
               <option value="tint">Neon tint (screen)</option>
@@ -449,12 +449,18 @@ export function AudioSection({
             </div>
           </>
         )}
-        <h3 className="settings-subhead">Hue</h3>
-        <div className="field">
-          <label title="With solid overlay opacity up (Video backdrop), hue shifts that layer. With overlay off, hue shifts the refracted lens view instead.">
-            Scene & overlay
-          </label>
-          <div className="field--checkbox field--audio-toggles">
+        <h3
+          id="vj-hue-heading"
+          className="settings-subhead"
+          title="With solid overlay opacity up (Video backdrop), hue shifts that layer. With overlay off, hue shifts the refracted lens view instead."
+        >
+          Hue
+        </h3>
+        <div
+          className="field field--checkbox field--audio-toggles"
+          role="group"
+          aria-labelledby="vj-hue-heading"
+        >
             <ClickBlockedHint
               blocked={vjHueShiftBlocked}
               hint={vjHueShiftHint}
@@ -501,7 +507,6 @@ export function AudioSection({
                 Hue + audio
               </button>
             </ClickBlockedHint>
-          </div>
         </div>
       </section>
 
@@ -576,7 +581,7 @@ export function AudioSection({
             title="How often invert strobe bursts can start after a high-frequency hit (lower = rarer flashes, higher = more frequent)"
             htmlFor="vj-invert-strobe-amount"
           >
-            Invert strobe amount
+            Amount
             <span className="val">{Math.round(vjInvertStrobeAmount * 100)}%</span>
           </label>
           <ClickBlockedHint
@@ -625,7 +630,7 @@ export function AudioSection({
             title="Low = fewer bass hits count (less flashing); high = more hits register and faster blackout cycles. Black is always full on or full off."
             htmlFor="vj-yt-beat-blackout-sensitivity"
           >
-            YT blackout sensitivity
+            Sensitivity
             <span className="val">
               {Math.round(vjYoutubeBeatBlackoutSensitivity * 100)}%
             </span>

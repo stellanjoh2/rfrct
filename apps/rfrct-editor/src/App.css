@@ -9,6 +9,8 @@
   --accent: var(--brand);
 
   --glass-bg: rgba(37, 37, 37, 0.72);
+  /** Opaque panel chrome (e.g. sticky tab row) — same RGB as --glass-bg, no stacked blur/transparency */
+  --glass-bg-solid: rgb(37, 37, 37);
   --glass-border: rgba(255, 255, 255, 0.14);
   --glass-highlight: rgba(255, 255, 255, 0.22);
   --glass-text: rgba(255, 255, 255, 0.94);
@@ -20,6 +22,32 @@
   --ui-duration: 0.22s;
   --ui-duration-slow: 0.36s;
   --btn-radius: 4px;
+  /** Foreground on solid brand (selected tabs, mic on, export pills on) */
+  --on-brand-fg: #0a0a12;
+  /**
+   * In-panel section rules — same idea as the tab strip divider, a touch softer
+   * so stacked groups read clearly without heavy chrome.
+   */
+  --panel-rule: rgba(255, 255, 255, 0.09);
+  /** Single hairline under the tab row (do not stack a second rule on .sidebar-tab-panel). */
+  --panel-rule-tabs: rgba(255, 255, 255, 0.12);
+  /** Space above and below each in-panel horizontal rule (symmetric around the 1px line). */
+  --panel-section-rhythm: 12px;
+  /**
+   * Row labels (Scale, Speed, …) and micro-section titles (Neon, Hue, …) — one family
+   * so panel typography stays editable in one place.
+   */
+  --panel-label-size: 12px;
+  --panel-label-weight: 400;
+  --panel-label-tracking: 0.02em;
+  --panel-label-color: rgba(255, 255, 255, 0.42);
+  /**
+   * Large full-width / centered panel buttons (tabs, uploads, toggles, export).
+   * One size + weight so chunky controls stay consistent and editable in one place.
+   */
+  --panel-btn-size: 13px;
+  --panel-btn-weight: 600;
+  --panel-btn-tracking: 0.02em;
 }
 
 * {
@@ -31,6 +59,7 @@ body,
 #root {
   height: 100%;
   margin: 0;
+  min-height: 100dvh;
 }
 
 body {
@@ -45,6 +74,7 @@ body {
   flex-direction: column;
   height: 100%;
   min-height: 100%;
+  min-height: 100dvh;
 }
 
 .webgl-error-banner {
@@ -225,12 +255,17 @@ body {
 .glass-sidebar {
   position: absolute;
   z-index: 10;
-  right: var(--glass-float-gutter);
-  top: var(--glass-float-gutter);
-  bottom: var(--glass-float-gutter);
+  /* Same vertical offset top/bottom (plus safe-area when present) so float matches the viewport */
+  right: max(var(--glass-float-gutter), env(safe-area-inset-right, 0px));
+  top: max(var(--glass-float-gutter), env(safe-area-inset-top, 0px));
+  bottom: max(var(--glass-float-gutter), env(safe-area-inset-bottom, 0px));
   width: min(100%, 340px);
   max-width: calc(100vw - var(--glass-float-gutter) * 2);
-  padding: 22px 22px 32px;
+  --sidebar-pad-x: 22px;
+  /** Inset for tab row inside the solid header (keep modest so chrome isn’t taller than the bottom scroll pad) */
+  --sidebar-pad-top: 16px;
+  --sidebar-pad-bottom: 32px;
+  padding: 0 var(--sidebar-pad-x) var(--sidebar-pad-bottom);
   overflow-x: hidden;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
@@ -241,9 +276,7 @@ body {
   background: var(--glass-bg);
   backdrop-filter: blur(var(--glass-blur)) saturate(1.35);
   -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.35);
-
-  box-shadow:
-    -12px 0 40px rgba(0, 0, 0, 0.18);
+  box-shadow: none;
 
   transition:
     transform var(--ui-duration-slow) var(--ui-ease),
@@ -279,16 +312,6 @@ body {
   background: color-mix(in srgb, var(--brand) 85%, #ffffff);
 }
 
-.glass-sidebar::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  pointer-events: none;
-  opacity: 0.055;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-}
-
 .glass-sidebar--hidden {
   transform: translateX(
     calc(100% + var(--glass-float-gutter) + 12px)
@@ -304,29 +327,27 @@ body {
   }
 }
 
-.sidebar-brand {
-  display: flex;
-  align-items: center;
-  margin: 0 0 24px;
-}
-
-.sidebar-brand-logo {
-  display: block;
-  width: 147px;
-  height: 35px;
-  background: var(--brand);
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-  -webkit-mask-position: left center;
-  mask-position: left center;
-  -webkit-mask-size: contain;
-  mask-size: contain;
+/**
+ * Solid header band — horizontal bleed only (.glass-sidebar has no top padding).
+ * Top inset for the tabs lives inside this block so the chrome meets the panel top edge.
+ */
+.sidebar-header {
+  position: sticky;
+  top: 0;
+  z-index: 6;
+  margin: 0 calc(-1 * var(--sidebar-pad-x)) 0;
+  padding: var(--sidebar-pad-top) var(--sidebar-pad-x) 18px;
+  background: var(--glass-bg-solid);
+  border-radius: 8px 8px 0 0;
+  border-bottom: 1px solid var(--panel-rule-tabs);
 }
 
 .sidebar-tabs {
   display: flex;
   gap: 8px;
-  margin: 0 0 14px;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
 }
 
 .sidebar-tab {
@@ -342,14 +363,16 @@ body {
   background: rgba(255, 255, 255, 0.06);
   color: var(--glass-text);
   font-family: inherit;
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-size: var(--panel-btn-size);
+  font-weight: var(--panel-btn-weight);
+  letter-spacing: var(--panel-btn-tracking);
+  text-transform: none;
+  box-shadow: none;
   transition:
     background var(--ui-duration) var(--ui-ease),
     border-color var(--ui-duration) var(--ui-ease),
     color var(--ui-duration) var(--ui-ease),
+    box-shadow var(--ui-duration) var(--ui-ease),
     transform var(--ui-duration) var(--ui-ease);
 }
 
@@ -358,8 +381,19 @@ body {
   border-color: rgba(255, 255, 255, 0.28);
 }
 
+.sidebar-tab--active:hover {
+  border-color: transparent;
+  background: color-mix(in srgb, var(--brand) 88%, #ffffff);
+  color: var(--on-brand-fg);
+  box-shadow: none;
+}
+
 .sidebar-tab:active {
   transform: scale(0.985);
+}
+
+.sidebar-tab--active:active {
+  background: color-mix(in srgb, var(--brand) 78%, var(--on-brand-fg));
 }
 
 .sidebar-tab:focus-visible {
@@ -368,17 +402,25 @@ body {
 }
 
 .sidebar-tab--active {
-  border-color: rgba(var(--brand-rgb), 0.56);
-  background: rgba(var(--brand-rgb), 0.15);
-  color: var(--brand);
-  text-shadow: 0 0 14px rgba(var(--brand-rgb), 0.28);
+  border-color: transparent;
+  background: var(--brand);
+  color: var(--on-brand-fg);
+  box-shadow: none;
+  text-shadow: none;
 }
 
 .sidebar-tab-panel {
-  margin-top: 12px;
-  padding-top: 14px;
-  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  margin-top: 0;
   min-width: 0;
+}
+
+/**
+ * Shared scroll content shell for Design / VJ / Export so spacing and rules match.
+ */
+.sidebar-panel-body {
+  min-width: 0;
+  padding-top: 14px;
+  padding-bottom: 24px;
 }
 
 .upload-block {
@@ -393,10 +435,11 @@ label.file-btn {
   min-width: 0;
   cursor: pointer;
   padding: 12px 16px;
-  font-size: 13px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  font-family: inherit;
+  font-size: var(--panel-btn-size);
+  font-weight: var(--panel-btn-weight);
+  letter-spacing: var(--panel-btn-tracking);
+  text-transform: none;
   color: var(--glass-text);
   border-radius: var(--btn-radius);
   border: 1px solid var(--glass-border);
@@ -511,11 +554,11 @@ label.file-btn:has(input[disabled]) {
   justify-content: center;
   align-self: stretch;
   padding: 12px 16px;
-  font-size: 13px;
-  font-weight: 700;
+  font-size: var(--panel-btn-size);
+  font-weight: var(--panel-btn-weight);
   font-family: inherit;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: var(--panel-btn-tracking);
+  text-transform: none;
   color: var(--glass-text);
   border-radius: var(--btn-radius);
   border: 1px solid var(--glass-border);
@@ -545,11 +588,11 @@ label.file-btn:has(input[disabled]) {
   width: 100%;
   cursor: pointer;
   padding: 12px 16px;
-  font-size: 13px;
-  font-weight: 700;
+  font-size: var(--panel-btn-size);
+  font-weight: var(--panel-btn-weight);
   font-family: inherit;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: var(--panel-btn-tracking);
+  text-transform: none;
   color: var(--glass-text);
   border-radius: var(--btn-radius);
   border: 1px solid var(--glass-border);
@@ -574,18 +617,18 @@ label.file-btn:has(input[disabled]) {
 .mic-toggle--on {
   border-color: transparent;
   background: var(--brand);
-  color: #0a0a12;
+  color: var(--on-brand-fg);
   box-shadow: none;
 }
 
 .mic-toggle--on:hover {
   border-color: transparent;
   background: color-mix(in srgb, var(--brand) 88%, #ffffff);
-  color: #0a0a12;
+  color: var(--on-brand-fg);
 }
 
 .mic-toggle--on:active {
-  background: color-mix(in srgb, var(--brand) 78%, #0a0a12);
+  background: color-mix(in srgb, var(--brand) 78%, var(--on-brand-fg));
 }
 
 .field-hint {
@@ -713,17 +756,9 @@ label.file-btn:has(input[disabled]) {
   color: rgba(255, 255, 255, 0.32);
 }
 
-/* Export — Orby-inspired toggles; uses brand accent for the active pill */
-.export-section__title {
-  font-size: 1.05em;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  margin: 22px 0 12px;
-  color: var(--brand);
-}
-
+/* Export tab — same heading + field label rhythm as Design / VJ (.panel h2, .field label) */
 .export-section {
-  margin-bottom: 8px;
+  margin-bottom: 0;
 }
 
 .export-field {
@@ -734,11 +769,12 @@ label.file-btn:has(input[disabled]) {
 }
 
 .export-field__label {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.38);
+  font-size: var(--panel-label-size);
+  font-weight: var(--panel-label-weight);
+  font-family: inherit;
+  letter-spacing: var(--panel-label-tracking);
+  text-transform: none;
+  color: var(--panel-label-color);
 }
 
 .export-toggle {
@@ -750,23 +786,33 @@ label.file-btn:has(input[disabled]) {
   flex: 1;
   cursor: pointer;
   padding: 10px 12px;
-  font-size: 12px;
-  font-weight: 700;
+  font-size: var(--panel-btn-size);
+  font-weight: var(--panel-btn-weight);
   font-family: inherit;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  letter-spacing: var(--panel-btn-tracking);
+  text-transform: none;
   color: var(--glass-text);
   border-radius: var(--btn-radius);
-  border: 1px solid transparent;
+  border: 1px solid var(--glass-border);
   background: rgba(255, 255, 255, 0.06);
+  box-shadow: none;
   transition:
     border-color var(--ui-duration) var(--ui-ease),
     box-shadow var(--ui-duration) var(--ui-ease),
-    background var(--ui-duration) var(--ui-ease);
+    background var(--ui-duration) var(--ui-ease),
+    color var(--ui-duration) var(--ui-ease);
 }
 
 .export-toggle__btn:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.28);
+}
+
+.export-toggle__btn--on:hover:not(:disabled) {
+  border-color: transparent;
+  background: color-mix(in srgb, var(--brand) 88%, #ffffff);
+  color: var(--on-brand-fg);
+  box-shadow: none;
 }
 
 .export-toggle__btn:disabled {
@@ -775,11 +821,14 @@ label.file-btn:has(input[disabled]) {
 }
 
 .export-toggle__btn--on {
-  border-color: var(--brand);
-  box-shadow:
-    0 0 0 1px rgba(var(--brand-rgb), 0.35),
-    0 0 18px rgba(var(--brand-rgb), 0.22);
-  background: rgba(255, 255, 255, 0.08);
+  border-color: transparent;
+  background: var(--brand);
+  color: var(--on-brand-fg);
+  box-shadow: none;
+}
+
+.export-toggle__btn--on:active:not(:disabled) {
+  background: color-mix(in srgb, var(--brand) 78%, var(--on-brand-fg));
 }
 
 .export-actions {
@@ -797,17 +846,20 @@ label.file-btn:has(input[disabled]) {
   width: 100%;
   cursor: pointer;
   padding: 12px 16px;
-  font-size: 12px;
-  font-weight: 700;
+  font-size: var(--panel-btn-size);
+  font-weight: var(--panel-btn-weight);
   font-family: inherit;
-  letter-spacing: 0.04em;
+  letter-spacing: var(--panel-btn-tracking);
+  text-transform: none;
   color: var(--glass-text);
   border-radius: var(--btn-radius);
   border: 1px solid var(--glass-border);
   background: rgba(255, 255, 255, 0.06);
+  box-shadow: none;
   transition:
     background var(--ui-duration) var(--ui-ease),
     border-color var(--ui-duration) var(--ui-ease),
+    box-shadow var(--ui-duration) var(--ui-ease),
     transform var(--ui-duration) var(--ui-ease);
 }
 
@@ -816,29 +868,30 @@ label.file-btn:has(input[disabled]) {
   border-color: rgba(255, 255, 255, 0.28);
 }
 
+.export-actions__btn.gif-export__record {
+  border-color: transparent;
+  background: var(--brand);
+  color: var(--on-brand-fg);
+}
+
+.export-actions__btn.gif-export__record:hover {
+  border-color: transparent;
+  background: color-mix(in srgb, var(--brand) 88%, #ffffff);
+  color: var(--on-brand-fg);
+}
+
+.export-actions__btn.gif-export__record:active {
+  background: color-mix(in srgb, var(--brand) 78%, var(--on-brand-fg));
+}
+
 .export-actions__btn:active {
   transform: scale(0.985);
 }
 
 .export-actions__icon {
-  font-size: 14px;
+  font-size: var(--panel-btn-size);
   line-height: 1;
   opacity: 0.85;
-}
-
-.export-page {
-  padding-bottom: 24px;
-}
-
-.export-page__lead {
-  margin: 0 0 18px;
-  font-size: 12px;
-  line-height: 1.55;
-  color: var(--glass-muted);
-}
-
-.export-page-sidebar {
-  padding-top: 4px;
 }
 
 .gif-export__backdrop-note {
@@ -850,104 +903,6 @@ label.file-btn:has(input[disabled]) {
   border-radius: var(--btn-radius);
   border: 1px solid rgba(255, 200, 120, 0.28);
   background: rgba(255, 200, 120, 0.06);
-}
-
-.gif-export__hint {
-  margin: 0 0 8px;
-  font-size: 11px;
-  line-height: 1.45;
-  color: rgba(255, 255, 255, 0.42);
-}
-
-.gif-export__folder-row {
-  position: relative;
-  z-index: 2;
-  display: flex;
-  gap: 8px;
-  align-items: stretch;
-}
-
-.gif-export__path {
-  flex: 1;
-  min-width: 0;
-  padding: 10px 12px;
-  font-size: 11px;
-  line-height: 1.35;
-  color: rgba(255, 255, 255, 0.72);
-  border-radius: var(--btn-radius);
-  border: 1px solid var(--glass-border);
-  background: rgba(0, 0, 0, 0.28);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-button.gif-export__path {
-  appearance: none;
-  font-family: inherit;
-  text-align: left;
-  cursor: pointer;
-  transition:
-    background var(--ui-duration) var(--ui-ease),
-    border-color var(--ui-duration) var(--ui-ease);
-}
-
-button.gif-export__path:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.22);
-}
-
-button.gif-export__path:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
-.gif-export__folder-btn {
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 42px;
-  cursor: pointer;
-  color: var(--glass-text);
-  border-radius: var(--btn-radius);
-  border: 1px solid var(--glass-border);
-  background: rgba(255, 255, 255, 0.06);
-  transition:
-    background var(--ui-duration) var(--ui-ease),
-    border-color var(--ui-duration) var(--ui-ease);
-}
-
-.gif-export__folder-btn:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.28);
-}
-
-.gif-export__folder-btn:disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
-}
-
-.gif-export__folder-icon {
-  display: block;
-}
-
-.gif-export__linkish {
-  margin-top: 8px;
-  padding: 0;
-  border: none;
-  background: none;
-  cursor: pointer;
-  font-family: inherit;
-  font-size: 11px;
-  color: rgba(var(--brand-rgb), 0.95);
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-
-.gif-export__linkish:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
 }
 
 .gif-export__check {
@@ -1025,10 +980,6 @@ button.gif-export__path:disabled {
   margin-top: 8px;
 }
 
-.gif-export__record {
-  border-color: rgba(var(--brand-rgb), 0.45);
-}
-
 .gif-export__cancel {
   border-color: rgba(255, 120, 120, 0.45);
 }
@@ -1052,35 +1003,38 @@ button.gif-export__path:disabled {
 
 .panel h2 {
   position: relative;
-  z-index: 1;
   margin: 0 0 12px;
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: none;
+  color: rgba(255, 255, 255, 0.96);
 }
 
-.panel section + section {
-  margin-top: 20px;
+.panel section:has(+ section),
+.panel section:has(+ h2) {
+  padding-bottom: var(--panel-section-rhythm);
 }
 
+.panel section + section,
 .panel section + h2 {
-  margin-top: 22px;
+  margin-top: 0;
+  padding-top: var(--panel-section-rhythm);
+  border-top: 1px solid var(--panel-rule);
 }
 
 .panel h3.settings-subhead {
-  margin: 18px 0 10px;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.5);
+  margin: 16px 0 6px;
+  font-size: var(--panel-label-size);
+  font-weight: var(--panel-label-weight);
+  font-family: inherit;
+  letter-spacing: var(--panel-label-tracking);
+  text-transform: none;
+  color: var(--panel-label-color);
 }
 
 .field {
   position: relative;
-  z-index: 1;
   margin-bottom: 14px;
 }
 
@@ -1088,16 +1042,19 @@ button.gif-export__path:disabled {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  font-size: 12px;
+  font-size: var(--panel-label-size);
+  font-weight: var(--panel-label-weight);
+  font-family: inherit;
+  letter-spacing: var(--panel-label-tracking);
   margin-bottom: 6px;
   gap: 12px;
-  color: rgba(255, 255, 255, 0.42);
+  color: var(--panel-label-color);
 }
 
 .field label span.val {
   font-variant-numeric: tabular-nums;
   color: var(--glass-text);
-  font-size: 12px;
+  font-size: var(--panel-label-size);
   opacity: 0.85;
 }
 

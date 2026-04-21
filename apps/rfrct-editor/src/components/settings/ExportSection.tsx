@@ -19,7 +19,6 @@ export function ExportSection({
 }: ExportSectionProps) {
   return (
     <>
-      <h2 className="export-section__title">Export</h2>
       <section className="export-section">
         <div className="export-field">
           <span className="export-field__label">Transparent</span>

@@ -64,10 +64,6 @@ export function EffectsSection({
               Full viewport (scene + video + overlays)
             </option>
           </select>
-          <p className="field-hint">
-            Full viewport uses CSS on the live preview. PNG export still uses
-            the WebGL scene path only.
-          </p>
         </div>
         <div className="field">
           <label>

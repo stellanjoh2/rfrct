@@ -29,8 +29,6 @@ import type { VideoBackdropSectionProps } from "./VideoBackdropSection";
 import { TemplatesSection } from "./TemplatesSection";
 import type { TemplatesSectionProps } from "./TemplatesSection";
 
-const SIDEBAR_BRAND_LOGO_URL = `${import.meta.env.BASE_URL}rfrct-logo.svg`;
-
 export type SettingsSidebarProps = {
   uiVisible: boolean;
   onFile: (e: React.ChangeEvent<HTMLInputElement>) => void;
@@ -108,51 +106,43 @@ export const SettingsSidebar = forwardRef<HTMLElement, SettingsSidebarProps>(
         }
       }}
     >
-      <div className="sidebar-brand" aria-label="Refrct">
-        <span
-          className="sidebar-brand-logo"
-          aria-hidden
-          style={{
-            WebkitMaskImage: `url("${SIDEBAR_BRAND_LOGO_URL}")`,
-            maskImage: `url("${SIDEBAR_BRAND_LOGO_URL}")`,
-          }}
-        />
-      </div>
-      <div className="sidebar-tabs" role="tablist" aria-label="Editor modes">
-        <button
-          type="button"
-          role="tab"
-          id="tab-design"
-          aria-selected={activeTab === "design"}
-          aria-controls="panel-design"
-          className={`sidebar-tab ${activeTab === "design" ? "sidebar-tab--active" : ""}`}
-          onClick={() => setActiveTab("design")}
-        >
-          Design
-        </button>
-        <button
-          type="button"
-          role="tab"
-          id="tab-vj"
-          aria-selected={activeTab === "vj"}
-          aria-controls="panel-vj"
-          className={`sidebar-tab ${activeTab === "vj" ? "sidebar-tab--active" : ""}`}
-          onClick={() => setActiveTab("vj")}
-        >
-          VJ
-        </button>
-        <button
-          type="button"
-          role="tab"
-          id="tab-export"
-          aria-selected={activeTab === "export"}
-          aria-controls="panel-export"
-          className={`sidebar-tab ${activeTab === "export" ? "sidebar-tab--active" : ""}`}
-          onClick={() => setActiveTab("export")}
-        >
-          Export
-        </button>
-      </div>
+      <header className="sidebar-header">
+        <div className="sidebar-tabs" role="tablist" aria-label="Editor modes">
+          <button
+            type="button"
+            role="tab"
+            id="tab-design"
+            aria-selected={activeTab === "design"}
+            aria-controls="panel-design"
+            className={`sidebar-tab ${activeTab === "design" ? "sidebar-tab--active" : ""}`}
+            onClick={() => setActiveTab("design")}
+          >
+            Design
+          </button>
+          <button
+            type="button"
+            role="tab"
+            id="tab-vj"
+            aria-selected={activeTab === "vj"}
+            aria-controls="panel-vj"
+            className={`sidebar-tab ${activeTab === "vj" ? "sidebar-tab--active" : ""}`}
+            onClick={() => setActiveTab("vj")}
+          >
+            VJ
+          </button>
+          <button
+            type="button"
+            role="tab"
+            id="tab-export"
+            aria-selected={activeTab === "export"}
+            aria-controls="panel-export"
+            className={`sidebar-tab ${activeTab === "export" ? "sidebar-tab--active" : ""}`}
+            onClick={() => setActiveTab("export")}
+          >
+            Export
+          </button>
+        </div>
+      </header>
       {activeTab === "design" ? (
         <div
           id="panel-design"
@@ -160,26 +150,28 @@ export const SettingsSidebar = forwardRef<HTMLElement, SettingsSidebarProps>(
           aria-labelledby="tab-design"
           className="sidebar-tab-panel"
         >
-          <TemplatesSection {...templates} />
-          <BackdropSection {...backdrop} />
-          <VideoBackdropSection {...videoBackdrop} />
-          <h2 title="Primary artwork upload, scale, and color">
-            Layer 1
-          </h2>
-          <UploadBlock
-            onFile={onFile}
-            fileName={layer1FileName}
-            onRemoveFile={onRemoveLayer1}
-          />
-          <AppearanceSection {...appearance} />
-          <SecondaryLayerSection {...secondaryLayer} />
-          <TertiaryLayerSection {...tertiaryLayer} />
-          <LensSection {...lens} />
-          <BloomSection {...bloom} />
-          <EffectsSection {...effects} />
-          <DupStackSection {...dupStack} />
-          <MouseInputSection {...mouseInput} />
-          <ShareSettingsSection {...shareSettings} />
+          <div className="sidebar-panel-body">
+            <TemplatesSection {...templates} />
+            <BackdropSection {...backdrop} />
+            <VideoBackdropSection {...videoBackdrop} />
+            <h2 title="Primary artwork upload, scale, and color">
+              Layer 1
+            </h2>
+            <UploadBlock
+              onFile={onFile}
+              fileName={layer1FileName}
+              onRemoveFile={onRemoveLayer1}
+            />
+            <AppearanceSection {...appearance} />
+            <SecondaryLayerSection {...secondaryLayer} />
+            <TertiaryLayerSection {...tertiaryLayer} />
+            <LensSection {...lens} />
+            <BloomSection {...bloom} />
+            <EffectsSection {...effects} />
+            <DupStackSection {...dupStack} />
+            <MouseInputSection {...mouseInput} />
+            <ShareSettingsSection {...shareSettings} />
+          </div>
         </div>
       ) : activeTab === "vj" ? (
         <div
@@ -188,16 +180,20 @@ export const SettingsSidebar = forwardRef<HTMLElement, SettingsSidebarProps>(
           aria-labelledby="tab-vj"
           className="sidebar-tab-panel"
         >
-          <AudioSection {...audio} />
+          <div className="sidebar-panel-body">
+            <AudioSection {...audio} />
+          </div>
         </div>
       ) : (
         <div
           id="panel-export"
           role="tabpanel"
           aria-labelledby="tab-export"
-          className="sidebar-tab-panel export-page-sidebar"
+          className="sidebar-tab-panel"
         >
-          <ExportPage {...exportPage} />
+          <div className="sidebar-panel-body">
+            <ExportPage {...exportPage} />
+          </div>
         </div>
       )}
     </aside>

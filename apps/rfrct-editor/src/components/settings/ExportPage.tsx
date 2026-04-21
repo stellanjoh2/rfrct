@@ -1,26 +1,6 @@
-import { useState, useSyncExternalStore } from "react";
+import { useState } from "react";
 import { ExportSection } from "./ExportSection";
 import type { ExportSectionProps } from "./ExportSection";
-
-function subscribeNoop() {
-  return () => {};
-}
-
-function getFolderPickerSupportSnapshot(): boolean {
-  return (
-    typeof window !== "undefined" &&
-    typeof window.showDirectoryPicker === "function" &&
-    window.isSecureContext
-  );
-}
-
-function useFolderPickerSupported(): boolean {
-  return useSyncExternalStore(
-    subscribeNoop,
-    getFolderPickerSupportSnapshot,
-    () => false,
-  );
-}
 
 const GIF_FPS_OPTIONS = [10, 12, 15, 24, 30, 50, 60] as const;
 
@@ -39,9 +19,6 @@ export type GifExportPanelProps = {
   setPixelArtResize: (v: boolean) => void;
   infiniteLoop: boolean;
   setInfiniteLoop: (v: boolean) => void;
-  outputFolderLabel: string | null;
-  onChooseOutputFolder: () => void;
-  onClearOutputFolder: () => void;
   isRecording: boolean;
   recordProgress: { current: number; total: number } | null;
   onStartRecord: () => void;
@@ -61,84 +38,24 @@ export function ExportPage({
   youtubeBackdropActive,
 }: ExportPageProps) {
   const g = gif;
-  const folderPickerSupported = useFolderPickerSupported();
 
   /** Lets users type multi-digit values; parent state updates on blur (not every keystroke). */
   const [maxWidthDraft, setMaxWidthDraft] = useState<string | null>(null);
   const [durationDraft, setDurationDraft] = useState<string | null>(null);
 
   return (
-    <div className="export-page">
-      <p className="export-page__lead">
-        Capture the live lens viewport. PNG uses the same high-quality export as before; GIF
-        records real-time animation.
-      </p>
-
-      <h2 className="export-section__title">Image (PNG)</h2>
+    <>
+      <h2 title="Still image download">PNG</h2>
       <ExportSection {...png} />
 
-      <h2 className="export-section__title">Animated GIF</h2>
+      <h2 title="Animated GIF recording">GIF</h2>
       <section className="export-section gif-export">
         {youtubeBackdropActive ? (
           <p className="gif-export__backdrop-note" role="note">
-            A YouTube backdrop sits behind the lens in the page. GIF and PNG only
-            capture the WebGL canvas bitmap, not the iframe, so the video cannot appear in exports
-            (cross-origin content is never painted into the canvas—this is normal browser behavior,
-            not a block on Refrct specifically).
+            With a YouTube backdrop, PNG and GIF only include the lens canvas—the video layer
+            isn’t part of the bitmap (browser security).
           </p>
         ) : null}
-        <div className="export-field">
-          <span className="export-field__label">Output folder</span>
-          <p className="gif-export__hint">
-            {folderPickerSupported
-              ? "Pick once; GIFs save into that folder. Without a folder, the file downloads normally."
-              : typeof window !== "undefined" && !window.isSecureContext
-                ? "Open this app over HTTPS or localhost to enable folder pick; otherwise use download."
-                : "Folder pick needs a Chromium-based browser (Chrome, Edge, …). Others download the GIF normally."}
-          </p>
-          <div className="gif-export__folder-row">
-            <button
-              type="button"
-              className="gif-export__path"
-              onClick={g.onChooseOutputFolder}
-              disabled={g.isRecording}
-              title="Choose where to save GIF files"
-            >
-              {g.outputFolderLabel ?? "Choose output folder…"}
-            </button>
-            <button
-              type="button"
-              className="gif-export__folder-btn"
-              onClick={g.onChooseOutputFolder}
-              disabled={g.isRecording}
-              title="Choose where to save GIF files"
-              aria-label="Choose output folder"
-            >
-              <svg
-                className="gif-export__folder-icon"
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.75"
-                aria-hidden
-              >
-                <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" />
-              </svg>
-            </button>
-          </div>
-          {g.outputFolderLabel ? (
-            <button
-              type="button"
-              className="gif-export__linkish"
-              onClick={g.onClearOutputFolder}
-              disabled={g.isRecording}
-            >
-              Clear folder
-            </button>
-          ) : null}
-        </div>
 
         <label className="gif-export__check">
           <input
@@ -280,9 +197,9 @@ export function ExportPage({
         </div>
 
         <p className="gif-export__note">
-          Video export (.mov / .mp4) will follow on this tab.
+          Video (.mov / .mp4) will be added here later.
         </p>
       </section>
-    </div>
+    </>
   );
 }

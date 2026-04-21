@@ -113,6 +113,7 @@ export function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<RfrctRenderer | null>(null);
+  const startupLogoClampDoneRef = useRef(false);
 
   const [imgDims, setImgDims] = useState<{ w: number; h: number } | null>(null);
   const [layer1FileName, setLayer1FileName] = useState<string | null>(null);
@@ -151,6 +152,28 @@ export function App() {
   const [imageScale, setImageScale] = useState(1);
   const imageScaleRef = useRef(1);
   imageScaleRef.current = imageScale;
+
+  // Startup only: clamp default logo so it doesn't exceed 66% of viewport width.
+  // Users can still zoom freely after startup.
+  useEffect(() => {
+    if (startupLogoClampDoneRef.current) return;
+    if (svgSourceUrl !== TEMPLATE_LOGO_SVG_URL) return;
+    if (!imgDims) return;
+    if (viewportPx.w <= 0 || viewportPx.h <= 0) return;
+
+    const baseContainW = Math.min(
+      viewportPx.w,
+      viewportPx.h * (imgDims.w / Math.max(1e-6, imgDims.h)),
+    );
+    const maxW = viewportPx.w * 0.66;
+    const maxScale = maxW / Math.max(1e-6, baseContainW);
+
+    if (imageScale > maxScale) {
+      setImageScale(maxScale);
+    }
+    startupLogoClampDoneRef.current = true;
+  }, [svgSourceUrl, imgDims, viewportPx.w, viewportPx.h, imageScale]);
+
   /** Target resolution for SVG texture; debounced from imageScale so wheel-zoom stays smooth. */
   const [svgRasterScale, setSvgRasterScale] = useState(1);
   useEffect(() => {
@@ -215,15 +238,11 @@ export function App() {
   const [gifDurationSec, setGifDurationSec] = useState(6);
   const [gifPixelArtResize, setGifPixelArtResize] = useState(false);
   const [gifInfiniteLoop, setGifInfiniteLoop] = useState(true);
-  const [gifOutputFolderLabel, setGifOutputFolderLabel] = useState<
-    string | null
-  >(null);
   const [gifRecording, setGifRecording] = useState(false);
   const [gifRecordProgress, setGifRecordProgress] = useState<{
     current: number;
     total: number;
   } | null>(null);
-  const gifDirHandleRef = useRef<FileSystemDirectoryHandle | null>(null);
   const gifAbortRef = useRef<AbortController | null>(null);
   const gifExportBusyRef = useRef(false);
 
@@ -921,35 +940,6 @@ export function App() {
     runPngExport(2);
   }, [runPngExport]);
 
-  const pickGifOutputFolder = useCallback(async () => {
-    if (typeof window.showDirectoryPicker !== "function") {
-      setFeatureHint(
-        "Folder pick needs Chrome or Edge. GIFs download to your default folder instead.",
-      );
-      return;
-    }
-    if (!window.isSecureContext) {
-      setFeatureHint(
-        "Folder pick needs HTTPS or localhost (secure page). GIFs download instead.",
-      );
-      return;
-    }
-    try {
-      const h = await window.showDirectoryPicker();
-      gifDirHandleRef.current = h;
-      setGifOutputFolderLabel(h.name);
-      setFeatureHint("Output folder set — GIFs will save there.");
-    } catch (e) {
-      if (e instanceof DOMException && e.name === "AbortError") return;
-      setFeatureHint("Could not use that folder.");
-    }
-  }, []);
-
-  const clearGifOutputFolder = useCallback(() => {
-    gifDirHandleRef.current = null;
-    setGifOutputFolderLabel(null);
-  }, []);
-
   const cancelGifRecording = useCallback(() => {
     gifAbortRef.current?.abort();
   }, []);
@@ -1014,16 +1004,8 @@ export function App() {
           setGifRecordProgress({ current, total }),
       });
       if (ac.signal.aborted) return;
-      const { filename, mode } = await saveGifBlob(
-        blob,
-        gifDirHandleRef.current,
-        "refrct",
-      );
-      setFeatureHint(
-        mode === "directory"
-          ? `Saved ${filename} to the selected folder.`
-          : `Downloaded ${filename}.`,
-      );
+      const { filename } = await saveGifBlob(blob, null, "refrct");
+      setFeatureHint(`Downloaded ${filename}.`);
     } catch (e) {
       if (e instanceof DOMException && e.name === "AbortError") {
         setFeatureHint("GIF recording cancelled.");
@@ -2524,9 +2506,6 @@ export function App() {
           setPixelArtResize: setGifPixelArtResize,
           infiniteLoop: gifInfiniteLoop,
           setInfiniteLoop: setGifInfiniteLoop,
-          outputFolderLabel: gifOutputFolderLabel,
-          onChooseOutputFolder: pickGifOutputFolder,
-          onClearOutputFolder: clearGifOutputFolder,
           isRecording: gifRecording,
           recordProgress: gifRecordProgress,
           onStartRecord: startGifRecording,
@@ -2593,9 +2572,6 @@ export function App() {
       gifDurationSec,
       gifPixelArtResize,
       gifInfiniteLoop,
-      gifOutputFolderLabel,
-      pickGifOutputFolder,
-      clearGifOutputFolder,
       gifRecording,
       gifRecordProgress,
       startGifRecording,
