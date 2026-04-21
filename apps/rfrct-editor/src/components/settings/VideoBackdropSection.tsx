@@ -10,8 +10,6 @@ export type VideoBackdropSectionProps = {
   onYoutubeApply: () => void;
   onYoutubeClear: () => void;
   youtubeActive: boolean;
-  canvasBackdropBlend: BackdropBlendMode;
-  setCanvasBackdropBlend: Dispatch<SetStateAction<BackdropBlendMode>>;
   solidOverlayHex: string;
   setSolidOverlayHex: (v: string) => void;
   solidOverlayOpacity: number;
@@ -26,8 +24,6 @@ export function VideoBackdropSection({
   onYoutubeApply,
   onYoutubeClear,
   youtubeActive,
-  canvasBackdropBlend,
-  setCanvasBackdropBlend,
   solidOverlayHex,
   setSolidOverlayHex,
   solidOverlayOpacity,
@@ -63,24 +59,6 @@ export function VideoBackdropSection({
               </button>
             )}
           </div>
-        </div>
-        <div className="field">
-          <label htmlFor="canvas-backdrop-blend">Blend on backdrop</label>
-          <select
-            id="canvas-backdrop-blend"
-            className="field-select"
-            value={canvasBackdropBlend}
-            onChange={(e) =>
-              setCanvasBackdropBlend(e.target.value as BackdropBlendMode)
-            }
-            aria-label="Canvas blend mode over video backdrop"
-          >
-            {BACKDROP_BLEND_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
         </div>
         <div className="field">
           <label>Solid overlay (above video, below lens)</label>

@@ -69,6 +69,13 @@ export type AudioSectionProps = {
   /** Randomly flashes pixels-random glass filter at max strength/size. */
   vjLayer2PixelGlitch: boolean;
   setVjLayer2PixelGlitch: Dispatch<SetStateAction<boolean>>;
+  hasTertiaryLayer: boolean;
+  vjLayer3AutomationMode: VjLayer2AutomationMode;
+  setVjLayer3AutomationMode: Dispatch<SetStateAction<VjLayer2AutomationMode>>;
+  vjLayer3StrobeScale: boolean;
+  setVjLayer3StrobeScale: Dispatch<SetStateAction<boolean>>;
+  vjLayer3PixelGlitch: boolean;
+  setVjLayer3PixelGlitch: Dispatch<SetStateAction<boolean>>;
   onFeatureBlockedHint: (message: string) => void;
 };
 
@@ -125,6 +132,13 @@ export function AudioSection({
   setVjLayer2StrobeScale,
   vjLayer2PixelGlitch,
   setVjLayer2PixelGlitch,
+  hasTertiaryLayer,
+  vjLayer3AutomationMode,
+  setVjLayer3AutomationMode,
+  vjLayer3StrobeScale,
+  setVjLayer3StrobeScale,
+  vjLayer3PixelGlitch,
+  setVjLayer3PixelGlitch,
   onFeatureBlockedHint,
 }: AudioSectionProps) {
   const vjControlsEnabled = micDrivingRefraction && vjMode;
@@ -159,9 +173,21 @@ export function AudioSection({
   const strobeScaleHint = layer2VjBlocked
     ? layer2VjHint
     : "Turn on Random burst first.";
+  const layer3VjBlocked = !vjControlsEnabled || !hasTertiaryLayer;
+  const layer3VjHint = !hasTertiaryLayer
+    ? "Add Layer 3 in the Design tab first."
+    : HINT_NEED_VJ_CHAIN;
+  const strobeScale3Blocked =
+    layer3VjBlocked || vjLayer3AutomationMode !== "randomBurst";
+  const strobeScale3Hint = layer3VjBlocked
+    ? layer3VjHint
+    : "Turn on Random burst first.";
 
   const pickLayer2Mode = (mode: Exclude<VjLayer2AutomationMode, "off">) => {
     setVjLayer2AutomationMode((prev) => (prev === mode ? "off" : mode));
+  };
+  const pickLayer3Mode = (mode: Exclude<VjLayer2AutomationMode, "off">) => {
+    setVjLayer3AutomationMode((prev) => (prev === mode ? "off" : mode));
   };
   return (
     <>
@@ -829,6 +855,44 @@ export function AudioSection({
                   : "Random bass-gated flashes force Pixels random glass filter at max size and strength"
               }
             >
+              Pixel glitch
+            </button>
+          </ClickBlockedHint>
+        </div>
+      </section>
+
+      <h2 title="Automation targets Layer 3 from Design">
+        Layer 3
+      </h2>
+      <section>
+        <div className="field field--checkbox field--audio-toggles field--audio-toggles--stack">
+          <ClickBlockedHint blocked={layer3VjBlocked} hint={layer3VjHint} onBlockedClick={onFeatureBlockedHint}>
+            <button type="button" className={`mic-toggle ${vjLayer3AutomationMode === "randomBlink" ? "mic-toggle--on" : ""}`} disabled={layer3VjBlocked} onClick={() => pickLayer3Mode("randomBlink")} aria-pressed={vjLayer3AutomationMode === "randomBlink"}>
+              Layer blink
+            </button>
+          </ClickBlockedHint>
+          <ClickBlockedHint blocked={layer3VjBlocked} hint={layer3VjHint} onBlockedClick={onFeatureBlockedHint}>
+            <button type="button" className={`mic-toggle ${vjLayer3AutomationMode === "blinkInverse" ? "mic-toggle--on" : ""}`} disabled={layer3VjBlocked} onClick={() => pickLayer3Mode("blinkInverse")} aria-pressed={vjLayer3AutomationMode === "blinkInverse"}>
+              Layer blink inverse
+            </button>
+          </ClickBlockedHint>
+          <ClickBlockedHint blocked={layer3VjBlocked} hint={layer3VjHint} onBlockedClick={onFeatureBlockedHint}>
+            <button type="button" className={`mic-toggle ${vjLayer3AutomationMode === "randomScale" ? "mic-toggle--on" : ""}`} disabled={layer3VjBlocked} onClick={() => pickLayer3Mode("randomScale")} aria-pressed={vjLayer3AutomationMode === "randomScale"}>
+              Layer scale + audio
+            </button>
+          </ClickBlockedHint>
+          <ClickBlockedHint blocked={layer3VjBlocked} hint={layer3VjHint} onBlockedClick={onFeatureBlockedHint}>
+            <button type="button" className={`mic-toggle ${vjLayer3AutomationMode === "randomBurst" ? "mic-toggle--on" : ""}`} disabled={layer3VjBlocked} onClick={() => pickLayer3Mode("randomBurst")} aria-pressed={vjLayer3AutomationMode === "randomBurst"}>
+              Random burst
+            </button>
+          </ClickBlockedHint>
+          <ClickBlockedHint blocked={strobeScale3Blocked} hint={strobeScale3Hint} onBlockedClick={onFeatureBlockedHint}>
+            <button type="button" className={`mic-toggle ${vjLayer3StrobeScale ? "mic-toggle--on" : ""}`} disabled={strobeScale3Blocked} onClick={() => setVjLayer3StrobeScale((v) => !v)} aria-pressed={vjLayer3StrobeScale}>
+              Strobe scale
+            </button>
+          </ClickBlockedHint>
+          <ClickBlockedHint blocked={layer3VjBlocked} hint={layer3VjHint} onBlockedClick={onFeatureBlockedHint}>
+            <button type="button" className={`mic-toggle ${vjLayer3PixelGlitch ? "mic-toggle--on" : ""}`} disabled={layer3VjBlocked} onClick={() => setVjLayer3PixelGlitch((v) => !v)} aria-pressed={vjLayer3PixelGlitch}>
               Pixel glitch
             </button>
           </ClickBlockedHint>

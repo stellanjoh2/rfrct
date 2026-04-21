@@ -58,6 +58,10 @@ export type MicDrivingFrameRefs = {
   vjLayer2ScaleAudioStateRef: MutableRefObject<VjLayer2ScaleAudioState>;
   vjLayer2RandomBurstStateRef: MutableRefObject<VjLayer2RandomBurstState>;
   vjLayer2PixelGlitchStateRef: MutableRefObject<VjLayer2PixelGlitchState>;
+  vjLayer3BlinkStateRef: MutableRefObject<VjLayer2BlinkState>;
+  vjLayer3ScaleAudioStateRef: MutableRefObject<VjLayer2ScaleAudioState>;
+  vjLayer3RandomBurstStateRef: MutableRefObject<VjLayer2RandomBurstState>;
+  vjLayer3PixelGlitchStateRef: MutableRefObject<VjLayer2PixelGlitchState>;
   vjInvertStrobeStateRef: MutableRefObject<VjInvertStrobeState>;
   vjYoutubeBeatBlackoutStateRef: MutableRefObject<VjYoutubeBeatBlackoutState>;
   mouseLensTargetRef: MutableRefObject<{ x: number; y: number }>;
@@ -65,9 +69,13 @@ export type MicDrivingFrameRefs = {
   mouseFluidVelRef: MutableRefObject<{ x: number; y: number }>;
   blobCenterRef: MutableRefObject<{ x: number; y: number }>;
   layer2ReadyRef: MutableRefObject<boolean>;
+  layer3ReadyRef: MutableRefObject<boolean>;
   vjLayer2AutomationModeRef: MutableRefObject<VjLayer2AutomationMode>;
+  vjLayer3AutomationModeRef: MutableRefObject<VjLayer2AutomationMode>;
   vjLayer2StrobeScaleRef: MutableRefObject<boolean>;
+  vjLayer3StrobeScaleRef: MutableRefObject<boolean>;
   vjLayer2PixelGlitchRef: MutableRefObject<boolean>;
+  vjLayer3PixelGlitchRef: MutableRefObject<boolean>;
   vjInvertStrobeEnabledRef: MutableRefObject<boolean>;
   vjInvertStrobeAmountRef: MutableRefObject<number>;
   vjYoutubeBeatBlackoutEnabledRef: MutableRefObject<boolean>;
@@ -77,6 +85,9 @@ export type MicDrivingFrameRefs = {
   layer2VjOpacityMulRef: MutableRefObject<number>;
   layer2VjScaleMulRef: MutableRefObject<number>;
   layer2VjBurstOpacityMulRef: MutableRefObject<number>;
+  layer3VjOpacityMulRef: MutableRefObject<number>;
+  layer3VjScaleMulRef: MutableRefObject<number>;
+  layer3VjBurstOpacityMulRef: MutableRefObject<number>;
   syncSecondaryOverlayRef: MutableRefObject<() => void>;
 };
 
@@ -136,50 +147,66 @@ export function applyMicDrivingRendererFrame(
   refs.layer2VjOpacityMulRef.current = 1;
   refs.layer2VjScaleMulRef.current = 1;
   refs.layer2VjBurstOpacityMulRef.current = 1;
-  const layer2Vj = raw.vjMode && refs.layer2ReadyRef.current && micDrivingRefraction;
-  if (layer2Vj) {
-    const l2Mode = refs.vjLayer2AutomationModeRef.current;
+  refs.layer3VjOpacityMulRef.current = 1;
+  refs.layer3VjScaleMulRef.current = 1;
+  refs.layer3VjBurstOpacityMulRef.current = 1;
+  const applyLayerVj = (
+    isReady: boolean,
+    blinkStateRef: MutableRefObject<VjLayer2BlinkState>,
+    scaleAudioStateRef: MutableRefObject<VjLayer2ScaleAudioState>,
+    randomBurstStateRef: MutableRefObject<VjLayer2RandomBurstState>,
+    pixelGlitchStateRef: MutableRefObject<VjLayer2PixelGlitchState>,
+    modeRef: MutableRefObject<VjLayer2AutomationMode>,
+    strobeScaleRef: MutableRefObject<boolean>,
+    pixelGlitchRef: MutableRefObject<boolean>,
+    opacityMulRef: MutableRefObject<number>,
+    scaleMulRef: MutableRefObject<number>,
+    burstOpacityMulRef: MutableRefObject<number>,
+  ) => {
+    const layerVj = raw.vjMode && isReady && micDrivingRefraction;
+    if (!layerVj) return false;
+    const l2Mode = modeRef.current;
     if (l2Mode === "randomBlink" || l2Mode === "blinkInverse") {
       const { dip, inverse } = stepVjLayer2BlinkPair(
         tickVj,
         dt,
-        refs.vjLayer2BlinkStateRef.current,
+        blinkStateRef.current,
       );
       let m = 1;
       if (l2Mode === "randomBlink") m *= dip;
       if (l2Mode === "blinkInverse") m *= inverse;
-      refs.layer2VjOpacityMulRef.current = Math.max(0, Math.min(1, m));
+      opacityMulRef.current = Math.max(0, Math.min(1, m));
     } else {
-      resetVjLayer2BlinkState(refs.vjLayer2BlinkStateRef.current);
+      resetVjLayer2BlinkState(blinkStateRef.current);
     }
     if (l2Mode === "randomScale") {
-      refs.layer2VjScaleMulRef.current = stepVjLayer2ScaleAudio(
+      scaleMulRef.current = stepVjLayer2ScaleAudio(
         tickVj,
         dt,
-        refs.vjLayer2ScaleAudioStateRef.current,
+        scaleAudioStateRef.current,
         micRefractBoost,
       );
     } else {
-      resetVjLayer2ScaleAudioState(refs.vjLayer2ScaleAudioStateRef.current);
+      resetVjLayer2ScaleAudioState(scaleAudioStateRef.current);
     }
     if (l2Mode === "randomBurst") {
       const burst = stepVjLayer2RandomBurst(
         tickVj,
         dt,
-        refs.vjLayer2RandomBurstStateRef.current,
+        randomBurstStateRef.current,
       );
-      refs.layer2VjBurstOpacityMulRef.current = burst.opacity;
-      if (refs.vjLayer2StrobeScaleRef.current) {
-        refs.layer2VjScaleMulRef.current *= burst.strobeScaleMul;
+      burstOpacityMulRef.current = burst.opacity;
+      if (strobeScaleRef.current) {
+        scaleMulRef.current *= burst.strobeScaleMul;
       }
     } else {
-      resetVjLayer2RandomBurstState(refs.vjLayer2RandomBurstStateRef.current);
+      resetVjLayer2RandomBurstState(randomBurstStateRef.current);
     }
-    if (refs.vjLayer2PixelGlitchRef.current) {
+    if (pixelGlitchRef.current) {
       const glitchBoost = stepVjLayer2PixelGlitch(
         tickVj,
         dt,
-        refs.vjLayer2PixelGlitchStateRef.current,
+        pixelGlitchStateRef.current,
       );
       if (glitchBoost > 0) {
         effectiveFilterMode = 7;
@@ -187,13 +214,45 @@ export function applyMicDrivingRendererFrame(
         effectiveFilterScale = glitchBoost;
       }
     } else {
-      resetVjLayer2PixelGlitchState(refs.vjLayer2PixelGlitchStateRef.current);
+      resetVjLayer2PixelGlitchState(pixelGlitchStateRef.current);
     }
-  } else {
+    return true;
+  };
+  const layer2Vj = applyLayerVj(
+    refs.layer2ReadyRef.current,
+    refs.vjLayer2BlinkStateRef,
+    refs.vjLayer2ScaleAudioStateRef,
+    refs.vjLayer2RandomBurstStateRef,
+    refs.vjLayer2PixelGlitchStateRef,
+    refs.vjLayer2AutomationModeRef,
+    refs.vjLayer2StrobeScaleRef,
+    refs.vjLayer2PixelGlitchRef,
+    refs.layer2VjOpacityMulRef,
+    refs.layer2VjScaleMulRef,
+    refs.layer2VjBurstOpacityMulRef,
+  );
+  const layer3Vj = applyLayerVj(
+    refs.layer3ReadyRef.current,
+    refs.vjLayer3BlinkStateRef,
+    refs.vjLayer3ScaleAudioStateRef,
+    refs.vjLayer3RandomBurstStateRef,
+    refs.vjLayer3PixelGlitchStateRef,
+    refs.vjLayer3AutomationModeRef,
+    refs.vjLayer3StrobeScaleRef,
+    refs.vjLayer3PixelGlitchRef,
+    refs.layer3VjOpacityMulRef,
+    refs.layer3VjScaleMulRef,
+    refs.layer3VjBurstOpacityMulRef,
+  );
+  if (!layer2Vj && !layer3Vj) {
     resetVjLayer2BlinkState(refs.vjLayer2BlinkStateRef.current);
     resetVjLayer2ScaleAudioState(refs.vjLayer2ScaleAudioStateRef.current);
     resetVjLayer2RandomBurstState(refs.vjLayer2RandomBurstStateRef.current);
     resetVjLayer2PixelGlitchState(refs.vjLayer2PixelGlitchStateRef.current);
+    resetVjLayer2BlinkState(refs.vjLayer3BlinkStateRef.current);
+    resetVjLayer2ScaleAudioState(refs.vjLayer3ScaleAudioStateRef.current);
+    resetVjLayer2RandomBurstState(refs.vjLayer3RandomBurstStateRef.current);
+    resetVjLayer2PixelGlitchState(refs.vjLayer3PixelGlitchStateRef.current);
   }
 
   const invEl = refs.vjInvertStrobeOverlayRef.current;

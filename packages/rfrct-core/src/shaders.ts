@@ -34,6 +34,14 @@ uniform vec3 u_overlayTintRgb;
 uniform int u_overlayBlendMode;
 /** 1 = sample using distorted UV (uvR); 0 = undistorted screen UV (uv). */
 uniform float u_overlayFollowDistort;
+uniform sampler2D u_overlay2Layer;
+uniform float u_overlay2LayerActive;
+uniform float u_overlay2Opacity;
+uniform vec4 u_overlay2Cell;
+uniform float u_overlay2TintMode;
+uniform vec3 u_overlay2TintRgb;
+uniform int u_overlay2BlendMode;
+uniform float u_overlay2FollowDistort;
 /** 1 = scene composites over a transparent canvas (e.g. YouTube behind); enables RGBA output. */
 uniform float u_transparentSceneBg;
 /** VJ: tile & scroll logo texture vertically in image UV (0/1). */
@@ -463,6 +471,36 @@ vec4 sampleOverlayTex(vec2 uv) {
       t.rgb *= u_overlayTintRgb;
     } else {
       t.rgb = u_overlayTintRgb;
+    }
+  }
+  return t;
+}
+
+vec4 sampleOverlay2Tex(vec2 uv) {
+  if (u_overlay2LayerActive < 0.5) {
+    return vec4(0.0);
+  }
+  vec2 local = (uv - u_imageRect.xy) / u_imageRect.zw;
+  float uTex = (local.x - u_overlay2Cell.x) / max(u_overlay2Cell.z, 1e-6);
+  float vTex = (local.y - u_overlay2Cell.y) / max(u_overlay2Cell.w, 1e-6);
+  if (uTex < 0.0 || uTex > 1.0 || vTex < 0.0 || vTex > 1.0) {
+    return vec4(0.0);
+  }
+  vec2 edge = 1.0 / vec2(textureSize(u_overlay2Layer, 0));
+  if (
+    uTex <= edge.x ||
+    uTex >= 1.0 - edge.x ||
+    vTex <= edge.y ||
+    vTex >= 1.0 - edge.y
+  ) {
+    return vec4(0.0);
+  }
+  vec4 t = texture(u_overlay2Layer, vec2(uTex, vTex));
+  if (u_overlay2TintMode > 0.5) {
+    if (u_overlay2TintMode < 1.5) {
+      t.rgb *= u_overlay2TintRgb;
+    } else {
+      t.rgb = u_overlay2TintRgb;
     }
   }
   return t;
@@ -999,6 +1037,25 @@ void main() {
       }
       if (u_transparentSceneBg > 0.5) {
         outA = a + outA * (1.0 - a);
+      }
+    }
+  }
+
+  if (u_overlay2LayerActive > 0.5 && u_overlay2Opacity > 1e-5) {
+    vec2 ov2Uv = u_overlay2FollowDistort > 0.5 ? uvR : uv;
+    vec4 ov2 = sampleOverlay2Tex(ov2Uv);
+    float a2 = clamp(ov2.a * u_overlay2Opacity, 0.0, 1.0);
+    if (a2 > 1e-5) {
+      vec3 src2 = ov2.rgb;
+      int bm2 = u_overlay2BlendMode;
+      if (bm2 == 0) {
+        col = mix(col, src2, a2);
+      } else {
+        vec3 blended2 = overlayBlendRgb(col, src2, bm2);
+        col = mix(col, blended2, a2);
+      }
+      if (u_transparentSceneBg > 0.5) {
+        outA = a2 + outA * (1.0 - a2);
       }
     }
   }

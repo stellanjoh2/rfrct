@@ -14,6 +14,8 @@ import type { AppearanceSectionProps } from "./AppearanceSection";
 import type { BackdropSectionProps } from "./BackdropSection";
 import { SecondaryLayerSection } from "./SecondaryLayerSection";
 import type { SecondaryLayerSectionProps } from "./SecondaryLayerSection";
+import { TertiaryLayerSection } from "./TertiaryLayerSection";
+import type { TertiaryLayerSectionProps } from "./TertiaryLayerSection";
 import type { AudioSectionProps } from "./AudioSection";
 import type { DupStackSectionProps } from "./DupStackSection";
 import type { BloomSectionProps } from "./BloomSection";
@@ -35,6 +37,7 @@ export type SettingsSidebarProps = {
   appearance: AppearanceSectionProps;
   backdrop: BackdropSectionProps;
   secondaryLayer: SecondaryLayerSectionProps;
+  tertiaryLayer: TertiaryLayerSectionProps;
   lens: LensSectionProps;
   dupStack: DupStackSectionProps;
   bloom: BloomSectionProps;
@@ -57,6 +60,7 @@ export const SettingsSidebar = forwardRef<HTMLElement, SettingsSidebarProps>(
       appearance,
       backdrop,
       secondaryLayer,
+      tertiaryLayer,
       lens,
       dupStack,
       bloom,
@@ -158,6 +162,7 @@ export const SettingsSidebar = forwardRef<HTMLElement, SettingsSidebarProps>(
           />
           <AppearanceSection {...appearance} />
           <SecondaryLayerSection {...secondaryLayer} />
+          <TertiaryLayerSection {...tertiaryLayer} />
           <LensSection {...lens} />
           <BloomSection {...bloom} />
           <EffectsSection {...effects} />
