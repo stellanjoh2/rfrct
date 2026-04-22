@@ -420,11 +420,20 @@ export function buildRendererSyncParams(
     };
   })();
 
-  const detailStrength = Math.max(
+  const rawDetailStrength = Math.max(
     0,
     Math.min(1, s.detailDistortionStrength ?? 0),
   );
-  const detailEnabled = detailStrength > 1e-6;
+  const rawDirtStrength = Math.max(
+    0,
+    Math.min(1, s.detailDirtStrength ?? 0),
+  );
+  /** Respect explicit off (e.g. blod dev panel checkbox); sliders may stay >0 while preview is off. */
+  const gatedOff = s.detailDistortionEnabled === false;
+  const detailStrength = gatedOff ? 0 : rawDetailStrength;
+  const dirtStrength = gatedOff ? 0 : rawDirtStrength;
+  /** Normal-map pass runs for UV warp and/or dirt; they ramp independently. */
+  const detailEnabled = detailStrength > 1e-6 || dirtStrength > 1e-6;
 
   return {
     bgColor: [bg[0], bg[1], bg[2], bg[3]],
@@ -449,9 +458,7 @@ export function buildRendererSyncParams(
         0.25,
         Math.min(14, s.detailDistortionScale ?? 3.2),
       ),
-      dirtStrength: detailEnabled
-        ? Math.max(0, Math.min(1, s.detailDirtStrength ?? 0))
-        : 0,
+      dirtStrength,
       dirtRgb: (() => {
         const c = parseHexColor(s.detailDirtHex ?? "#665648");
         return [c[0], c[1], c[2]] as [number, number, number];

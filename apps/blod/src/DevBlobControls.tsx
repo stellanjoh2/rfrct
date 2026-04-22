@@ -576,10 +576,14 @@ export function DevBlobControls({
             max={1}
             step={0.02}
             value={s.detailDistortionStrength}
-            onChange={(e) =>
-              onChange({ detailDistortionStrength: Number(e.target.value) })
-            }
-            disabled={!s.detailDistortionEnabled}
+            onChange={(e) => {
+              const v = Number(e.target.value);
+              onChange({
+                detailDistortionStrength: Number.isFinite(v)
+                  ? Math.min(1, Math.max(0, v))
+                  : s.detailDistortionStrength,
+              });
+            }}
           />
         </label>
         <label className="blod-dev-field">
@@ -593,7 +597,6 @@ export function DevBlobControls({
             onChange={(e) =>
               onChange({ detailDistortionScale: Number(e.target.value) })
             }
-            disabled={!s.detailDistortionEnabled}
           />
         </label>
         <label className="blod-dev-field">
@@ -604,10 +607,14 @@ export function DevBlobControls({
             max={1}
             step={0.02}
             value={s.detailDirtStrength ?? 0}
-            onChange={(e) =>
-              onChange({ detailDirtStrength: Number(e.target.value) })
-            }
-            disabled={!s.detailDistortionEnabled}
+            onChange={(e) => {
+              const v = Number(e.target.value);
+              onChange({
+                detailDirtStrength: Number.isFinite(v)
+                  ? Math.min(1, Math.max(0, v))
+                  : (s.detailDirtStrength ?? 0),
+              });
+            }}
           />
         </label>
         <label className="blod-dev-field">
@@ -617,14 +624,12 @@ export function DevBlobControls({
               type="color"
               value={dirtHex}
               onChange={(e) => onChange({ detailDirtHex: e.target.value })}
-              disabled={!s.detailDistortionEnabled}
             />
             <input
               type="text"
               value={dirtHex}
               spellCheck={false}
               onChange={(e) => onChange({ detailDirtHex: e.target.value })}
-              disabled={!s.detailDistortionEnabled}
               aria-label="Dirt colour hex"
             />
           </div>

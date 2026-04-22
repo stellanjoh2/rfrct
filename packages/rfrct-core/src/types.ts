@@ -88,8 +88,9 @@ export type GlassGradeParams = {
   strength: number;
 };
 
-/** High-frequency UV warp from a tangent-space normal map (lens interior only). */
+/** High-frequency normal map inside the lens: UV warp and/or dirt multiply (independently ramped). */
 export type DetailDistortionParams = {
+  /** True when either warp strength or dirt strength uses the detail texture. */
   enabled: boolean;
   /** 0–1 UI; mapped to displacement amplitude in the renderer. */
   strength: number;

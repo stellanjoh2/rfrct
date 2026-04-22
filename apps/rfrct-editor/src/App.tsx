@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { SettingsSidebar } from "./components/settings/SettingsSidebar";
 import { Focus } from "./focus";
 import {
@@ -208,7 +215,8 @@ export function App() {
     D.detailDirtStrength,
   );
   const [detailDirtHex, setDetailDirtHex] = useState(D.detailDirtHex);
-  const detailDistortionEnabled = detailDistortionStrength > 1e-4;
+  const detailDistortionEnabled =
+    detailDistortionStrength > 1e-6 || detailDirtStrength > 1e-6;
   const [lensMouseInput, setLensMouseInput] = useState(D.lensMouseInput);
   /** 0 = light / snappy follow, 1 = heavy / sluggish liquid. */
   const [fluidDensity, setFluidDensity] = useState(D.fluidDensity);
@@ -1258,6 +1266,7 @@ export function App() {
             blobCenterY: blobCenterRef.current.y,
           }),
         );
+        rr.requestDraw();
       }, ZOOM_ANIM_RESUME_MS);
 
       const zoomIntensity = 0.00115;
@@ -1282,6 +1291,7 @@ export function App() {
             blobCenterY: blobCenterRef.current.y,
           }),
         );
+        rr.requestDraw();
       }
       el.removeEventListener("wheel", onWheel);
     };
@@ -1330,7 +1340,7 @@ export function App() {
     };
   }, [syncAnimationFrozen]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const r = rendererRef.current;
     if (!r) return;
     if (micDrivingRefraction) {
@@ -1404,6 +1414,7 @@ export function App() {
       }),
     );
     syncSecondaryOverlay();
+    r.requestDraw();
   }, [
     bgHex,
     blobSize,
@@ -2204,9 +2215,13 @@ export function App() {
       setFilterStrength(d.filterStrength);
       setFilterScale(d.filterScale);
       setFilterMotionSpeed(d.filterMotionSpeed);
-      setDetailDistortionStrength(d.detailDistortionStrength);
+      setDetailDistortionStrength(
+        d.detailDistortionEnabled ? d.detailDistortionStrength : 0,
+      );
       setDetailDistortionScale(d.detailDistortionScale);
-      setDetailDirtStrength(d.detailDirtStrength);
+      setDetailDirtStrength(
+        d.detailDistortionEnabled ? d.detailDirtStrength : 0,
+      );
       setDetailDirtHex(d.detailDirtHex);
       setLensMouseInput(d.lensMouseInput);
       setFluidDensity(d.fluidDensity);

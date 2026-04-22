@@ -283,9 +283,12 @@ export function LensSection({
             max={1}
             step={0.02}
             value={detailDistortionStrength}
-            onChange={(e) =>
-              setDetailDistortionStrength(Number(e.target.value))
-            }
+            onChange={(e) => {
+              const v = Number(e.target.value);
+              setDetailDistortionStrength(
+                Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : 0,
+              );
+            }}
             aria-label="Detailed distortion strength"
           />
         </div>
@@ -320,7 +323,12 @@ export function LensSection({
             max={1}
             step={0.02}
             value={detailDirtStrength}
-            onChange={(e) => setDetailDirtStrength(Number(e.target.value))}
+            onChange={(e) => {
+              const v = Number(e.target.value);
+              setDetailDirtStrength(
+                Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : 0,
+              );
+            }}
             aria-label="Dirt stain strength from normal map"
           />
         </div>
