@@ -1,4 +1,10 @@
-import { forwardRef, useEffect, useState } from "react";
+import { forwardRef, useCallback, useEffect, useRef, useState } from "react";
+import {
+  Export as ExportIcon,
+  GearSix,
+  Sparkle,
+  Waveform,
+} from "@phosphor-icons/react";
 import { AppearanceSection } from "./AppearanceSection";
 import { BackdropSection } from "./BackdropSection";
 import { AudioSection } from "./AudioSection";
@@ -77,9 +83,13 @@ export const SettingsSidebar = forwardRef<HTMLElement, SettingsSidebarProps>(
     },
     ref,
   ) {
-  const [activeTab, setActiveTab] = useState<"design" | "vj" | "export">(
+  const [activeTab, setActiveTab] = useState<"design" | "vj" | "export" | "settings">(
     "design",
   );
+  const [scrollbarActive, setScrollbarActive] = useState(false);
+  const [scrollThumb, setScrollThumb] = useState({ top: 0, height: 0, offsetTop: 0 });
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const scrollHideTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     const clearRangeDrag = () => {
@@ -95,6 +105,53 @@ export const SettingsSidebar = forwardRef<HTMLElement, SettingsSidebarProps>(
       clearRangeDrag();
     };
   }, []);
+
+  const syncScrollThumb = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const { scrollTop, scrollHeight, clientHeight } = el;
+    if (scrollHeight <= clientHeight + 1) {
+      setScrollThumb({ top: 0, height: 0, offsetTop: el.offsetTop });
+      return;
+    }
+    const thumbHeight = Math.max(
+      28,
+      Math.round((clientHeight * clientHeight) / scrollHeight),
+    );
+    const maxTop = Math.max(0, clientHeight - thumbHeight);
+    const top =
+      maxTop <= 0
+        ? 0
+        : Math.round((scrollTop / (scrollHeight - clientHeight)) * maxTop);
+    setScrollThumb({ top, height: thumbHeight, offsetTop: el.offsetTop });
+  }, []);
+
+  const activateScrollbar = useCallback(() => {
+    setScrollbarActive(true);
+    if (scrollHideTimerRef.current !== null) {
+      window.clearTimeout(scrollHideTimerRef.current);
+    }
+    scrollHideTimerRef.current = window.setTimeout(() => {
+      setScrollbarActive(false);
+      scrollHideTimerRef.current = null;
+    }, 780);
+  }, []);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => {
+      syncScrollThumb();
+    });
+    ro.observe(el);
+    syncScrollThumb();
+    return () => {
+      ro.disconnect();
+      if (scrollHideTimerRef.current !== null) {
+        window.clearTimeout(scrollHideTimerRef.current);
+      }
+    };
+  }, [syncScrollThumb]);
 
   return (
     <aside
@@ -126,8 +183,10 @@ export const SettingsSidebar = forwardRef<HTMLElement, SettingsSidebarProps>(
             aria-controls="panel-design"
             className={`sidebar-tab ${activeTab === "design" ? "sidebar-tab--active" : ""}`}
             onClick={() => setActiveTab("design")}
+            title="Design"
+            aria-label="Design"
           >
-            Design
+            <Sparkle aria-hidden size={20} weight="fill" />
           </button>
           <button
             type="button"
@@ -137,8 +196,10 @@ export const SettingsSidebar = forwardRef<HTMLElement, SettingsSidebarProps>(
             aria-controls="panel-vj"
             className={`sidebar-tab ${activeTab === "vj" ? "sidebar-tab--active" : ""}`}
             onClick={() => setActiveTab("vj")}
+            title="VJ"
+            aria-label="VJ"
           >
-            VJ
+            <Waveform aria-hidden size={20} weight="duotone" />
           </button>
           <button
             type="button"
@@ -148,64 +209,122 @@ export const SettingsSidebar = forwardRef<HTMLElement, SettingsSidebarProps>(
             aria-controls="panel-export"
             className={`sidebar-tab ${activeTab === "export" ? "sidebar-tab--active" : ""}`}
             onClick={() => setActiveTab("export")}
+            title="Export"
+            aria-label="Export"
           >
-            Export
+            <ExportIcon aria-hidden size={20} weight="duotone" />
+          </button>
+          <button
+            type="button"
+            role="tab"
+            id="tab-settings"
+            aria-selected={activeTab === "settings"}
+            aria-controls="panel-settings"
+            className={`sidebar-tab ${activeTab === "settings" ? "sidebar-tab--active" : ""}`}
+            onClick={() => setActiveTab("settings")}
+            title="Settings"
+            aria-label="Settings"
+          >
+            <GearSix aria-hidden size={20} weight="duotone" />
           </button>
         </div>
       </header>
-      {activeTab === "design" ? (
-        <div
-          id="panel-design"
-          role="tabpanel"
-          aria-labelledby="tab-design"
-          className="sidebar-tab-panel"
-        >
-          <div className="sidebar-panel-body">
-            <TemplatesSection {...templates} />
-            <BackdropSection {...backdrop} />
-            <VideoBackdropSection {...videoBackdrop} />
-            <h2 title="Primary artwork upload, scale, and color">
-              Layer 1
-            </h2>
-            <UploadBlock
-              onFile={onFile}
-              fileName={layer1FileName}
-              onRemoveFile={onRemoveLayer1}
-            />
-            <AppearanceSection {...appearance} />
-            <SecondaryLayerSection {...secondaryLayer} />
-            <TertiaryLayerSection {...tertiaryLayer} />
-            <LensSection {...lens} />
-            <BloomSection {...bloom} />
-            <EffectsSection {...effects} />
-            <DupStackSection {...dupStack} />
-            <MouseInputSection {...mouseInput} />
-            <ShareSettingsSection {...shareSettings} />
-          </div>
+      <div
+        ref={scrollRef}
+        className={`sidebar-scroll ${scrollbarActive ? "sidebar-scroll--active" : ""}`}
+        onScroll={() => {
+          syncScrollThumb();
+          activateScrollbar();
+        }}
+      >
+        <div className="sidebar-scroll-content">
+          {activeTab === "design" ? (
+            <div
+              id="panel-design"
+              role="tabpanel"
+              aria-labelledby="tab-design"
+              className="sidebar-tab-panel"
+            >
+              <div className="sidebar-panel-body">
+                <h2 className="sidebar-page-title">Design</h2>
+                <TemplatesSection {...templates} />
+                <BackdropSection {...backdrop} />
+                <VideoBackdropSection {...videoBackdrop} />
+                <h2 title="Primary artwork upload, scale, and color">
+                  Layer 1
+                </h2>
+                <UploadBlock
+                  onFile={onFile}
+                  fileName={layer1FileName}
+                  onRemoveFile={onRemoveLayer1}
+                />
+                <AppearanceSection {...appearance} />
+                <SecondaryLayerSection {...secondaryLayer} />
+                <TertiaryLayerSection {...tertiaryLayer} />
+                <LensSection {...lens} />
+                <BloomSection {...bloom} />
+                <EffectsSection {...effects} />
+                <DupStackSection {...dupStack} />
+                <MouseInputSection {...mouseInput} />
+                <ShareSettingsSection {...shareSettings} />
+              </div>
+            </div>
+          ) : activeTab === "vj" ? (
+            <div
+              id="panel-vj"
+              role="tabpanel"
+              aria-labelledby="tab-vj"
+              className="sidebar-tab-panel"
+            >
+              <div className="sidebar-panel-body">
+                <h2 className="sidebar-page-title">VJ</h2>
+                <AudioSection {...audio} />
+              </div>
+            </div>
+          ) : activeTab === "export" ? (
+            <div
+              id="panel-export"
+              role="tabpanel"
+              aria-labelledby="tab-export"
+              className="sidebar-tab-panel"
+            >
+              <div className="sidebar-panel-body">
+                <h2 className="sidebar-page-title">Export</h2>
+                <ExportPage {...exportPage} />
+              </div>
+            </div>
+          ) : (
+            <div
+              id="panel-settings"
+              role="tabpanel"
+              aria-labelledby="tab-settings"
+              className="sidebar-tab-panel"
+            >
+              <div className="sidebar-panel-body">
+                <h2 className="sidebar-page-title">Settings</h2>
+                <section>
+                  <p className="field-hint">
+                    Global app settings will live here soon. The tab is ready for future controls.
+                  </p>
+                </section>
+              </div>
+            </div>
+          )}
         </div>
-      ) : activeTab === "vj" ? (
-        <div
-          id="panel-vj"
-          role="tabpanel"
-          aria-labelledby="tab-vj"
-          className="sidebar-tab-panel"
-        >
-          <div className="sidebar-panel-body">
-            <AudioSection {...audio} />
-          </div>
-        </div>
-      ) : (
-        <div
-          id="panel-export"
-          role="tabpanel"
-          aria-labelledby="tab-export"
-          className="sidebar-tab-panel"
-        >
-          <div className="sidebar-panel-body">
-            <ExportPage {...exportPage} />
-          </div>
-        </div>
-      )}
+      </div>
+      <div
+        className={`sidebar-scroll-thumb${
+          scrollbarActive && scrollThumb.height > 0
+            ? " sidebar-scroll-thumb--active"
+            : ""
+        }`}
+        style={{
+          top: `${scrollThumb.offsetTop}px`,
+          height: `${scrollThumb.height}px`,
+          transform: `translateY(${scrollThumb.top}px)`,
+        }}
+        aria-hidden
+      />
     </aside>
   );
   },

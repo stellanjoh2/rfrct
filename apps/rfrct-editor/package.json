@@ -11,6 +11,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@phosphor-icons/react": "^2.1.10",
     "@rfrct/core": "*",
     "gifenc": "^1.0.3",
     "html2canvas": "^1.4.1",
