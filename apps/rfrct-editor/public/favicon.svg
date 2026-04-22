@@ -1,11 +1,3 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <defs>
-    <!-- Soft sphere lighting; core matches --brand #beee98 -->
-    <radialGradient id="sphere" cx="32%" cy="32%" r="70%">
-      <stop offset="0%" stop-color="#e5fcd0"/>
-      <stop offset="42%" stop-color="#beee98"/>
-      <stop offset="100%" stop-color="#7ec96e"/>
-    </radialGradient>
-  </defs>
-  <circle cx="16" cy="16" r="15" fill="url(#sphere)"/>
+  <circle cx="16" cy="16" r="14" fill="#beee98" />
 </svg>
