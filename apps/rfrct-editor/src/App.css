@@ -273,9 +273,9 @@ body {
   right: max(var(--glass-float-gutter), env(safe-area-inset-right, 0px));
   top: max(var(--glass-float-gutter), env(safe-area-inset-top, 0px));
   bottom: max(var(--glass-float-gutter), env(safe-area-inset-bottom, 0px));
-  width: min(100%, 340px);
+  width: min(100%, 384px);
   max-width: calc(100vw - var(--glass-float-gutter) * 2);
-  --sidebar-pad-x: 22px;
+  --sidebar-pad-x: 26px;
   /** Inset for tab row inside the solid header (keep modest so chrome isn’t taller than the bottom scroll pad) */
   --sidebar-pad-top: 0px;
   --sidebar-pad-bottom: 32px;
