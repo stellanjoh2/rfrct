@@ -16,8 +16,8 @@
   --glass-text: rgba(255, 255, 255, 0.94);
   --glass-muted: rgba(255, 255, 255, 0.52);
   --glass-blur: 22px;
-  /* Space around the panel so it floats off the viewport edges */
-  --glass-float-gutter: 20px;
+  /* Space between the settings panel and the window (top, right, bottom) */
+  --glass-float-gutter: 48px;
   --ui-ease: cubic-bezier(0.32, 0.08, 0.24, 1);
   --ui-duration: 0.22s;
   --ui-duration-slow: 0.36s;
@@ -352,7 +352,7 @@ body {
 
 @media (max-width: 640px) {
   .glass-sidebar {
-    --glass-float-gutter: 12px;
+    --glass-float-gutter: 20px;
     border-radius: 8px;
   }
 }
